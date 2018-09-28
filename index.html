@@ -1,0 +1,35 @@
+<html>
+  <head>
+    <title>Fitch-style proof helper</title>
+    <link rel="stylesheet" type="text/css" href="css.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore.js'></script>
+  </head>
+  <body>
+
+    <h1>Fitch-style proof helper</h1>
+
+    <div id="keys">
+    	<p><span class="key">,</span> Conjunction ∧</p>
+    	<p><span class="key">|</span> Disjunction ∨</p>
+    	<p><span class="key">&gt;</span> Implication →</p>
+    	<p><span class="key">-</span> Negation ¬</p>
+    	<p><span class="key">_</span> Bottom ⊥</p>
+    	<p><span class="key">=</span> Biconditional ↔</p>
+    	<br />
+    	<p><span class="key">[</span>, <span class="key">]</span> may replace <span class="key">(</span>, <span class="key">)</span>.</p>
+    	<br />
+    	<p><span class="key">enter</span> New proposition</p>
+    	<p><span class="key">tab</span> New assumption (<span id="new-assumption-restriction">not on first line</span>)</p>
+    	<p><span class="key">shift+tab</span> Finish assumption (<span id="end-assumption-restriction">last line only</span>)</p>
+    	<br />
+    	<p><span class="parse-error">Malformed proposition</span></p>
+    	<p><span class="invalid">Invalid step</span></p>
+    </div>
+
+    <div id="proof-root"></div>
+
+    <script src="main.js"></script>
+  </body>
+</html>
