@@ -24,7 +24,7 @@ const CONJUNCTION = "&and;";
 const DISJUNCTION = "&or;";
 const OPEN = "(";
 const CLOSE = ")";
-const BOTTOM = "&per;";
+const BOTTOM = "&perp;";
 
 function prettify(string, minify=true) {
   var result = "";
