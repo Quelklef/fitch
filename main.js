@@ -17,14 +17,14 @@ POSSIBLE FEATURES:
   . _
 */
 
-const IMPLICATION = "→";
-const BICONDITIONAL = "↔";
-const NEGATION = "¬";
-const CONJUNCTION = "∧";
-const DISJUNCTION = "∨";
+const IMPLICATION = "&rarr;";
+const BICONDITIONAL = "&harr;";
+const NEGATION = "&not;";
+const CONJUNCTION = "&and;";
+const DISJUNCTION = "&or;";
 const OPEN = "(";
 const CLOSE = ")";
-const BOTTOM = "⊥";
+const BOTTOM = "&per;";
 
 function prettify(string, minify=true) {
   var result = "";
@@ -51,26 +51,26 @@ function prettify(string, minify=true) {
 }
 
 function parseParens(string) {
-  if (string[0] === OPEN) {
-    let [result, rest] = parse(string.slice(1));
-    if (rest[0] !== CLOSE) {
+  if (string.startsWith(OPEN)) {
+    let [result, rest] = parse(string.slice(OPEN.length));
+    if (!rest.startsWith(CLOSE)) {
       throw "Bad syntax";
     }
-    return [result, rest.slice(1)];
+    return [result, rest.slice(CLOSE.length)];
   }
 }
 
 function parseAtom(string) {
-  if (string[0] === OPEN) { return parseParens(string); }
+  if (string.startsWith(OPEN)) { return parseParens(string); }
   
   if (string === "") {
     throw "Expected atom";
   }
-  
-  if (string[0] === BOTTOM) {
+
+  if (string.startsWith(BOTTOM)) {
     return [{
       kind: "bottom"
-    }, string.slice(1)];
+    }, string.slice(BOTTOM.length)];
   }
   
   return [{
@@ -80,8 +80,8 @@ function parseAtom(string) {
 }
 
 function parseNegation(string) {
-  if (string[0] === NEGATION) {
-    let [body, rest] = parseNegation(string.slice(1));
+  if (string.startsWith(NEGATION)) {
+    let [body, rest] = parseNegation(string.slice(NEGATION.length));
     return [{
       kind: "negation",
       body: body
@@ -92,8 +92,8 @@ function parseNegation(string) {
 
 function parseDisjunction(string) {
   let [lhs, rest] = parseNegation(string);
-  if (rest[0] === DISJUNCTION) {
-    let [rhs, restt] = parseNegation(rest.slice(1));
+  if (rest.startsWith(DISJUNCTION)) {
+    let [rhs, restt] = parseNegation(rest.slice(DISJUNCTION.length));
     return [{
       kind: "disjunction",
       lhs: lhs,
@@ -105,8 +105,8 @@ function parseDisjunction(string) {
 
 function parseConjunction(string) {
   let [lhs, rest] = parseDisjunction(string);
-  if (rest[0] === CONJUNCTION) {
-    let [rhs, restt] = parseDisjunction(rest.slice(1));
+  if (rest.startsWith(CONJUNCTION)) {
+    let [rhs, restt] = parseDisjunction(rest.slice(CONJUNCTION.length));
     return [{
       kind: "conjunction",
       lhs: lhs,
@@ -118,8 +118,8 @@ function parseConjunction(string) {
 
 function parseImplication(string) {
   let [lhs, rest] = parseConjunction(string);
-  if (rest[0] === IMPLICATION) {
-    let [rhs, restt] = parseConjunction(rest.slice(1));
+  if (rest.startsWith(IMPLICATION)) {
+    let [rhs, restt] = parseConjunction(rest.slice(IMPLICATION.length));
     return [{
       kind: "implication",
       lhs: lhs,
@@ -131,8 +131,8 @@ function parseImplication(string) {
 
 function parseBiconditional(string) {
   let [lhs, rest] = parseImplication(string);
-  if (rest[0] === BICONDITIONAL) {
-    let [rhs, restt] = parseImplication(rest.slice(1));
+  if (rest.startsWith(BICONDITIONAL)) {
+    let [rhs, restt] = parseImplication(rest.slice(BICONDITIONAL.length));
     return [{
       kind: "biconditional",
       lhs: lhs,
