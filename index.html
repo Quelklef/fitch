@@ -10,7 +10,8 @@
 
     <h1>Fitch-style proof helper</h1>
 
-    <div id="keys">
+    <div id="sidebar">
+      <h4>Keys</h4>
     	<p><span class="key">,</span> Conjunction &and;</p>
     	<p><span class="key">|</span> Disjunction &or;</p>
     	<p><span class="key">&gt;</span> Implication &rarr;</p>
@@ -18,14 +19,29 @@
     	<p><span class="key">_</span> Bottom &perp;</p>
     	<p><span class="key">=</span> Biconditional &harr;</p>
     	<br />
-    	<p><span class="key">[</span>, <span class="key">]</span> may replace <span class="key">(</span>, <span class="key">)</span>.</p>
-    	<br />
     	<p><span class="key">enter</span> New proposition</p>
     	<p><span class="key">tab</span> New assumption (<span id="new-assumption-restriction">not on first line</span>)</p>
     	<p><span class="key">shift+tab</span> Finish assumption (<span id="end-assumption-restriction">last line only</span>)</p>
+
     	<br />
+    	<h4>Feedback</h4>
     	<p><span class="parse-error">Malformed proposition</span></p>
     	<p><span class="invalid">Invalid step</span></p>
+
+      <br />
+      <h4>Rules</h4>
+      <p class="rule">&and;I: A &amp; B &there4; A&and;B</p>
+      <p class="rule">&and;E: A&and;B &there4; A</p>
+      <p class="rule">&and;E: A&and;B &there4; B</p>
+      <p class="rule">&or;I: A &there4; A&or;B</p>
+      <p class="rule">&or;E: A&or;B &amp; A&#8866;C &amp; B&#8866;C &there4; C</p>
+      <p class="rule">&rarr;I: A&#8866;B &there4; A&rarr;B</p>
+      <p class="rule">&rarr;E: A&rarr;B &amp; A &there4; B</p>
+      <p class="rule">&harr;I: A&#8866B &amp; B&#8866A &there4; A&harr;B</p>
+      <p class="rule">&harr;E: A&harr;B &amp; A &there4; B</p>
+      <p class="rule">&harr;E: A&harr;B &amp; B &there4; A</p>
+      <p class="rule">&perp;I: A&and;&not;A &there4; &perp;</p>
+      <p class="rule">&perp;E: A&#8866;&perp; &there4; &not;A</p>
     </div>
 
     <div id="proof-root"></div>

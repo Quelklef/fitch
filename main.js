@@ -40,9 +40,7 @@ function prettify(string, minify=true) {
         ",": CONJUNCTION,
         "|": DISJUNCTION,
         "(": OPEN,
-        "[": OPEN,
         ")": CLOSE,
-        "]": CLOSE,
         "_": BOTTOM
       }[char] || (minify ? "" : char);
     }

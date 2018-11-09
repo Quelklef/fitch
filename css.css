@@ -7,11 +7,11 @@ h1 {
 body, body .input {
   font-family: "Cousine", monospace; }
 
-#keys {
-  font-size: 12px;
+#sidebar {
   position: fixed;
   top: 15px;
-  left: 15px; }
+  left: 15px;
+  font-size: 12px; }
 
 .key {
   background-color: rgba(211, 211, 211, 0.3);
@@ -121,5 +121,7 @@ body, body .input {
     color: black; }
   100% {
     background-color: transparent; } }
+.rule {
+  letter-spacing: 2px; }
 
 /*# sourceMappingURL=css.css.map */
