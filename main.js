@@ -30,7 +30,8 @@ const binaryOps = [IMPLICATION, BICONDITIONAL, CONJUNCTION, DISJUNCTION];
 
 function parseName(code) {
   /* Names must be single-char */
-  if (/^[a-zA-Z]$/.test(code[0])) {
+  // Cannot use E and V as they're for exists/forall
+  if (/^[a-zA-Z]$/.test(code[0]) && code[0] !== "E" && code[0] !== "V") {
     return [ {kind: "name", name: code[0], sourcecode: code[0]}
            , code.slice(1)
            ];
@@ -39,8 +40,8 @@ function parseName(code) {
   }
 }
 
-function parseUnaryOp(code, operator, kind) {
-  if (code[0] !== operator) {
+function parseUnaryOp(code, operators, kind) {
+  if (!operators.includes(code[0])) {
     throw "Expected " + operator;
   }
 
@@ -105,12 +106,16 @@ function parseAtom(code) {
       return [ast, rest.slice(1)];
       break;
     case "-":
+    case "~":
+    case "!":
       return parseUnaryOp(code, code[0], NEGATION);
       break;
     case "\\":
+    case "V":
       return parseExistentialOp(code, code[0], FORALL);
       break;
     case "@":
+    case "E":
       return parseExistentialOp(code, code[0], EXISTS);
       break;
   }
@@ -123,12 +128,12 @@ function parseAtom(code) {
   }
 }
 
-function parseBinaryOp(code, operator, kind, parseFunc) {
+function parseBinaryOp(code, operators, kind, parseFunc) {
   /* Attempts to parse a binary operator.
      If the operator is not present, equivalent to `parseFunc(code)`. */
   var lhs, connective, rhs, rest;
   [lhs, rest] = parseFunc(code);
-  if (rest === "" || rest[0] !== operator) {
+  if (rest === "" || !operators.includes(rest[0])) {
     return [lhs, rest];
   }
   [connective, rest] = [rest[0], rest.substring(1)];
@@ -138,10 +143,10 @@ function parseBinaryOp(code, operator, kind, parseFunc) {
     ];
 }
 
-function parseBiconditional(code) { return parseBinaryOp(code, "=", BICONDITIONAL, parseAtom); }
-function parseImplication(code) { return parseBinaryOp(code, ">", IMPLICATION, parseBiconditional); }
-function parseDisjunction(code) { return parseBinaryOp(code, "|", DISJUNCTION, parseImplication); }
-function parseConjunction(code) { return parseBinaryOp(code, ",", CONJUNCTION, parseDisjunction); }
+function parseBiconditional(code) { return parseBinaryOp(code, ["="], BICONDITIONAL, parseAtom); }
+function parseImplication(code) { return parseBinaryOp(code, [">"], IMPLICATION, parseBiconditional); }
+function parseDisjunction(code) { return parseBinaryOp(code, ["|"], DISJUNCTION, parseImplication); }
+function parseConjunction(code) { return parseBinaryOp(code, [",", ".", "&"], CONJUNCTION, parseDisjunction); }
 
 function parseSimpleProp(code) {
   /* Proposition which is not a variable declaration */
@@ -178,25 +183,31 @@ function parseProposition(code) {
 }
 
 function prettifyChar(char) {
-  if (/^[a-zA-Z]$/i.test(char)) {
-    return char;
-  }
-
   const mapping = {
     ">": IMPLICATION,
     "=": BICONDITIONAL,
     "-": NEGATION,
+    "~": NEGATION,
+    "!": NEGATION,
     ",": CONJUNCTION,
+    ".": CONJUNCTION,
+    "&": CONJUNCTION,
     "|": DISJUNCTION,
     "(": OPEN,
     ")": CLOSE,
     "_": BOTTOM,
     "\\": FORALL,
+    "V": FORALL,
     "@": EXISTS,
+    "E": EXISTS,
   };
 
   if (char in mapping) {
     return mapping[char];
+  }
+
+  if (/^[a-zA-Z]$/i.test(char)) {
+    return char;
   }
 
   throw "Invalid char";
@@ -454,7 +465,7 @@ function varRepl(ast, nameFrom, nameTo) {
     case BICONDITIONAL:
       return {kind: ast.kind, lhs: varRepl(ast.lhs, nameFrom, nameTo), rhs: varRepl(ast.rhs, nameFrom, nameTo), sourcecode: ast.sourcecode};
     case NEGATION:
-      return {kind: ast.kind, body: varRepl(ast.body, nameFrom, nameTo), sourcecode: sourcecode}
+      return {kind: ast.kind, body: varRepl(ast.body, nameFrom, nameTo), sourcecode: ast.sourcecode}
     case FORALL:
     case EXISTS:
       return {kind: ast.kind, name: astEq(ast.name, nameFrom) ? nameTo : ast.name, body: ast.body, sourcecode: ast.sourcecode};
@@ -480,7 +491,7 @@ function allNames(ast) {
     case BICONDITIONAL:
       return new Set([...allNames(ast.lhs), ...allNames(ast.rhs)]);
     case NEGATION:
-      return allName(ast.body);
+      return allNames(ast.body);
     case FORALL:
     case EXISTS:
       return new Set([ast.name, ...allNames(ast.body)]);
