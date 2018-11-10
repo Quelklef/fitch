@@ -469,7 +469,10 @@ function $makeLine(line, lineno, justification) {
       .append( $('<input>', {class: "input"}).val(line.sourcecode)
         .on('input', textboxChangeHandler)
         .on('keydown', e => {
-          metaKeyHandler(e);
+          // Only call meta handler on backspace if empty input
+          if (e.key !== "Backspace" || e.target.value === "") {
+            metaKeyHandler(e);
+          }
           return !["Tab"].includes(e.key);
         }) )
       .append( $('<span>', {class: "overlay"}).html(prettify(line.sourcecode)) ) )
@@ -507,7 +510,6 @@ class Proof {
   }
 
   render(initScope = [], initLinenos = [1]) {
-    console.log(this);
     /* `initScope` is all the lines that can be used as proof
        `initlinenos` is a parallel list of the line nubers for the scope
        Returns a jQuery entity */
@@ -701,34 +703,30 @@ function metaKeyHandler(ev) {
         break;
 
       case "Backspace":
+        // Assumption: Line is empty. Ensured because this function is only called if the line is empty.
         // If backspacing an empty line, delete it
         let prevLoc = proof.prevLocation(focusLoc);
-        if ($target.val() === "") {
+        proof.mapItem(
+          focusLoc.slice(0, focusLoc.length - 1),
+          proof => {
+            proof.items.splice(focusLoc[focusLoc.length - 1], 1);
+            return proof;
+          }
+        );
+
+        // If that line was the only line in its proof,
+        if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
+          // then an empty proof was left and we should remove it
           proof.mapItem(
-            focusLoc.slice(0, focusLoc.length - 1),
+            focusLoc.slice(0, focusLoc.length - 2),
             proof => {
-              proof.items.splice(focusLoc[focusLoc.length - 1], 1);
+              proof.items.splice(focusLoc[focusLoc.length - 2], 1);
               return proof;
             }
           );
-
-          // If that line was the only line in its proof,
-          if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
-            // then an empty proof was left and we should remove it
-            proof.mapItem(
-              focusLoc.slice(0, focusLoc.length - 2),
-              proof => {
-                proof.items.splice(focusLoc[focusLoc.length - 2], 1);
-                return proof;
-              }
-            );
-          }
-          show();
-          focusAt(prevLoc);
-        } else {
-          // If didn't need to delete line, update
-          textboxChangeHandler(ev);
         }
+        show();
+        focusAt(prevLoc);
         break;
     }
   }
