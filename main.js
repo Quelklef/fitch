@@ -22,626 +22,705 @@ const BICONDITIONAL = "&harr;";
 const NEGATION = "&not;";
 const CONJUNCTION = "&and;";
 const DISJUNCTION = "&or;";
-const OPEN = "(";
-const CLOSE = ")";
 const BOTTOM = "&perp;";
 
-function prettify(string, minify=true) {
-  var result = "";
-  for (let i = 0; i < string.length; i++) {
-    let char = string[i];
-    if (/^[a-z]$/i.test(char)) {
-      result += char.toUpperCase();
+const FORALL = "&forall;";
+const EXISTS = "&exist;";
+const VAR_OPEN = "[";
+const VAR_CLOSE = "]";
+
+const OPEN = "(";
+const CLOSE = ")";
+
+const unaryOps = [NEGATION, FORALL, EXISTS];
+const binaryOps = [IMPLICATION, BICONDITIONAL, CONJUNCTION, DISJUNCTION];
+
+function parseName(code) {
+  var name = "";
+  for (let i = 0; i < code.length; i++) {
+    let char = code[i];
+    if (/^[a-zA-Z]$/i.test(char)) {
+      name += char;
     } else {
-      result += {
-        ">": IMPLICATION,
-        "=": BICONDITIONAL,
-        "-": NEGATION,
-        ",": CONJUNCTION,
-        "|": DISJUNCTION,
-        "(": OPEN,
-        ")": CLOSE,
-        "_": BOTTOM
-      }[char] || (minify ? "" : char);
+      break;
     }
   }
-  return result;
-}
-
-function parseParens(string) {
-  if (string.startsWith(OPEN)) {
-    let [result, rest] = parse(string.slice(OPEN.length));
-    if (!rest.startsWith(CLOSE)) {
-      throw "Bad syntax";
-    }
-    return [result, rest.slice(CLOSE.length)];
+  if (name === "") {
+    throw "empty name! no!";
   }
+  return [ {kind: "name", name: name, sourcecode: code.slice(0, name.length)}
+    , code.substring(name.length)
+    ];
 }
 
-function parseAtom(string) {
-  if (string.startsWith(OPEN)) { return parseParens(string); }
-  
-  if (string === "") {
-    throw "Expected atom";
+function parseUnaryOp(code, operator, kind) {
+  if (code[0] !== operator) {
+    throw "Expected " + operator;
   }
 
-  if (string.startsWith(BOTTOM)) {
-    return [{
-      kind: "bottom"
-    }, string.slice(BOTTOM.length)];
-  }
-  
-  return [{
-    kind: "variable",
-    name: string[0]
-  }, string.slice(1)];
+  let [body, rest] = parseAtom(code.substring(1));
+  return [ {kind: kind, body: body, sourcecode: code.slice(0, code.length - rest.length)}
+    , rest
+    ];
 }
 
-function parseNegation(string) {
-  if (string.startsWith(NEGATION)) {
-    let [body, rest] = parseNegation(string.slice(NEGATION.length));
-    return [{
-      kind: "negation",
-      body: body
-    }, rest];
-  }
-  return parseAtom(string);
-}
-
-function parseDisjunction(string) {
-  let [lhs, rest] = parseNegation(string);
-  if (rest.startsWith(DISJUNCTION)) {
-    let [rhs, restt] = parseNegation(rest.slice(DISJUNCTION.length));
-    return [{
-      kind: "disjunction",
-      lhs: lhs,
-      rhs: rhs
-    }, restt];
-  }
-  return [lhs, rest];
-}
-
-function parseConjunction(string) {
-  let [lhs, rest] = parseDisjunction(string);
-  if (rest.startsWith(CONJUNCTION)) {
-    let [rhs, restt] = parseDisjunction(rest.slice(CONJUNCTION.length));
-    return [{
-      kind: "conjunction",
-      lhs: lhs,
-      rhs: rhs
-    }, restt];
-  }
-  return [lhs, rest];
-}
-
-function parseImplication(string) {
-  let [lhs, rest] = parseConjunction(string);
-  if (rest.startsWith(IMPLICATION)) {
-    let [rhs, restt] = parseConjunction(rest.slice(IMPLICATION.length));
-    return [{
-      kind: "implication",
-      lhs: lhs,
-      rhs: rhs
-    }, restt];
-  }
-  return [lhs, rest];
-}
-
-function parseBiconditional(string) {
-  let [lhs, rest] = parseImplication(string);
-  if (rest.startsWith(BICONDITIONAL)) {
-    let [rhs, restt] = parseImplication(rest.slice(BICONDITIONAL.length));
-    return [{
-      kind: "biconditional",
-      lhs: lhs,
-      rhs: rhs
-    }, restt];
-  }
-  return [lhs, rest];
-}
-
-function parse(string) {
-  return parseBiconditional(string);
-}
-
-function line(lineno) {
-  this.parent = null;
-  this.lineno = lineno;
-  this.overlay = $("<span>", {class: "overlay"});
-  this.input = $("<input>", {class: "input"});
-  this.proof = $("<p>", {class: "proof"});
-  
-  this.parsed = {kind: "invalid"};
-  
-  // When the user is editing an input, all keypresses go to the input directly and cannot
-  // be caught by event handlers on `document`. So, we add a handler to each input box which
-  // calls the global keypress handler.
-  $(this.input).on('input', e => {
-    return keypress(e, this);
-  });
-  $(this.input).on('keydown', e => {
-    // Because .on('input', f) doesn't capture all keys
-    if (["Enter", "Tab", "ArrowUp", "ArrowDown", "Backspace"].includes(e.key)) {
-      return keypress(e, this);
-    }
-    return true;
-  });
-  
-  // Local keypress handler
-  this.keypress = e => {
-    this.show();
-
-    var parsed, rest;
-    try {
-      [parsed, rest] = parse(prettify(this.input.val()));
-    } catch (e) {
-      parsed = {kind: "invalid"};
-    }
-    if (rest !== "") {
-      parsed = {kind: "invalid"};
-    }
-    this.parsed = parsed;
-
-    proveFrom(this);
-    return false;
-  };
-  
-  this.linedom = $("<span>", {class: "lineno"});
-  this.dom = $("<p>", {class: "line"}).append(
-    this.linedom.html(this.lineno),
-    $("<span>", {class: "input-group"}).append(
-      this.input,
-      this.overlay,
-    ),
-    this.proof
-  );
-
-  this.show = () => {
-    this.overlay.html(prettify(this.input.val(), false));
-  };
-  
-  this.root = () => {
-    let v = this;
-    while (v.parent !== null) {
-      v = v.parent;
-    }
-    return v;
-  }
-
-  return this;
-}
-
-function context() {
-  this.parent = null;
-  this.dom = $("<div>", {
-    class: "context"
-  });
-  this.children = [];
-  this.push = (item) => {
-    item.parent = this;
-    this.children.push(item);
-    this.dom.append(item.dom);
-  };
-  this.insert = (i, item) => {
-    item.parent = this;
-    this.children.splice(i, 0, item);
-    this.dom.children().eq(i - 1).after(item.dom);
-  };
-  this.replace = (i, item) => {
-    item.parent = this;
-    this.children[i] = item;
-    this.dom.children().eq(i - 1).after(item.dom);
-  };
-  this.pop = () => {
-    this.dom.children()[this.dom.children().length - 1].remove();
-    return this.children.pop();
-  };
-  this.removeAt = (i) => {
-    let item = this.children[i];
-    this.children.splice(i, 1);
-    item.dom.remove();
-  };
-  this.show = () => { };
-  this.lastLine = () => {
-    // Recursively find the last line
-    let last = this.children[this.children.length - 1];
-    if (last instanceof context) {
-      return last.lastLine();
-    } else { // last instanceof line
-      return last;
-    }
-  };
-  this.lines = () => {
-    return this.children[0].lineno + "-" + this.children[this.children.length - 1].lineno;
-  };
-  
-  return this;
-}
-
-
-let root = new context();
-let firstLine = new line(1);
-root.push(firstLine);
-$("#proof-root").append(root.dom);
-firstLine.input.focus();
-
-function findLine(lineno, rootCtx = root) {
-  for (let i = 0; i < rootCtx.children.length; i++) {
-    let item = rootCtx.children[i];
-    if (item instanceof line) {
-      if (item.lineno == lineno) {
-        return item;
+function parseAtom(code) {
+  switch(code[0]) {
+    case "(":
+      let [ast, rest] = parseProposition(code.slice(1));
+      if (rest[0] !== ")") {
+        throw "bad!";
       }
-    } else { // item instanceof context
-      let res = findLine(lineno, item);
-      if (res) {
-        return res;
-      }
-    }
+      ast.sourcecode = code.slice(0, ast.sourcecode.length + 2);
+      return [ast, rest.slice(1)];
+      break;
+    case "-":
+      return parseUnaryOp(code, code[0], NEGATION);
+      break;
+    case "\\":
+      return parseUnaryOp(code, code[0], FORALL);
+      break;
+    case "@":
+      return parseUnaryOp(code, code[0], EXISTS);
+      break;
   }
-}
-
-function flash(el) {
-  el.removeClass("flash");
-  // A tad bit hacky
-  setTimeout(() => el.addClass("flash"), 15);
-}
-
-function keypress(e, item) {
-  // Note that `item instanceof line`
-  if (e.key === "Backspace") {
-    if (item.input.val() === "") {
-      backspace(item);
-      return false;
-    }
-    return true;
-  } else if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
-    let newLine = new line(item.lineno + 1);
-    item.parent.insert(item.parent.children.indexOf(item) + 1, newLine);
-    newLine.input.focus();
-    renumber(root, 1);
-    proveFrom(newLine);
-    return false;
-  } else if (e.key === "Tab" && !e.shiftKey) {
-    let i = item.parent.children.indexOf(item);
-    
-    // Don't allow on first line (assumption line)
-    if (i === 0) {
-      flash($("#new-assumption-restriction"));
-      return false;
-    }
-    
-    var ctx = new context();
-    item.parent.replace(i, ctx);
-    ctx.push(item);
-    item.input.focus();
-    
-    proveFrom(item);
-    return false;
-  } else if (e.key === "Tab" && e.shiftKey) {
-    // Don't unindent first line
-    if (item.lineno == 1) {
-      return false;
-    }
-    
-    // Don't unindent something at 0 indentation
-    if (!item.parent.parent) {
-      return false;
-    }
-    
-    let i = item.parent.children.indexOf(item);
-    
-    // Only allow shift-tab on last line of context
-    if (i !== item.parent.children.length - 1) {
-      flash($("#end-assumption-restriction"))
-      return false;
-    }
-    
-    let wasOnlyLineInContext = item.parent.children.length == 1;
-    let parentI = item.parent.parent.children.indexOf(item.parent);
-    
-    item.parent.pop();
-    if (wasOnlyLineInContext) {
-      item.parent.parent.removeAt(parentI);
-      item.parent.parent.insert(parentI, item);
-    } else {
-      item.parent.parent.insert(item.parent.parent.children.indexOf(item.parent) + 1, item);
-    }
-    item.input.focus();
-    
-    proveFrom(item);
-    return false;
-  } else if (e.key === "ArrowUp") {
-    (findLine(item.lineno - 1) || item).input.focus();
-  } else if (e.key === "ArrowDown") {
-    (findLine(item.lineno + 1) || item).input.focus();
-  }
-  return item.keypress(e);
-}
-
-function backspace(someLine) {
-  // Do nothing if is the only line
-  if (someLine.lineno === 1 && !findLine(2)) { return; }
-  
-  someLine.parent.removeAt(someLine.parent.children.indexOf(someLine));
-  if (someLine.parent.children.filter(c => c instanceof line).length !== 0) {
-    someLine.parent.lastLine().input.focus();
+  if (code[0] === "_") {
+    return [ {kind: BOTTOM, sourcecode: "_"}
+           , code.slice(1)
+           ];
   } else {
-    let grandparent = someLine.parent.parent;
-    someLine.parent.parent.removeAt(someLine.parent.parent.children.indexOf(someLine.parent));
-  }
-  
-  renumber(root, 1);
-  (findLine(someLine.lineno - 1) || findLine(1)).input.focus();
-  
-  let l = findLine(someLine.lineno);
-  if (l) {
-    proveFrom(l);
+    return parseName(code);
   }
 }
 
-function renumber(context, startN) {
-  var lineno = startN;
-  for (let item of context.children) {
-    if (item instanceof line) {
-      item.lineno = lineno;
-      item.linedom.html(lineno);
-      lineno += 1;
-    } else { // context
-      lineno = renumber(item, lineno);
-    }
+function parseBinaryOp(code, operator, kind, parseFunc) {
+  /* Attempts to parse a binary operator.
+     If the operator is not present, equivalent to `parseFunc(code)`. */
+  var lhs, connective, rhs, rest;
+  [lhs, rest] = parseFunc(code);
+  if (rest === "" || rest[0] !== operator) {
+    return [lhs, rest];
   }
-  return lineno;
+  [connective, rest] = [rest[0], rest.substring(1)];
+  [rhs, rest] = parseFunc(rest);
+  return [ {kind: kind, lhs: lhs, rhs: rhs, sourcecode: code.slice(0, code.length - rest.length)}
+    , rest
+    ];
 }
 
-function scope(someLine) {
-  var result = [];
-  var ctx = someLine.parent;
-  while (ctx) {
-    for (let i = 0; i < ctx.children.length; i++) {
-      let item = ctx.children[i];
-      if (item instanceof line && item.lineno >= someLine.lineno
-         || item instanceof context && item.lastLine().lineno >= someLine.lineno) {
-        break;
+function parseBiconditional(code) { return parseBinaryOp(code, "=", BICONDITIONAL, parseAtom); }
+function parseImplication(code) { return parseBinaryOp(code, ">", IMPLICATION, parseBiconditional); }
+function parseDisjunction(code) { return parseBinaryOp(code, "|", DISJUNCTION, parseImplication); }
+function parseConjunction(code) { return parseBinaryOp(code, ",", CONJUNCTION, parseDisjunction); }
+
+function parseSimpleProp(code) {
+  /* Proposition which is not a variable declaration */
+  return parseConjunction(code);
+}
+
+function parseVarDecl(code) {
+  if (code[0] !== "[") {
+    throw "Expected [";
+  }
+  let [node, rest] = parseName(code);
+  if (rest[0] !== "]") {
+    throw "Expected ]";
+  }
+  let [body, restrest] = parseSimpleProp(rest);
+  return [ {kind: "decl", body: body}
+         , rest
+         ];
+}
+
+function parseProposition(code) {
+  if (code[0] === "[") {
+    return parseVarDecl(code);
+  }
+
+  return parseSimpleProp(code);
+}
+
+function prettifyChar(char) {
+  if (/^[a-zA-Z]$/i.test(char)) {
+    return char;
+  }
+
+  const mapping = {
+    ">": IMPLICATION,
+    "=": BICONDITIONAL,
+    "-": NEGATION,
+    ",": CONJUNCTION,
+    "|": DISJUNCTION,
+    "(": OPEN,
+    ")": CLOSE,
+    "_": BOTTOM,
+    "\\": FORALL,
+    "@": EXISTS,
+  };
+
+  if (char in mapping) {
+    return mapping[char];
+  }
+
+  throw "Invalid char";
+}
+
+function lex(code) {
+  /* Does not actually lex into tokens. Just a lightweight
+     transformation from source to parsable formats */
+   return Array.from(code)
+    .map(char => {
+      if (char === " ") {
+        return "";
       }
-      // TODO: Make no null line; only {kind: "invalid"}
-      if (item instanceof context || item && item.parsed) { // Ignore null (empty proposition)
-        result.push(item);
+      return char;
+    })
+    .join("");
+}
+
+function prettify(code) {
+  /* Transforms source code into code to be displayed */
+  return Array.from(code)
+    .map(char => {
+      try {
+        return prettifyChar(char);
+      } catch (e) {
+        return char;
       }
-    }
-    ctx = ctx.parent;
-  }
-  return result;
+    })
+    .join("");
 }
 
-function reiteration(someLine) {
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line && _.isEqual(scoped.parsed, someLine.parsed)) {
-      return "R:" + scoped.lineno;
-    }
+function parse(code) {
+  /* Parse a proposition. If it's empty, return special node {kind: "empty"}.
+     Otherwise, return the AST, unless there's a syntax error;
+     then, return special node {kind: "invalid"} */
+  const invalid = {kind: "invalid", sourcecode: code};
+  let toks = lex(code);
+  if (toks === "") {
+    return {kind: "empty", sourcecode: code};
   }
+
+  var ast, rest;
+  try {
+    [ast, rest] = parseProposition(toks);
+  } catch (e) {
+    return invalid;
+  }
+  if (rest !== "") {
+    return invalid;
+  }
+  return ast;
 }
 
-function bottomIntroduction(someLine) {
-  if (someLine.parsed.kind !== "bottom") { return; }
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line
-       && scoped.parsed.kind == "conjunction"
-       && (scoped.parsed.lhs.kind == "negation" && _.isEqual(scoped.parsed.lhs.body, scoped.parsed.rhs)
-         || scoped.parsed.rhs.kind == "negation" && _.isEqual(scoped.parsed.lhs, scoped.parsed.rhs.body))) {
-      return BOTTOM + "I:" + scoped.lineno;
-    }
-  }
+function astEq(node0, node1) {
+  /* Slight misnomer. Takes two ITEMS and returns true iff
+     they are both lines (AST nodes) and equal. */
+  if (node0 === null || node1 === null) return false;
+  if (node0 instanceof Proof || node1 instanceof Proof) return false;
+  if (node0.kind !== node1.kind) return false;
+  let kind = node0.kind;
+  if (kind === "invalid" || kind === "empty") return false;
+  return false
+    || (kind === BOTTOM)
+    || (kind === "name" && node0.name === node1.name)
+    || (kind === "decl" && astEq(node0.body, node1.body))
+    || (unaryOps.includes(kind) && astEq(node0.body, node1.body))
+    || (binaryOps.includes(kind) && astEq(node0.lhs, node1.lhs) && astEq(node0.rhs, node1.rhs))
+    ;
 }
 
-function negationIntroduction(someLine) {
-  if (someLine.parsed.kind !== "negation") { return; }
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof context) {
-      let last = scoped.children[scoped.children.length - 1];
-      let first = scoped.children[0];
-      if (last instanceof line
-        && first instanceof line
-          && last.parsed.kind === "bottom"
-          && _.isEqual(first.parsed, someLine.parsed.body)) {
-        return NEGATION + "I:" + scoped.lines();
-      }
-    }
-  }
-}
-
-function negationElimination(someLine) {
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line
-       && scoped.parsed.kind == "negation"
-       && scoped.parsed.body.kind == "negation"
-       && _.isEqual(scoped.parsed.body.body, someLine.parsed)) {
-      return NEGATION + "E:" + scoped.lineno;
+function justifyReiteration(line, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    if (astEq(scope[i], line)) {
+      return "R:" + linenos[i];
     }
   }
 }
-
-function conjunctionIntroduction(someLine) {
-  if (someLine.parsed.kind !== "conjunction") { return; }
-  var lhsProof, rhsProof;
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line
-       && _.isEqual(scoped.parsed, someLine.parsed.lhs)) {
-      lhsProof = scoped;
-      break;
-    }
+function justifyConjunctionIntroduction(goal, scope, linenos) {
+  if (goal.kind !== CONJUNCTION) {
+    return null;
   }
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line
-       && _.isEqual(scoped.parsed, someLine.parsed.rhs)) {
-      rhsProof = scoped;
-      break;
+  var lhsPf = null;
+  var rhsPf = null;
+  for (let i = 0; i < scope.length; i++) {
+    let line = scope[i];
+    if (astEq(line, goal.lhs)) {
+      lhsPf = i;
     }
-  }
-  if (!(lhsProof && rhsProof)) { return null; }
-  return CONJUNCTION + "I:" + lhsProof.lineno + "," + rhsProof.lineno;
-}
-
-function conjunctionElimination(someLine) {
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line
-       && scoped.parsed.kind == "conjunction"
-       && (_.isEqual(scoped.parsed.lhs, someLine.parsed)
-         || _.isEqual(scoped.parsed.rhs, someLine.parsed))) {
-      return CONJUNCTION + "E:" + scoped.lineno;
+    if (astEq(line, goal.rhs)) {
+      rhsPf = i;
+    }
+    if (lhsPf !== null && rhsPf !== null) {
+      return CONJUNCTION + "I:" + linenos[lhsPf] + "," + linenos[rhsPf];
     }
   }
 }
-
-function disjunctionIntroduction(someLine) {
-  if (someLine.parsed.kind !== "disjunction") { return; }
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof line
-       && (_.isEqual(someLine.parsed.lhs, scoped.parsed)
-         || _.isEqual(someLine.parsed.rhs, scoped.parsed))) {
-      return DISJUNCTION + "I:" + scoped.lineno;
+function justifyConjunctionElimination(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let line = scope[i]
+    if (line.kind === CONJUNCTION && (astEq(line.lhs, goal) || astEq(line.rhs, goal))) {
+      return CONJUNCTION + "E:" + linenos[i];
     }
   }
 }
-
-function disjunctionElimination(someLine) {
-  for (let disj of scope(someLine).filter(l => l instanceof line
-                      && l.parsed.kind === "disjunction")) {
-    let ctxsWithOneSideOfDisj =
-      scope(someLine).filter(c => c instanceof context
-                   && (_.isEqual(c.children[0].parsed, disj.parsed.lhs)
-                     || _.isEqual(c.children[0].parsed, disj.parsed.rhs))
-                   && (_.isEqual(c.children[c.children.length - 1].parsed, someLine.parsed)) // Make sure the conclusion is what we want
-                   );
-    
-    for (let ctxA of ctxsWithOneSideOfDisj) {
-      for (let ctxB of ctxsWithOneSideOfDisj) {
-        if ((_.isEqual(disj.parsed.lhs, ctxA.children[0].parsed) && _.isEqual(disj.parsed.rhs, ctxB.children[0].parsed))
-           || (_.isEqual(disj.parsed.lhs, ctxB.children[0].parsed) && _.isEqual(disj.parsed.rhs, ctxA.children[0].parsed))) {
-          return DISJUNCTION + "E:" + disj.lineno + "," + ctxA.lines() + "," + ctxB.lines();
+function justifyDisjunctionIntroduction(goal, scope, linenos) {
+  if (goal.kind !== DISJUNCTION) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let line = scope[i];
+    if (astEq(goal.lhs, line) || astEq(goal.rhs, line)) {
+      return DISJUNCTION + "I:" + linenos[i];
+    }
+  }
+}
+function justifyDisjunctionElimination(goal, scope, linenos) {
+  // Get disjunctions
+  let lines = scope.filter(item => !(item instanceof Proof) && item.kind === DISJUNCTION);
+  // Get proofs with the desired conclusion
+  let proofs = scope.filter(item => item instanceof Proof && astEq(item.conclusion, goal));
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    for (let j = 0; j < proofs.length; j++) {
+      let jproof = proofs[j];
+      for (let k = 0; k < proofs.length; k++) {
+        let kproof = proofs[k];
+        if (astEq(line.lhs, jproof.assumption) && astEq(line.rhs, kproof.assumption)
+         || astEq(line.rhs, jproof.assumption) && astEq(line.lhs, kproof.assumption)) {
+          // TODO: line number ranges
+          return DISJUNCTION + "E:" + linenos[i] + "," + linenos[j] + "," + linenos[k];
         }
       }
     }
   }
 }
-
-function implicationIntroduction(someLine) {
-  if (someLine.parsed.kind !== "implication") { return; }
-  for (let scoped of scope(someLine)) {
-    if (scoped instanceof context
-       && _.isEqual(scoped.children[0].parsed, someLine.parsed.lhs)
-       && _.isEqual(scoped.children[scoped.children.length - 1].parsed, someLine.parsed.rhs)) {
-      return IMPLICATION + "I:" + scoped.lines();
+function justifyImplicationIntroduction(goal, scope, linenos) {
+  if (goal.kind !== IMPLICATION) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item instanceof Proof
+     && astEq(item.assumption, goal.lhs)
+     && astEq(item.conclusion, goal.rhs)) {
+      return IMPLICATION + "I:" + linenos[i];
     }
   }
 }
-
-function implicationElimination(someLine) {
-  let implications = scope(someLine).filter(l => l instanceof line && l.parsed.kind == "implication" && _.isEqual(l.parsed.rhs, someLine.parsed));
-  for (let implication of implications) {
-    for (let scoped of scope(someLine)) {
-      if (_.isEqual(scoped.parsed, implication.parsed.lhs)) {
-        return IMPLICATION + "E:" + implication.lineno + "," + scoped.lineno;
-      }
-    }
-  }
-}
-
-function biconditionalIntroduction(someLine) {
-  if (someLine.parsed.kind !== "biconditional") { return; }
-  var toProof, fromProof;
-  for (let scoped of scope(someLine).filter(c => c instanceof context)) {
-    if (_.isEqual(scoped.children[0].parsed, someLine.parsed.lhs)
-       && _.isEqual(scoped.children[scoped.children.length - 1].parsed, someLine.parsed.rhs)) {
-      toProof = scoped;
-    }
-    if (_.isEqual(scoped.children[scoped.children.length - 1].parsed, someLine.parsed.lhs)
-       && _.isEqual(scoped.children[0].parsed, someLine.parsed.rhs)) {
-      fromProof = scoped;
-    }
-    if (toProof && fromProof) {
-      return BICONDITIONAL + "I:" + toProof.lines() + "," + fromProof.lines();
-    }
-  }
-}
-
-function biconditionalElimination(someLine) {
-  for (let bicon of scope(someLine).filter(l => l instanceof line && l.parsed.kind == "biconditional")) {
-    if (!(_.isEqual(someLine.parsed, bicon.parsed.lhs)
-       || _.isEqual(someLine.parsed, bicon.parsed.rhs))) {
+function justifyImplicationElimination(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let iitem = scope[i];
+    if (iitem instanceof Proof || iitem.kind !== IMPLICATION || !astEq(iitem.rhs, goal)) {
       continue;
     }
-    for (let scoped of scope(someLine)) {
-      if (_.isEqual(scoped.parsed, bicon.parsed.lhs)
-         && _.isEqual(bicon.parsed.rhs, someLine.parsed)
-         || _.isEqual(scoped.parsed, bicon.parsed.rhs)
-         && _.isEqual(bicon.parsed.lhs, someLine.parsed)) {
-        return BICONDITIONAL + "E:" + bicon.lineno + "," + scoped.lineno;
+    for (let j = 0; j < scope.length; j++) {
+      let jitem = scope[j];
+      if (jitem instanceof Proof) {
+        continue;
+      }
+      if (astEq(iitem.lhs, jitem)) {
+        return IMPLICATION + "E:" + linenos[i] + "," + linenos[j];
       }
     }
   }
 }
-
-const proofStrategies = [
-  reiteration,
-  bottomIntroduction,
-  negationIntroduction, negationElimination,
-  conjunctionIntroduction, conjunctionElimination,
-  disjunctionIntroduction, disjunctionElimination,
-  implicationIntroduction, implicationElimination,
-  biconditionalIntroduction, biconditionalElimination
-]
-
-function proof(someLine) {
-  if (someLine.parent.children.indexOf(someLine) === 0) {
-    // If assumption
-    return "assumption";
+function justifyBiconditionalIntroducton(goal, scope, linenos) {
+  if (goal.kind !== BICONDITIONAL) {
+    return null;
   }
-   
-  for (let i = 0; i < proofStrategies.length; i++) {
-    let strat = proofStrategies[i];
-    let proof = strat(someLine);
-    if (proof) {
-      return proof;
+  let proofs = scope.filter(item => item instanceof Proof
+                                    && (astEq(item.assumption, goal.lhs) || astEq(item.conclusion, goal.lhs))
+                                    && (astEq(item.assumption, goal.rhs) || astEq(item.conclusion, goal.rhs)));
+  for (let i = 0; i < proofs.length; i++) {
+    let iproof = proofs[i];
+    for (let j = 0; j < proofs.length; j++) {
+      let jproof = proofs[j];
+      if (  (astEq(iproof.assumption, goal.lhs) && astEq(iproof.conclusion, goal.rhs)
+          && astEq(jproof.assumption, goal.rhs) && astEq(jproof.conclusion, goal.lhs))
+         || (astEq(iproof.assumption, goal.rhs) && astEq(iproof.conclusion, goal.lhs)
+          && astEq(jproof.assumption, goal.lhs) && astEq(jproof.conclusion, goal.rhs)) ) {
+        return BICONDITIONAL + "I:" + linenos[i] + "," + linenos[j];
+      }
     }
   }
 }
+function justifyBiconditionalElimination(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item.kind === BICONDITIONAL && (astEq(item.lhs, goal) || astEq(item.rhs, goal))) {
+      return BICONDITIONAL + "E:" + linenos[i];
+    }
+  }
+}
+function justifyBottomIntroduction(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item.kind === CONJUNCTION &&
+        ((item.lhs.kind === NEGATION && astEq(item.lhs.body, item.rhs))
+      || (item.rhs.kind === NEGATION && astEq(item.rhs.body, item.lhs)))) {
+      return BOTTOM + "I:" + linenos[i];
+    }
+  }
+}
+function justifyNegationIntroduction(goal, scope, linenos) {
+  if (goal.kind !== NEGATION) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item instanceof Proof && astEq(item.assumption, goal.body) && item.conclusion.kind === BOTTOM) {
+      return NEGATION + "I:" + linenos[i];
+    }
+  }
+}
+function justifyNegationElimination(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item.kind === NEGATION && item.body.kind === NEGATION && astEq(item.body.body, goal)) {
+      return NEGATION + "E:" + linenos[i];
+    }
+  }
+}
+function justify(line, scope, linenos, i) {
+  /* Justify a line (AST Node) with all the lines of the given scope.
+     The line numbers must be supplied in the parallel array `linenos`.
+     `i` is the index of the line in its context */
+   if (i === 0) {
+     return "assumed";
+   }
 
-function prove(someLine) {
-  if (someLine instanceof context) {
-    // TODO: Not sure if necessary
-    someLine.children.forEach(prove);
-    return;
+   let strategies =
+    [ justifyReiteration,
+      justifyConjunctionIntroduction,
+      justifyConjunctionElimination,
+      justifyDisjunctionIntroduction,
+      justifyDisjunctionElimination,
+      justifyImplicationIntroduction,
+      justifyImplicationElimination,
+      justifyBiconditionalIntroducton,
+      justifyBiconditionalElimination,
+      justifyBottomIntroduction,
+      justifyNegationIntroduction,
+      justifyNegationElimination,
+    ];
+
+  for (let i = 0; i < strategies.length; i++) {
+    let strat = strategies[i];
+    let justification = strat(line, scope, linenos);
+    if (justification) {
+      return justification;
+    }
   }
-  
-  someLine.dom.removeClass("invalid").removeClass("parse-error");
-  
-  if (!someLine.input.val()) {
-    someLine.proof.html("");
-    return;
+
+  return null;
+}
+
+let $root = $('#proof-root');
+
+let $root_ = $root;  // To be able to use it as a default value of a parameter
+function getLocation(item, $root) {
+  $root = $root || $($root_.children()[0]);  // Get top-level context
+  /* Return the location of a item, or null if it doesn't exist.
+     Note that `item` should be a DOM element but NOT a jQuery object */
+  // (DFS)
+  let children = $root.children();
+  for (let i = 0; i < children.length; i++) {
+    let child = children[i];
+    if (child === item) {
+      return [i];
+    }
+
+    let $child = $(child);
+    if (!$child.hasClass("line") && !$child.hasClass("context")) {
+      continue;
+    }
+
+    let rec = getLocation(item, $child);
+    if (rec !== undefined) {
+      return [i].concat(rec);
+    }
   }
-  
-  if (someLine.parsed.kind === "invalid") {
-    someLine.dom.addClass("parse-error");
-    someLine.proof.html("?");
-    return;
+}
+function $getItem(location) {
+  /* Get a jQuery object of the item at the given location */
+  var root = $root[0].childNodes[0];
+  for (let i = 0; i < location.length; i++) {
+    if ($(root).hasClass('line')) {
+      throw "no";
+    }
+    root = root.childNodes[location[i]];
   }
-  
-  let p = proof(someLine);
-  if (p) {
-    someLine.proof.html(p);
-  } else {
-    someLine.dom.addClass("invalid");
-    someLine.proof.html("!");
+  return $(root);
+}
+function focusAt(loc) {
+  $getItem(loc).find('input').focus();
+}
+
+function $makeLine(line, lineno, justification) {
+  let sidetext =
+    line.kind === "empty" ? ""
+    : line.kind === "invalid" ? "malformed proposition"
+    : justification === null ? "invalid step"
+    : justification;
+  let $r = $('<p>', {class: "line"})
+    .append( $('<span>', {class: "lineno"}).html(lineno) )
+    .append( $('<span>', {class: "input-group"})
+      .append( $('<input>', {class: "input"}).val(line.sourcecode)
+        .on('keydown', e => !["Tab"].includes(e.key)) )
+      .append( $('<span>', {class: "overlay"}).html(prettify(line.sourcecode)) ) )
+    .append( $('<p>', {class: "proof"}).html(sidetext) );
+
+  if (line.kind === "invalid") {
+    $r.addClass("parse-error");
+  }
+  if (line.kind !== "empty" && justification === null) {
+    $r.addClass("invalid");
+  }
+  return $r;
+}
+function $makeContext(lines) {
+  var $el = $('<div>', {class: "context"});
+  for (let i = 0; i < lines.length; i++) {
+    $el.append(lines[i]);
+  }
+  return $el;
+}
+
+class Proof {
+  constructor() {
+    // List of items: either a line (AST node) or a subproof (`Proof`)
+    this.items = [];
+  }
+
+  static recSize(item) {
+    /* 1 for a line; recursive size for a Proof */
+    if (item instanceof Proof) {
+      return item.items.map(Proof.recSize).reduce((a, c) => a + c, 0);
+    } else {
+      return 1;
+    }
+  }
+
+  render(initScope = [], initLinenos = [1]) {
+    console.log(this);
+    /* `initScope` is all the lines that can be used as proof
+       `initlinenos` is a parallel list of the line nubers for the scope
+       Returns a jQuery entity */
+    // TODO: `linenos` generation is fucked up
+    return $makeContext(this.items.map((item, i) => {
+      let scope = initScope.concat(this.items.slice(0, i));
+      let linenos = initLinenos.concat(Array.from(Array(i),
+          (_, j) => initLinenos[initLinenos.length - 1] + this.items.slice(0, j + 1).map(Proof.recSize).reduce((a, c) => a + c, 0)
+      ));
+      let lineno = linenos[linenos.length - 1];
+      return item instanceof Proof ? item.render(scope, linenos)
+                                   : $makeLine(item, lineno, justify(item, scope, linenos, i));
+    }));
+  }
+
+  get conclusion() {
+    /* Get the last nonempty propositioin in the proof.
+       If there is none (i.e., the last item is a Proof), return null */
+    for (let i = this.items.length - 1; i >= 0; i--) {
+      let item = this.items[i];
+      if (item instanceof Proof) {
+        return null;
+      } else if (item.kind !== "empty") {
+        return item;
+      }
+    }
+    return null;
+  }
+  get assumption() {
+    if (this.items.length === 0) {
+      return null;
+    }
+    return this.items[0];
+  }
+
+  mapItem(location, fun) {
+    /* Apply some mapping function to a particular item. */
+    if (location.length === 0) {
+      let newThis = fun(this);
+      // Note that this must, to be proper, copy all attributes over
+      this.items = newThis.items;
+      return;
+    }
+
+    var items = this.items;
+    for (let i = 0; i < location.length - 1; i++) {
+      console.assert(items[location[i]] instanceof Proof);
+      items = items[location[i]].items;
+    };
+    items[location[location.length - 1]] = fun(items[location[location.length - 1]]);
+  }
+  getItem(location) {
+    var r;
+    this.mapItem(location, item => {
+      r = item;
+      return item;
+    });
+    return r;
+  }
+
+  get maxLineno() {
+    var items = this.items;
+    var result = 0;
+    while (items.length > 0) {
+      // Add the number of lines
+      result += items.filter(i => !(i instanceof Proof)).length;
+      // And recur onto proofs
+      items = items.filter(i => i instanceof Proof).map(p => p.items)
+                   .reduce((acc, val) => acc.concat(val), []);  // flatten
+    }
+    return result;
+  }
+  locToLineno(loc, items = this.items) {
+    /* Fails silently */
+    if (loc.length === 1) {
+      return items.slice(0, loc[0] + 1).map(Proof.recSize).reduce((a, c) => a + c, 0);
+    }
+    return items.slice(0, loc[0]).map(Proof.recSize).reduce((a, v) => a + v, 0) +
+           this.locToLineno(loc.slice(1), items[loc[0]].items);
+  }
+  linenoToLoc(lineno, items = this.items) {
+    /* Converts a line number to a location, or returns null for an invalid line number. */
+    var cumLineno = 0;
+    for (let i = 0; i < items.length; i++) {
+      let item = items[i];
+      if (item instanceof Proof) {
+        let size = Proof.recSize(item);
+        if (cumLineno + size >= lineno) {
+          return [i].concat(this.linenoToLoc(lineno - cumLineno, item.items));
+        } else {
+          cumLineno += size;
+        }
+      } else { // line
+        cumLineno += 1;
+      }
+      if (cumLineno == lineno) {
+        return [i];
+      }
+    }
+  }
+
+  prevLineno(lineno) {
+    return Math.max(1, lineno - 1);
+  }
+  nextLineno(lineno) {
+    return Math.min(lineno + 1, this.maxLineno);
+  }
+
+  prevLocation(loc) {
+    return this.linenoToLoc(this.prevLineno(this.locToLineno(loc)))
+  }
+  nextLocation(loc) {
+    return this.linenoToLoc(this.nextLineno(this.locToLineno(loc)))
   }
 }
 
-function proveFrom(someLine) {
-  // Prove a line and all lines after it
-  if (!someLine.parent) return;
-  let i = someLine.parent.children.indexOf(someLine);
-  for (let j = i; j < someLine.parent.children.length; j++) {
-    prove(someLine.parent.children[j]);
-  }
-  proveFrom(someLine.parent);
+let proof = new Proof();
+proof.items.push(parse(""));
+
+function show() {
+  $root.empty().append(proof.render());
 }
+show();
+focusAt([0]);
+
+$(document).on('keyup', ev => {
+  let $target = $(ev.target);
+  if ($target.hasClass("input")) {
+    let focusLoc = getLocation(ev.target.parentNode.parentNode);
+    switch (ev.key) {
+      case "Enter":
+        proof.mapItem(
+          // Get the parent context
+          focusLoc.slice(0, focusLoc.length - 1),
+          // And append a new line
+          proof => {
+            let blankLine = parse("");
+            proof.items.splice(focusLoc[focusLoc.length - 1] + 1, 0, blankLine);
+            return proof;
+          },
+        );
+        show();
+        focusAt(proof.nextLocation(focusLoc));
+        break;
+
+      case "ArrowDown":
+        focusAt(proof.nextLocation(focusLoc));
+        break;
+
+      case "ArrowUp":
+        focusAt(proof.prevLocation(focusLoc));
+        break;
+
+      case "Tab":
+        if (ev.shiftKey) {
+          let focusLineno = proof.locToLineno(focusLoc);
+          // Remove the line from the end of its parent proof
+          // And append it to the grandparent proof
+          let line = proof.getItem(focusLoc);
+          // Actually append it first so that don't have to account for an index change
+          proof.mapItem(focusLoc.slice(0, focusLoc.length - 2), grandparentProof => {
+            grandparentProof.items.splice(focusLoc[focusLoc.length - 2] + 1, 0, line);
+            return grandparentProof;
+          });
+          // Now remove it from the parent proof
+          proof.mapItem(focusLoc.slice(0, focusLoc.length -1), parentProof => {
+            parentProof.items.splice(focusLoc[focusLoc.length - 1], 1);
+            return parentProof;
+          });
+          show();
+          focusAt(proof.linenoToLoc(focusLineno));
+        } else { // tab, no shift
+          proof.mapItem(focusLoc, line => {
+            var pf = new Proof();
+            pf.items.push(line);
+            return pf;
+          });
+          show();
+          focusAt(focusLoc);
+        }
+        break;
+
+      case "Backspace":
+        // If backspacing an empty line, delete it
+        let prevLoc = proof.prevLocation(focusLoc);
+        if ($target.val() === "") {
+          proof.mapItem(
+            focusLoc.slice(0, focusLoc.length - 1),
+            proof => {
+              proof.items.splice(focusLoc[focusLoc.length - 1], 1);
+              return proof;
+            }
+          );
+
+          // If that line was the only line in its proof,
+          if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
+            // then an empty proof was left and we should remove it
+            proof.mapItem(
+              focusLoc.slice(0, focusLoc.length - 2),
+              proof => {
+                proof.items.splice(focusLoc[focusLoc.length - 2], 1);
+                return proof;
+              }
+            );
+          }
+
+          show();
+          focusAt(prevLoc);
+          break;
+        }
+        // Fallthrough if didn't need to delete line
+
+      default:
+        // Update proof with new data
+        proof.mapItem(focusLoc, line => parse(ev.target.value));
+        show();
+        focusAt(focusLoc);
+    }
+  }
+});

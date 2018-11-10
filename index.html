@@ -1,14 +1,13 @@
 <html>
   <head>
-    <title>Fitch-style proof helper</title>
+    <title>Predicate/propositional Fitch-style proof helper</title>
     <link rel="stylesheet" type="text/css" href="css.css">
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src='https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore.js'></script>
   </head>
   <body>
-
-    <h1>Fitch-style proof helper</h1>
+    <h1>Predicate/propositional Fitch-style proof helper</h1>
 
     <div id="sidebar">
       <h4>Keys</h4>
@@ -18,18 +17,15 @@
     	<p><span class="key">-</span> Negation &not;</p>
     	<p><span class="key">_</span> Bottom &perp;</p>
     	<p><span class="key">=</span> Biconditional &harr;</p>
-    	<br />
+    	<p><span class="key">\</span> Forall &forall;</p>
+    	<p><span class="key">@</span> Exists &exist;</p>
     	<p><span class="key">enter</span> New proposition</p>
     	<p><span class="key">tab</span> New assumption (<span id="new-assumption-restriction">not on first line</span>)</p>
     	<p><span class="key">shift+tab</span> Finish assumption (<span id="end-assumption-restriction">last line only</span>)</p>
 
-    	<br />
-    	<h4>Feedback</h4>
-    	<p><span class="parse-error">Malformed proposition</span></p>
-    	<p><span class="invalid">Invalid step</span></p>
-
       <br />
       <h4>Rules</h4>
+      <p class="rule">R: A &there4; A</p>
       <p class="rule">&and;I: A &amp; B &there4; A&and;B</p>
       <p class="rule">&and;E: A&and;B &there4; A</p>
       <p class="rule">&and;E: A&and;B &there4; B</p>
@@ -41,7 +37,12 @@
       <p class="rule">&harr;E: A&harr;B &amp; A &there4; B</p>
       <p class="rule">&harr;E: A&harr;B &amp; B &there4; A</p>
       <p class="rule">&perp;I: A&and;&not;A &there4; &perp;</p>
-      <p class="rule">&perp;E: A&#8866;&perp; &there4; &not;A</p>
+      <p class="rule">&not;I: A&#8866;&perp; &there4; &not;A</p>
+      <p class="rule">&not;E: &not;&not;A &there4; A</p>
+      <!-- <p class="rule">&forall;I: [A]&#8866P(A) &there4; &forall;A(P(A))</p>
+      <p class="rule">&forall;E: &forall;A(P(A)) &there4; P(B)</p>
+      <p class="rule">&exist;I: P(A) &there4; &exist;B(P(B))</p>
+      <p class="rule">&exist;E: &exist;A(P(A)) &amp; [B]P(B)&#8866C &there4; C</p> -->
     </div>
 
     <div id="proof-root"></div>
