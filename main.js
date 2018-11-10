@@ -644,6 +644,12 @@ function textboxChangeHandler(ev) {
   focusAt(focusLoc);
 }
 
+function flash($el) {
+  $el.removeClass("flash");
+  // A tad bit hacky
+  setTimeout(() => $el.addClass("flash"), 15);
+}
+
 function metaKeyHandler(ev) {
   /* Handles "meta keys" which have context to the proof as a whole */
   let $target = $(ev.target);
@@ -675,22 +681,29 @@ function metaKeyHandler(ev) {
 
       case "Tab":
         if (ev.shiftKey) {
-          let focusLineno = proof.locToLineno(focusLoc);
-          // Remove the line from the end of its parent proof
-          // And append it to the grandparent proof
-          let line = proof.getItem(focusLoc);
-          // Actually append it first so that don't have to account for an index change
-          proof.mapItem(focusLoc.slice(0, focusLoc.length - 2), grandparentProof => {
-            grandparentProof.items.splice(focusLoc[focusLoc.length - 2] + 1, 0, line);
-            return grandparentProof;
-          });
-          // Now remove it from the parent proof
-          proof.mapItem(focusLoc.slice(0, focusLoc.length -1), parentProof => {
-            parentProof.items.splice(focusLoc[focusLoc.length - 1], 1);
-            return parentProof;
-          });
-          show();
-          focusAt(proof.linenoToLoc(focusLineno));
+          // Only allow shift+tab on the last line of a context
+          console.log(focusLoc, proof.getItem(focusLoc.slice(0, focusLoc.length - 1)));
+          if (focusLoc[focusLoc.length - 1] + 1 !== proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length) {
+            // If used wrongly, flash a warning
+            flash($('#end-assumption-restriction'));
+          } else {
+            let focusLineno = proof.locToLineno(focusLoc);
+            // Remove the line from the end of its parent proof
+            // And append it to the grandparent proof
+            let line = proof.getItem(focusLoc);
+            // Actually append it first so that don't have to account for an index change
+            proof.mapItem(focusLoc.slice(0, focusLoc.length - 2), grandparentProof => {
+              grandparentProof.items.splice(focusLoc[focusLoc.length - 2] + 1, 0, line);
+              return grandparentProof;
+            });
+            // Now remove it from the parent proof
+            proof.mapItem(focusLoc.slice(0, focusLoc.length -1), parentProof => {
+              parentProof.items.splice(focusLoc[focusLoc.length - 1], 1);
+              return parentProof;
+            });
+            show();
+            focusAt(proof.linenoToLoc(focusLineno));
+          }
         } else { // tab, no shift
           proof.mapItem(focusLoc, line => {
             var pf = new Proof();
