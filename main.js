@@ -24,7 +24,8 @@ const VAR_CLOSE = "]";
 const OPEN = "(";
 const CLOSE = ")";
 
-const unaryOps = [NEGATION, FORALL, EXISTS];
+const unaryOps = [NEGATION];
+const existentialOps = [FORALL, EXISTS];
 const binaryOps = [IMPLICATION, BICONDITIONAL, CONJUNCTION, DISJUNCTION];
 
 function parseName(code) {
@@ -56,7 +57,59 @@ function parseUnaryOp(code, operator, kind) {
     ];
 }
 
+function parsePredicate(code) {
+  var name, rest;
+  [name, rest] = parseName(code);
+  if (rest[0] !== "(") {
+    throw "badddd";
+  }
+  rest = rest.slice(1);
+  var args = [];
+  while (true) {
+    var arg;
+    [arg, rest] = parseName(rest);
+    args.push(arg);
+    if (rest[0] === ")") {
+      rest = rest.slice(1);
+      break;
+    } else if (rest[0] === ",") {
+      rest = rest.slice(1);
+    } else {
+      throw "!!";
+    }
+  }
+  return [ {kind: "predicate", target: name, args: args, sourcecode: code.substring(0, code.length - rest.length)}
+         , rest
+         ];
+}
+
+function parseExistentialOp(code, operator, kind) {
+  if (code[0] !== operator) {
+    throw "got damn";
+  }
+  var rest = code.slice(1);
+  var name;
+  [name, rest] = parseName(rest);
+  if (rest[0] !== "(") {
+    throw "need a parens please";
+  }
+  rest = rest.slice(1);
+  var body;
+  [body, rest] = parseSimpleProp(rest);
+  if (rest[0] !== ")") {
+    throw "need a ) plzzz";
+  }
+  rest = rest.slice(1);
+  return [ {kind: kind, name: name, body: body, sourcecode: code.slice(0, code.length - rest.length)}
+         , rest
+         ];
+}
+
 function parseAtom(code) {
+  try {
+    return parsePredicate(code);
+  } catch(e) { }
+
   switch(code[0]) {
     case "(":
       let [ast, rest] = parseProposition(code.slice(1));
@@ -70,10 +123,10 @@ function parseAtom(code) {
       return parseUnaryOp(code, code[0], NEGATION);
       break;
     case "\\":
-      return parseUnaryOp(code, code[0], FORALL);
+      return parseExistentialOp(code, code[0], FORALL);
       break;
     case "@":
-      return parseUnaryOp(code, code[0], EXISTS);
+      return parseExistentialOp(code, code[0], EXISTS);
       break;
   }
   if (code[0] === "_") {
@@ -111,15 +164,22 @@ function parseSimpleProp(code) {
 }
 
 function parseVarDecl(code) {
+  var body, node, rest;
   if (code[0] !== "[") {
     throw "Expected [";
   }
-  let [node, rest] = parseName(code);
+  rest = code.slice(1);
+  [node, rest] = parseName(rest);
   if (rest[0] !== "]") {
     throw "Expected ]";
   }
-  let [body, restrest] = parseSimpleProp(rest);
-  return [ {kind: "decl", body: body}
+  rest = rest.slice(1);
+  try {
+    [body, rest] = parseSimpleProp(rest);
+  } catch (e) {
+    body = {kind: "empty", sourcecode: ""};
+  }
+  return [ {kind: "decl", name: node, body: body, sourcecode: code.slice(0, code.length - rest.length)}
          , rest
          ];
 }
@@ -205,6 +265,18 @@ function parse(code) {
   return ast;
 }
 
+function arrEq(ar0, ar1, eq) {
+  eq = eq || ((a, b) => a == b);
+  if (ar0.length !== ar1.length) {
+    return false;
+  }
+  for (let i = 0; i < ar0.length; i++) {
+    if (!eq(ar0[i], ar1[i])) {
+      return false;
+    }
+  }
+  return true;
+}
 function astEq(node0, node1) {
   /* Slight misnomer. Takes two ITEMS and returns true iff
      they are both lines (AST nodes) and equal. */
@@ -217,7 +289,9 @@ function astEq(node0, node1) {
     || (kind === BOTTOM)
     || (kind === "name" && node0.name === node1.name)
     || (kind === "decl" && astEq(node0.body, node1.body))
+    || (kind === "predicate" && astEq(node0.target, node1.target) && arrEq(node0.args, node1.args, astEq))
     || (unaryOps.includes(kind) && astEq(node0.body, node1.body))
+    || (existentialOps.includes(kind) && astEq(node0.name, node1.name) && astEq(node0.body, node1.body))
     || (binaryOps.includes(kind) && astEq(node0.lhs, node1.lhs) && astEq(node0.rhs, node1.rhs))
     ;
 }
@@ -385,6 +459,124 @@ function justifyNegationElimination(goal, scope, linenos) {
     }
   }
 }
+function varRepl(ast, nameFrom, nameTo) {
+  /* Return `ast` with the name `nameFrom` recursively replaced with `nameTo`. */
+  // TODO: I fucking hate this function. It's such a bad code smell.
+  switch(ast.kind) {
+    case CONJUNCTION:
+    case DISJUNCTION:
+    case IMPLICATION:
+    case BICONDITIONAL:
+      return {kind: ast.kind, lhs: varRepl(ast.lhs, nameFrom, nameTo), rhs: varRepl(ast.rhs, nameFrom, nameTo), sourcecode: ast.sourcecode};
+    case NEGATION:
+      return {kind: ast.kind, body: varRepl(ast.body, nameFrom, nameTo), sourcecode: sourcecode}
+    case FORALL:
+    case EXISTS:
+      return {kind: ast.kind, name: astEq(ast.name, nameFrom) ? nameTo : ast.name, body: ast.body, sourcecode: ast.sourcecode};
+    case "name":
+      return astEq(ast, nameFrom) ? nameTo : ast;
+    case "predicate":
+      return {kind: ast.kind, target: ast.target, args: ast.args.map(arg => varRepl(arg, nameFrom, nameTo)), sourcecode: ast.sourcecode};
+    case "decl":
+      throw "cannot do variable replacement on a declaration";
+    case "invalid":
+    case "empty":
+      return ast;
+    default:
+      throw "programmer is an idiot: " + ast.kind;
+  }
+}
+function allNames(ast) {
+  /* Recursively collect and return all name nodes */
+  switch(ast.kind) {
+    case CONJUNCTION:
+    case DISJUNCTION:
+    case IMPLICATION:
+    case BICONDITIONAL:
+      return new Set([...allNames(ast.lhs), ...allNames(ast.rhs)]);
+    case NEGATION:
+      return allName(ast.body);
+    case FORALL:
+    case EXISTS:
+      return new Set([ast.name, ...allNames(ast.body)]);
+    case "name":
+      return new Set([ast]);
+    case "predicate":
+      return new Set([ast.target].concat(ast.args));
+    case "decl":
+      throw "cannot do allNames on a declaration";
+    case "invalid":
+    case "empty":
+      return new Set();
+    default:
+      throw "forgot a case...";
+  }
+}
+const RARR = "&rarr;";
+function justifyForallIntroduction(goal, scope, linenos) {
+  if (goal.kind !== FORALL) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let proof = scope[i];
+    if (proof instanceof Proof
+     && proof.assumption.kind === "decl"
+     && proof.assumption.body.kind === "empty"
+     && astEq(varRepl(proof.conclusion, proof.assumption.name, goal.name), goal.body)) {
+      return FORALL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + " [" + proof.assumption.name.name + RARR + goal.name.name + "]";
+    }
+  }
+}
+function justifyForallElimination(goal, scope, linenos) {
+  let names = Array.from(allNames(goal));
+  for (let n = 0; n < names.length; n++) {
+    let name = names[n];
+    for (let i = 0; i < scope.length; i++) {
+      let item = scope[i];
+      if (item instanceof Proof || item.kind !== FORALL) {
+        continue;
+      }
+      if (astEq(varRepl(item.body, item.name, name), goal)) {
+        return FORALL + "E:" + linenos[i] + "[" + item.name.name + RARR + name.name + "]";
+      }
+    }
+  }
+}
+function justifyExistsIntroduction(goal, scope, linenos) {
+  if (goal.kind !== EXISTS) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item instanceof Proof) {
+      continue;
+    }
+    let names = Array.from(allNames(item));
+    for (let n = 0; n < names.length; n++) {
+      let name = names[n];
+      if (astEq(varRepl(item, name, goal.name), goal.body)) {
+        return EXISTS + "I:" + linenos[i] + "[" + name.name + RARR + goal.name.name + "]";
+      }
+    }
+  }
+}
+function justifyExistsElimination(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let iline = scope[i];
+    if (iline instanceof Proof || iline.kind !== EXISTS) {
+      continue;
+    }
+    for (let j = 0; j < scope.length; j++) {
+      let jproof = scope[j];
+      if (jproof instanceof Proof
+       && jproof.assumption.kind === "decl"
+       && astEq(jproof.conclusion, goal)
+       && astEq(iline.body, varRepl(jproof.assumption.body, jproof.assumption.name, iline.name))) {
+        return EXISTS + "E:" + linenos[i] + "," + linenos[j] + "-" + (linenos[j+1]-1);
+      }
+    }
+  }
+}
 function justify(line, scope, linenos, i) {
   /* Justify a line (AST Node) with all the lines of the given scope.
      The line numbers must be supplied in the parallel array `linenos`.
@@ -394,18 +586,22 @@ function justify(line, scope, linenos, i) {
    }
 
    let strategies =
-    [ justifyReiteration,
-      justifyConjunctionIntroduction,
-      justifyConjunctionElimination,
-      justifyDisjunctionIntroduction,
-      justifyDisjunctionElimination,
-      justifyImplicationIntroduction,
-      justifyImplicationElimination,
-      justifyBiconditionalIntroducton,
-      justifyBiconditionalElimination,
-      justifyBottomIntroduction,
-      justifyNegationIntroduction,
-      justifyNegationElimination,
+    [ justifyReiteration
+    , justifyConjunctionIntroduction
+    , justifyConjunctionElimination
+    , justifyDisjunctionIntroduction
+    , justifyDisjunctionElimination
+    , justifyImplicationIntroduction
+    , justifyImplicationElimination
+    , justifyBiconditionalIntroducton
+    , justifyBiconditionalElimination
+    , justifyBottomIntroduction
+    , justifyNegationIntroduction
+    , justifyNegationElimination
+    , justifyForallIntroduction
+    , justifyForallElimination
+    , justifyExistsIntroduction
+    , justifyExistsElimination
     ];
 
   for (let i = 0; i < strategies.length; i++) {
