@@ -682,7 +682,6 @@ function metaKeyHandler(ev) {
       case "Tab":
         if (ev.shiftKey) {
           // Only allow shift+tab on the last line of a context
-          console.log(focusLoc, proof.getItem(focusLoc.slice(0, focusLoc.length - 1)));
           if (focusLoc[focusLoc.length - 1] + 1 !== proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length) {
             // If used wrongly, flash a warning
             flash($('#end-assumption-restriction'));
@@ -705,13 +704,19 @@ function metaKeyHandler(ev) {
             focusAt(proof.linenoToLoc(focusLineno));
           }
         } else { // tab, no shift
-          proof.mapItem(focusLoc, line => {
-            var pf = new Proof();
-            pf.items.push(line);
-            return pf;
-          });
-          show();
-          focusAt(focusLoc);
+          // Do not allow on first line of parent context
+          if (focusLoc[focusLoc.length - 1] === 0) {
+            // If attempted, flash a warning
+            flash($('#new-assumption-restriction'));
+          } else {
+            proof.mapItem(focusLoc, line => {
+              var pf = new Proof();
+              pf.items.push(line);
+              return pf;
+            });
+            show();
+            focusAt(focusLoc);
+          }
         }
         break;
 
