@@ -29,21 +29,14 @@ const existentialOps = [FORALL, EXISTS];
 const binaryOps = [IMPLICATION, BICONDITIONAL, CONJUNCTION, DISJUNCTION];
 
 function parseName(code) {
-  var name = "";
-  for (let i = 0; i < code.length; i++) {
-    let char = code[i];
-    if (/^[a-zA-Z]$/i.test(char)) {
-      name += char;
-    } else {
-      break;
-    }
+  /* Names must be single-char */
+  if (/^[a-zA-Z]$/.test(code[0])) {
+    return [ {kind: "name", name: code[0], sourcecode: code[0]}
+           , code.slice(1)
+           ];
+  } else {
+    throw "lmao no";
   }
-  if (name === "") {
-    throw "empty name! no!";
-  }
-  return [ {kind: "name", name: name, sourcecode: code.slice(0, name.length)}
-    , code.substring(name.length)
-    ];
 }
 
 function parseUnaryOp(code, operator, kind) {
@@ -90,16 +83,8 @@ function parseExistentialOp(code, operator, kind) {
   var rest = code.slice(1);
   var name;
   [name, rest] = parseName(rest);
-  if (rest[0] !== "(") {
-    throw "need a parens please";
-  }
-  rest = rest.slice(1);
   var body;
   [body, rest] = parseSimpleProp(rest);
-  if (rest[0] !== ")") {
-    throw "need a ) plzzz";
-  }
-  rest = rest.slice(1);
   return [ {kind: kind, name: name, body: body, sourcecode: code.slice(0, code.length - rest.length)}
          , rest
          ];
