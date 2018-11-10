@@ -1,20 +1,14 @@
 'use strict';
 
+// TODO: Backspace on empty line with nonempty line before it
+
 /*
 POSSIBLE FEATURES:
-- Rewrite & code qual. first!!
 - Highlight selected line
 - Highlight direct dependencies of selected line
   (i.e. the lines referenced in its justification)
 - Highlight lines that depend on an invalid line,
   or lines that depend on one of these lines
-- Change negation into from
-    . A , -A
-    . _
-  to
-    . A
-  . -A
-  . _
 */
 
 const IMPLICATION = "&rarr;";
@@ -276,20 +270,25 @@ function justifyDisjunctionIntroduction(goal, scope, linenos) {
   }
 }
 function justifyDisjunctionElimination(goal, scope, linenos) {
-  // Get disjunctions
-  let lines = scope.filter(item => !(item instanceof Proof) && item.kind === DISJUNCTION);
   // Get proofs with the desired conclusion
-  let proofs = scope.filter(item => item instanceof Proof && astEq(item.conclusion, goal));
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
-    for (let j = 0; j < proofs.length; j++) {
-      let jproof = proofs[j];
-      for (let k = 0; k < proofs.length; k++) {
-        let kproof = proofs[k];
+  for (let i = 0; i < scope.length; i++) {
+    let line = scope[i];
+    if (line instanceof Proof || line.kind !== DISJUNCTION) {
+      continue;
+    }
+    for (let j = 0; j < scope.length; j++) {
+      let jproof = scope[j];
+      if (!(jproof instanceof Proof) || !astEq(jproof.conclusion, goal)) {
+        continue;
+      }
+      for (let k = 0; k < scope.length; k++) {
+        let kproof = scope[k];
+        if (!(kproof instanceof Proof) || !astEq(kproof.conclusion, goal)) {
+          continue;
+        }
         if (astEq(line.lhs, jproof.assumption) && astEq(line.rhs, kproof.assumption)
          || astEq(line.rhs, jproof.assumption) && astEq(line.lhs, kproof.assumption)) {
-          // TODO: line number ranges
-          return DISJUNCTION + "E:" + linenos[i] + "," + linenos[j] + "," + linenos[k];
+          return DISJUNCTION + "E:" + linenos[i] + "," + linenos[j] + "-" + (linenos[j+1]-1) + "," + linenos[k] + "-" + (linenos[k+1]-1);
         }
       }
     }
@@ -304,7 +303,7 @@ function justifyImplicationIntroduction(goal, scope, linenos) {
     if (item instanceof Proof
      && astEq(item.assumption, goal.lhs)
      && astEq(item.conclusion, goal.rhs)) {
-      return IMPLICATION + "I:" + linenos[i];
+      return IMPLICATION + "I:" + linenos[i] + "-" + (linenos[i+1]-1);
     }
   }
 }
@@ -329,18 +328,24 @@ function justifyBiconditionalIntroducton(goal, scope, linenos) {
   if (goal.kind !== BICONDITIONAL) {
     return null;
   }
-  let proofs = scope.filter(item => item instanceof Proof
+  function proofPredicate(item) { return item instanceof Proof
                                     && (astEq(item.assumption, goal.lhs) || astEq(item.conclusion, goal.lhs))
-                                    && (astEq(item.assumption, goal.rhs) || astEq(item.conclusion, goal.rhs)));
-  for (let i = 0; i < proofs.length; i++) {
-    let iproof = proofs[i];
-    for (let j = 0; j < proofs.length; j++) {
-      let jproof = proofs[j];
+                                    && (astEq(item.assumption, goal.rhs) || astEq(item.conclusion, goal.rhs)) };
+  for (let i = 0; i < scope.length; i++) {
+    let iproof = scope[i];
+    if (!proofPredicate(iproof)) {
+      continue;
+    }
+    for (let j = 0; j < scope.length; j++) {
+      let jproof = scope[j];
+      if (!proofPredicate(jproof)) {
+        continue;
+      }
       if (  (astEq(iproof.assumption, goal.lhs) && astEq(iproof.conclusion, goal.rhs)
           && astEq(jproof.assumption, goal.rhs) && astEq(jproof.conclusion, goal.lhs))
          || (astEq(iproof.assumption, goal.rhs) && astEq(iproof.conclusion, goal.lhs)
           && astEq(jproof.assumption, goal.lhs) && astEq(jproof.conclusion, goal.rhs)) ) {
-        return BICONDITIONAL + "I:" + linenos[i] + "," + linenos[j];
+        return BICONDITIONAL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + "," + linenos[j] + "-" + (linenos[j+1]-1);
       }
     }
   }
@@ -370,7 +375,7 @@ function justifyNegationIntroduction(goal, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proof && astEq(item.assumption, goal.body) && item.conclusion.kind === BOTTOM) {
-      return NEGATION + "I:" + linenos[i];
+      return NEGATION + "I:" + linenos[i] + "-" + (linenos[i+1]-1);
     }
   }
 }
@@ -513,7 +518,6 @@ class Proof {
     /* `initScope` is all the lines that can be used as proof
        `initlinenos` is a parallel list of the line nubers for the scope
        Returns a jQuery entity */
-    // TODO: `linenos` generation is fucked up
     return $makeContext(this.items.map((item, i) => {
       let scope = initScope.concat(this.items.slice(0, i));
       let linenos = initLinenos.concat(Array.from(Array(i),
