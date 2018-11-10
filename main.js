@@ -1,7 +1,5 @@
 'use strict';
 
-// TODO: Backspace on empty line with nonempty line before it
-
 /*
 POSSIBLE FEATURES:
 - Highlight selected line
@@ -475,7 +473,12 @@ function $makeLine(line, lineno, justification) {
         .on('input', textboxChangeHandler)
         .on('keydown', e => {
           // Only call meta handler on backspace if empty input
-          if (e.key !== "Backspace" || e.target.value === "") {
+          if (e.key === "Backspace") {
+            if (e.target.value === "") {
+              metaKeyHandler(e);
+              return false; // Otherwise, would backspace on previous line
+            }
+          } else {
             metaKeyHandler(e);
           }
           return !["Tab"].includes(e.key);
