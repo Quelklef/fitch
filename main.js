@@ -704,29 +704,31 @@ function metaKeyHandler(ev) {
 
       case "Backspace":
         // Assumption: Line is empty. Ensured because this function is only called if the line is empty.
-        // If backspacing an empty line, delete it
-        let prevLoc = proof.prevLocation(focusLoc);
-        proof.mapItem(
-          focusLoc.slice(0, focusLoc.length - 1),
-          proof => {
-            proof.items.splice(focusLoc[focusLoc.length - 1], 1);
-            return proof;
-          }
-        );
-
-        // If that line was the only line in its proof,
-        if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
-          // then an empty proof was left and we should remove it
+        // Do not delete the line if it's the only line
+        if (!(focusLoc.length === 1 && focusLoc[0] === 0 && proof.items.length === 1)) {
+          let prevLoc = proof.prevLocation(focusLoc);
           proof.mapItem(
-            focusLoc.slice(0, focusLoc.length - 2),
+            focusLoc.slice(0, focusLoc.length - 1),
             proof => {
-              proof.items.splice(focusLoc[focusLoc.length - 2], 1);
+              proof.items.splice(focusLoc[focusLoc.length - 1], 1);
               return proof;
             }
           );
+
+          // If that line was the only line in its proof,
+          if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
+            // then an empty proof was left and we should remove it
+            proof.mapItem(
+              focusLoc.slice(0, focusLoc.length - 2),
+              proof => {
+                proof.items.splice(focusLoc[focusLoc.length - 2], 1);
+                return proof;
+              }
+            );
+          }
+          show();
+          focusAt(prevLoc);
         }
-        show();
-        focusAt(prevLoc);
         break;
     }
   }
