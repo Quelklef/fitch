@@ -836,11 +836,15 @@ focusAt([0]);
 
 function textboxChangeHandler(ev) {
   /* Handles input to the textboxes */
+  let selStart = ev.target.selectionStart;
+  let selEnd = ev.target.selectionEnd;
   let focusLoc = getLocation(ev.target.parentNode.parentNode);
   // Update proof with new data
   proof.mapItem(focusLoc, line => parse(ev.target.value));
   show();
   focusAt(focusLoc);
+  document.activeElement.selectionStart = selStart;
+  document.activeElement.selectionEnd = selEnd;
 }
 
 function flash($el) {
