@@ -467,7 +467,11 @@ function $makeLine(line, lineno, justification) {
     .append( $('<span>', {class: "lineno"}).html(lineno) )
     .append( $('<span>', {class: "input-group"})
       .append( $('<input>', {class: "input"}).val(line.sourcecode)
-        .on('keydown', e => !["Tab"].includes(e.key)) )
+        .on('input', textboxChangeHandler)
+        .on('keydown', e => {
+          metaKeyHandler(e);
+          return !["Tab"].includes(e.key);
+        }) )
       .append( $('<span>', {class: "overlay"}).html(prettify(line.sourcecode)) ) )
     .append( $('<p>', {class: "proof"}).html(sidetext) );
 
@@ -629,7 +633,17 @@ function show() {
 show();
 focusAt([0]);
 
-$(document).on('keyup', ev => {
+function textboxChangeHandler(ev) {
+  /* Handles input to the textboxes */
+  let focusLoc = getLocation(ev.target.parentNode.parentNode);
+  // Update proof with new data
+  proof.mapItem(focusLoc, line => parse(ev.target.value));
+  show();
+  focusAt(focusLoc);
+}
+
+function metaKeyHandler(ev) {
+  /* Handles "meta keys" which have context to the proof as a whole */
   let $target = $(ev.target);
   if ($target.hasClass("input")) {
     let focusLoc = getLocation(ev.target.parentNode.parentNode);
@@ -709,18 +723,13 @@ $(document).on('keyup', ev => {
               }
             );
           }
-
           show();
           focusAt(prevLoc);
-          break;
+        } else {
+          // If didn't need to delete line, update
+          textboxChangeHandler(ev);
         }
-        // Fallthrough if didn't need to delete line
-
-      default:
-        // Update proof with new data
-        proof.mapItem(focusLoc, line => parse(ev.target.value));
-        show();
-        focusAt(focusLoc);
+        break;
     }
   }
-});
+}

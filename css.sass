@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css?family=Cousine:400i')
+
+h1
+  margin-left: 25vw
+  margin-top: 30px
+  font-size: 20px
+
+body
+  &, .input
+    font-family: 'Cousine', monospace
+
+#sidebar
+  h4
+    margin: 0
+  width: 330px
+  line-height: calc(1em + 1px)
+  position: fixed
+  top: 15px
+  left: 15px
+  font-size: 12px
+
+.key
+  background-color: transparentize(lightgrey, 0.7)
+  border: 1px solid lightgrey
+  border-radius: 3px
+  padding: 3px 5px
+  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.3)
+  position: relative
+  bottom: 1px
+
+#proof-root
+  width: 50vw
+  margin: 50px 25vw
+  margin-bottom: 500px
+  box-sizing: border-box
+
+.context
+  border-left: 3px solid black
+  margin-left: 5px
+  margin-right: 0
+
+.invalid
+  background-color: transparentize(red, 0.8)
+.parse-error
+  background-color: transparentize(orange, 0.6)
+
+.input
+  width: 70%
+  padding-right: 10px // Give cursor room to be visible
+
+.line
+  &, .input
+    font-size: 14px !important
+  .overlay, .input
+    letter-spacing: 4px
+  border: 0
+  margin: 3px 0
+  padding: 3px 10px
+  width: 100%
+  color: rgba(0, 0, 0, 0)
+  position: relative
+
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1)
+  &:first-of-type
+    border-bottom: 1px solid black
+
+  .lineno
+    color: black
+    margin-right: 8px
+    &::after
+      content: ":"
+  .proof
+    color: black
+    margin: 0
+    float: right
+  .input-group
+    position: relative
+    .overlay
+      position: absolute
+      left: 0px
+      top: 0px
+      height: 100%
+      color: black
+      pointer-events: none
+    .input
+      border: none
+      background: transparent
+      outline: none
+      position: relative
+      color: transparent
+      caret-color: black
+
+.context
+  border-color: black
+  > .context
+    border-color: red
+    > .context
+      border-color: blue
+      > .context
+        border-color: green
+        > .context
+          border-color: pink
+          .context
+            border-left-style: dashed
+          > .context
+            border-color: red
+            > .context
+              border-color: blue
+              > .context
+                border-color: green
+                > .context
+                  border-color: pink
+                  .context
+                    border-left-style: solid
+                    border-color: black
+
+.flash
+  animation: flash 5s
+
+@keyframes flash
+  0%
+    background-color: transparent
+  5%
+    background-color: red
+    color: white
+  10%
+    background-color: transparentize(red, 0.8)
+    color: black
+  100%
+    background-color: transparent
+
+.rule
+  letter-spacing: 2px
