@@ -146,7 +146,7 @@ function parseBinaryOp(code, operators, kind, parseFunc) {
 function parseBiconditional(code) { return parseBinaryOp(code, ["="], BICONDITIONAL, parseAtom); }
 function parseImplication(code) { return parseBinaryOp(code, [">"], IMPLICATION, parseBiconditional); }
 function parseDisjunction(code) { return parseBinaryOp(code, ["|"], DISJUNCTION, parseImplication); }
-function parseConjunction(code) { return parseBinaryOp(code, [",", ".", "&"], CONJUNCTION, parseDisjunction); }
+function parseConjunction(code) { return parseBinaryOp(code, [".", "&"], CONJUNCTION, parseDisjunction); }
 
 function parseSimpleProp(code) {
   /* Proposition which is not a variable declaration */
@@ -189,7 +189,6 @@ function prettifyChar(char) {
     "-": NEGATION,
     "~": NEGATION,
     "!": NEGATION,
-    ",": CONJUNCTION,
     ".": CONJUNCTION,
     "&": CONJUNCTION,
     "|": DISJUNCTION,
