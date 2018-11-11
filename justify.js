@@ -173,61 +173,64 @@ function justifyNegationElimination(goal, scope, linenos) {
     }
   }
 }
-function varRepl(prop, nameFrom, nameTo) {
-  /* Return `prop` with the name `nameFrom` recursively replaced with `nameTo`. */
-  // Todo: I fucking hate this function. It's such a bad code smell.
-  switch(prop.kind) {
+
+Proposition.prototype.substitute = function(nameFrom, nameTo) {
+  /* Return `this` with the name `nameFrom` recursively replaced with `nameTo`.
+     Only replaces items that can be quantified over in FOL (i.e., predicate arguments)
+     And proposition variables; does not replace predicate names. */
+  switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      return Object.assign(new Proposition(prop), {lhs: varRepl(prop.lhs, nameFrom, nameTo), rhs: varRepl(prop.rhs, nameFrom, nameTo)});
+      return Object.assign(new Proposition(this), {lhs: this.lhs.substitute(nameFrom, nameTo), rhs: this.rhs.substitute(nameFrom, nameTo)});
     case kindNegation:
-      return Object.assign(new Proposition(prop), {body: varRepl(prop.body, nameFrom, nameTo)});
+      return Object.assign(new Proposition(this), {body: this.body.substitute(nameFrom, nameTo)});
     case kindForall:
     case kindExists:
-      return Object.assign(new Proposition(prop), {name: varRepl(prop.name, nameFrom, nameTo)});
+      return Object.assign(new Proposition(this), {name: this.name.substitute(nameFrom, nameTo)});
     case kindName:
-      return prop.equals(nameFrom) ? nameTo : prop;
+      return this.equals(nameFrom) ? nameTo : this;
     case kindPredicate:
-      return Object.assign(new Proposition(prop), {args: prop.args.map(arg => varRepl(arg, nameFrom, nameTo))});
+      // Do NOT replace the target since predicates cannot be quantified over in FOL
+      return Object.assign(new Proposition(this), {args: this.args.map(arg => arg.substitute(nameFrom, nameTo))});
     case kindDeclaration:
       throw "Cannot do variable replacement on a declaration";
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
-      return prop;
+      return this;
     default:
-      throw "Missed case: " + prop.kind;
+      throw "Missed case: " + this.kind;
   }
 }
-function freeVars(ast) {
+Proposition.prototype.freeVars = function() {
   /* Recursively collect and return all free name nodes.
      Note that this includes propositions as well as bona fide name variables. */
-  switch(ast.kind) {
+  switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      return new Set([...freeVars(ast.lhs), ...freeVars(ast.rhs)]);
+      return new Set([...this.lhs.freeVars(), ...this.rhs.freeVars()]);
     case kindNegation:
-      return freeVars(ast.body);
+      return this.body.freeVars();
     case kindForall:
     case kindExists:
-      return new Set([ast.name, ...freeVars(ast.body)]);
+      return new Set([this.name, ...this.body.freeVars()]);
     case kindName:
-      return new Set([ast]);
+      return new Set([this]);
     case kindPredicate:
-      return new Set([ast.target].concat(ast.args));
+      return new Set([this.target].concat(this.args));
     case kindDeclaration:
-      var result = freeVars(ast.body);
-      result.delete(ast.name);
+      var result = this.body.freeVars();
+      result.delete(this.name);
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
       return new Set();
     default:
-      throw "forgot a case... " + ast.kind;
+      throw "forgot a case... " + this.kind;
   }
 }
 const RARR = "&rarr;";
@@ -240,13 +243,13 @@ function justifyForallIntroduction(goal, scope, linenos) {
     if (proof instanceof Proof
      && proof.assumption.kind === kindDeclaration
      && proof.assumption.body.kind === kindEmpty
-     && varRepl(proof.conclusion, proof.assumption.name, goal.name).equals(goal.body)) {
+     && proof.conclusion.substitute(proof.assumption.name, goal.name).equals(goal.body)) {
       return FORALL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + " [" + proof.assumption.name.name + RARR + goal.name.name + "]";
     }
   }
 }
 function justifyForallElimination(goal, scope, linenos) {
-  let names = Array.from(freeVars(goal));
+  let names = Array.from(goal.freeVars());
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
     for (let i = 0; i < scope.length; i++) {
@@ -254,7 +257,7 @@ function justifyForallElimination(goal, scope, linenos) {
       if (item instanceof Proof || item.kind !== kindForall) {
         continue;
       }
-      if (varRepl(item.body, item.name, name).equals(goal)) {
+      if (item.body.substitute(item.name, name).equals(goal)) {
         return FORALL + "E:" + linenos[i] + "[" + item.name.name + RARR + name.name + "]";
       }
     }
@@ -269,10 +272,10 @@ function justifyExistsIntroduction(goal, scope, linenos) {
     if (item instanceof Proof) {
       continue;
     }
-    let names = Array.from(freeVars(item));
+    let names = Array.from(item.freeVars());
     for (let n = 0; n < names.length; n++) {
       let name = names[n];
-      if (varRepl(item, name, goal.name).equals(goal.body)) {
+      if (item.substitute(name, goal.name).equals(goal.body)) {
         return EXISTS + "I:" + linenos[i] + "[" + name.name + RARR + goal.name.name + "]";
       }
     }
@@ -289,7 +292,7 @@ function justifyExistsElimination(goal, scope, linenos) {
       if (jproof instanceof Proof
        && jproof.assumption.kind === kindDeclaration
        && jproof.conclusion.equals(goal)
-       && iline.body.equals(varRepl(jproof.assumption.body, jproof.assumption.name, iline.name))) {
+       && iline.body.equals(jproof.assumption.body.substitute(jproof.assumption.name, iline.name))) {
         return EXISTS + "E:" + linenos[i] + "," + linenos[j] + "-" + (linenos[j+1]-1);
       }
     }
