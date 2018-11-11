@@ -2,11 +2,7 @@
 
 /*
 TODO:
-- Rename Proposition.eq, since it doesn't actually test for equality
-  Additionally, the `decl` hack with Proposition.eq means that someone can prove
-  a `decl` as a proposition via the rules. This should not be allowed.
-  Could be fixed by rejecting all declarations not on the first line
-  of a proof.
+- Add URL serialization
 */
 
 /*
@@ -114,10 +110,6 @@ class Proof {
   constructor(items) {
     // List of items: either a line (AST node) or a subproof (`Proof`)
     this.items = items || [];
-  }
-
-  equals(other) {
-    return other instanceof Proof && other.items == this.items;
   }
 
   static recSize(item) {

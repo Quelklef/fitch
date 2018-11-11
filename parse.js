@@ -78,28 +78,30 @@ class Proposition {
     return new Proposition({ kind: kindInvalid, sourcecode: sourcecode });
   }
 
-  static equals(prop1, prop2) {
-    /* Note that this has special behaviour around declarations, in that
-       it compares the BODY of a declaration to the other Proposition. */
+  static concurs(prop1, prop2) {
+    /* Tests if the two propositions "concur".
+       This is essentially an equality check, ecept that declarations are
+       treated specically. Instead of comparing declarations to other
+       propositions, we compare the declaration's body. */
     if (prop1 === null || prop2 === null) return false;
     if (!(prop1 instanceof Proposition && prop2 instanceof Proposition)) return false;
-    if (prop1.kind === kindDeclaration) return Proposition.equals(prop1.body, prop2);
-    if (prop2.kind === kindDeclaration) return Proposition.equals(prop1, prop2.body);
+    if (prop1.kind === kindDeclaration) return Proposition.concurs(prop1.body, prop2);
+    if (prop2.kind === kindDeclaration) return Proposition.concurs(prop1, prop2.body);
     if (prop1.kind !== prop2.kind) return false;
     let kind = prop1.kind;
     if (kind === kindInvalid || kind === kindEmpty) return false;
     return false
       || (kind === kindBottom)
       || (kind === kindName && prop1.name === prop2.name)
-      || (kind === kindPredicate && Proposition.equals(prop1.target, prop2.target) && arrEq(prop1.args, prop2.args, Proposition.equals))
-      || (unaryOps.includes(kind) && Proposition.equals(prop1.body, prop2.body))
-      || (existentialOps.includes(kind) && Proposition.equals(prop1.name, prop2.name) && Proposition.equals(prop1.body, prop2.body))
-      || (binaryOps.includes(kind) && Proposition.equals(prop1.lhs, prop2.lhs) && Proposition.equals(prop1.rhs, prop2.rhs))
+      || (kind === kindPredicate && Proposition.concurs(prop1.target, prop2.target) && arrEq(prop1.args, prop2.args, Proposition.concurs))
+      || (unaryOps.includes(kind) && Proposition.concurs(prop1.body, prop2.body))
+      || (existentialOps.includes(kind) && Proposition.concurs(prop1.name, prop2.name) && Proposition.concurs(prop1.body, prop2.body))
+      || (binaryOps.includes(kind) && Proposition.concurs(prop1.lhs, prop2.lhs) && Proposition.concurs(prop1.rhs, prop2.rhs))
       ;
   }
 
-  equals(other) {
-    return Proposition.equals(this, other);
+  concurs(other) {
+    return Proposition.concurs(this, other);
   }
 }
 
@@ -266,7 +268,7 @@ function parseDeclaration(code) {
   [name, rest] = parseName(rest);
   rest = consume(rest, "]");
   try {
-    [body, rest] = parsePredicate(rest);
+    [body, rest] = parseProposition(rest);
   } catch (e) {
     body = Proposition.newEmpty("");
   }
