@@ -983,7 +983,7 @@ function displayExample(ex) {
 }
 
 $('#prop-dm-or').click(() => {
-  dispalyExample(
+  displayExample(
     new Proof([
       parse(""),
       new Proof([
