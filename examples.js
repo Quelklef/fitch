@@ -194,7 +194,7 @@ $('#fol-dm-forall').click(() => {
 });
 
 function toProof(lines) {
-  if (lines instanceof Array) return new Proof(lines*map(toProof));
+  if (lines instanceof Array) return new Proof(lines.map(toProof));
   return parse(lines);
 }
 function simpleExample(selector, lines) {
