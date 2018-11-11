@@ -369,7 +369,7 @@ function justify(line, scope, linenos, i) {
      `i` is the index of the line in its context.
      If the line cannot be justified, throws an error with the reason. */
    if (line.kind === kindInvalid) {
-     throw "malformed proposition";
+     throw line.error;
    }
 
    ensureNameVarsDeclared(line, scope);

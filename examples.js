@@ -116,34 +116,34 @@ $('#fol-dm-exist').click(() => {
     new Proof([
       parse(""),
       new Proof([
-        parse("~ExP(x)"),
+        parse("~ExPx"),
         new Proof([
           parse("[a]"),
           new Proof([
-            parse("P(a)"),
-            parse("ExP(x)"),
-            parse("(ExP(x))*~(ExP(x))"),
+            parse("Pa"),
+            parse("ExPx"),
+            parse("(ExPx)*~(ExPx)"),
             parse("#"),
           ]),
-          parse("~P(a)"),
+          parse("~Pa"),
         ]),
-        parse("Vx~P(x)"),
+        parse("Vx~Px"),
       ]),
       new Proof([
-        parse("Vx~P(x)"),
+        parse("Vx~Px"),
         new Proof([
-          parse("ExP(x)"),
+          parse("ExPx"),
           new Proof([
-            parse("[a]P(a)"),
-            parse("~P(a)"),
-            parse("P(a)*~P(a)"),
+            parse("[a]Pa"),
+            parse("~Pa"),
+            parse("Pa*~Pa"),
             parse("#"),
           ]),
           parse("#"),
         ]),
-        parse("~ExP(x)"),
+        parse("~ExPx"),
       ]),
-      parse("(~ExP(x))=(Vx~P(x))"),
+      parse("(~ExPx)=(Vx~Px)"),
     ]),
   );
 });
@@ -153,42 +153,42 @@ $('#fol-dm-forall').click(() => {
     new Proof([
       parse(""),
       new Proof([
-        parse("~VxP(x)"),
+        parse("~VxPx"),
         new Proof([
-          parse("~Ex~P(x)"),
+          parse("~Ex~Px"),
           new Proof([
             parse("[a]"),
             new Proof([
-              parse("~P(a)"),
-              parse("Ex~P(x)"),
-              parse("(Ex~P(x))*~(Ex~P(x))"),
+              parse("~Pa"),
+              parse("Ex~Px"),
+              parse("(Ex~Px)*~(Ex~Px)"),
               parse("#"),
             ]),
-            parse("~~P(a)"),
-            parse("P(a)"),
+            parse("~~Pa"),
+            parse("Pa"),
           ]),
-          parse("VxP(x)"),
-          parse("(VxP(x))*~(VxP(x))"),
+          parse("VxPx"),
+          parse("(VxPx)*~(VxPx)"),
           parse("#")
         ]),
-        parse("~~Ex~P(x)"),
-        parse("Ex~P(x)"),
+        parse("~~Ex~Px"),
+        parse("Ex~Px"),
       ]),
       new Proof([
-        parse("Ex~P(x)"),
+        parse("Ex~Px"),
         new Proof([
-          parse("VxP(x)"),
+          parse("VxPx"),
           new Proof([
-            parse("[a]~P(a)"),
-            parse("P(a)"),
-            parse("P(a)*~P(a)"),
+            parse("[a]~Pa"),
+            parse("Pa"),
+            parse("Pa*~Pa"),
             parse("#"),
           ]),
           parse("#"),
         ]),
-        parse("~VxP(x)"),
+        parse("~VxPx"),
       ]),
-      parse("(~VxP(x))=(Ex~P(x))"),
+      parse("(~VxPx)=(Ex~Px)"),
     ]),
   );
 });
@@ -219,23 +219,23 @@ simpleExample(
   '#forallI',
   [ ''
   , [ '[y]'
-    , [ '~(P(y)+~P(y))'
-      , [ 'P(y)'
-        , 'P(y)+~P(y)'
-        , '(P(y)+~P(y))*~(P(y)+~P(y))'
+    , [ '~(Py+~Py)'
+      , [ 'Py'
+        , 'Py+~Py'
+        , '(Py+~Py)*~(Py+~Py)'
         , '#'
       ]
-      , '~P(y)'
-      , 'P(y)+~P(y)'
-      , '(P(y)+~P(y))*~(P(y)+~P(y))'
+      , '~Py'
+      , 'Py+~Py'
+      , '(Py+~Py)*~(Py+~Py)'
       , '#'
     ]
-    , '~~(P(y)+~P(y))'
-    , 'P(y)+~P(y)'
+    , '~~(Py+~Py)'
+    , 'Py+~Py'
   ]
-  , 'VxP(x)+~P(x)'
+  , 'VxPx+~Px'
 ]
 );
-simpleExample('#forallE', ['VxP(x)', ['[y]', 'P(y)']]);
-simpleExample('#existsI', ['', ['[x]P(x)', 'EyP(y)']]);
-simpleExample('#existsE', ['ExP(x)', ['[y]P(y)', 'P(y)+Q(y)', 'EyP(y)+Q(y)'], 'EyP(y)+Q(y)']);
+simpleExample('#forallE', ['VxPx', ['[y]', 'Py']]);
+simpleExample('#existsI', ['', ['[x]Px', 'EyPy']]);
+simpleExample('#existsE', ['ExPx', ['[y]Py', 'Py+Qy', 'EyPy+Qy'], 'EyPy+Qy']);

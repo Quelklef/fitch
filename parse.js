@@ -34,7 +34,7 @@ class Proposition {
     }
     if (this.sourcecode === undefined) {
       console.log("No sourcecode!", this);
-      throw "You forgot to give a sourcecode, dipshit.";
+      throw "you forgot to give a sourcecode, dipshit.";
     }
   }
 
@@ -74,8 +74,8 @@ class Proposition {
   static newEmpty(sourcecode) {
     return new Proposition({ kind: kindEmpty, sourcecode: sourcecode });
   }
-  static newInvalid(sourcecode) {
-    return new Proposition({ kind: kindInvalid, sourcecode: sourcecode });
+  static newInvalid(sourcecode, e = "malformed proposition") {
+    return new Proposition({ kind: kindInvalid, error: e, sourcecode: sourcecode });
   }
 
   static concurs(prop1, prop2) {
@@ -147,7 +147,7 @@ function consume(code, string) {
   if (code.startsWith(string)) {
     return code.slice(string.length);
   } else {
-    throw `Expected '${string}' but got '${code}'`;
+    throw `expected '${string}' but got '${code}'`;
   }
 }
 
@@ -157,12 +157,12 @@ function parseName(code) {
   if (!"EVv".includes(letter) && /^[a-zA-Z]$/.test(letter)) {
     return [Proposition.newName(letter, letter), code.slice(1)];
   }
-  throw `Invalid name '${letter}'`;
+  throw `invalid name '${letter}'`;
 }
 
 function parseUnaryOp(code, operators, constructor) {
   if (!operators.includes(code[0])) {
-    throw `Expected '${operator}' but got '${code}'`;
+    throw `expected '${operator}' but got '${code}'`;
   }
   let [body, rest] = parseAtom(code.substring(1));
   return [constructor(body, code.slice(0, code.length - rest.length)), rest];
@@ -171,20 +171,21 @@ function parseUnaryOp(code, operators, constructor) {
 function parsePredicate(code) {
   var name, rest;
   [name, rest] = parseName(code);
-  rest = consume(rest, "(");
   var args = [];
   while (true) {
-    var arg;
-    [arg, rest] = parseName(rest);
-    args.push(arg);
-    if (rest[0] === ")") {
-      rest = rest.slice(1);
+    try {
+      var arg;
+      [arg, rest] = parseName(rest);
+      args.push(arg);
+    } catch (e) {
       break;
-    } else if (rest[0] === ",") {
-      rest = rest.slice(1);
-    } else {
-      throw "!!";
     }
+  }
+  if (rest[0] === "(") {
+    throw "do not use ( for predicate";
+  }
+  if (args.length === 0) {
+    throw "predicate requires 1 or more arguments";
   }
   return [Proposition.newPredicate(name, args, code.substring(0, code.length - rest.length)), rest];
 }
@@ -315,7 +316,7 @@ function prettifyChar(char) {
     return char;
   }
 
-  throw "Invalid char";
+  throw "invalid char";
 }
 
 function lex(code) {
@@ -353,11 +354,17 @@ function parse(code) {
   try {
     [prop, rest] = parseTop(code);
   } catch (e) {
-    return Proposition.newInvalid(code);
+    return Proposition.newInvalid(code, e);
   }
 
   if (rest !== "") {
-    return Proposition.newInvalid(code);
+    if (rest[0] === "(") {
+      // We assume that this is because the user tried to do e.g. P(x).
+      // This may not be the case, but it probably is.
+      return Proposition.newInvalid(code, "do not use ( for predicate");
+    } else {
+      return Proposition.newInvalid(code, "nonempty rest");
+    }
   }
   return prop;
 }
