@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css?family=Cousine:400i')
 
+$sidebar-width: 20%
+
 h1
-  margin-left: 25vw
   margin-top: 30px
   font-size: 20px
 
@@ -9,28 +10,43 @@ body
   &, .input
     font-family: 'Cousine', monospace
 
-#sidebar
+#meta
   h4
     margin: 0
-  width: 330px
-  line-height: calc(1em + 1px)
   position: fixed
-  top: 15px
-  left: 15px
+  box-sizing: border-box
+  width: $sidebar-width
+  margin-left: 100% - $sidebar-width
+  left: 0
+  top: 0
+  height: 100%
+  line-height: 1.5em
   font-size: 12px
+  padding: 15px
+  overflow-y: auto
+
+#proof-wrap
+  position: fixed
+  left: 0
+  top: 0
+  box-sizing: border-box
+  padding: 0 200px 100px 50px
+  width: 100% - $sidebar-width
+  height: 100%
+  overflow-y: auto
 
 .key
   background-color: transparentize(lightgrey, 0.7)
   border: 1px solid lightgrey
   border-radius: 3px
-  padding: 3px 5px
-  box-shadow: 0px 2px 0px rgba(0, 0, 0, 0.3)
+  padding: 2px 5px
+  box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.5)
   position: relative
   bottom: 1px
 
 #proof-root
-  width: 50vw
-  margin: 50px 25vw
+  width: 100%
+  margin-top: 50px
   margin-bottom: 500px
   box-sizing: border-box
 

@@ -6,52 +6,54 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
   </head>
   <body>
-    <h1>Propositional/First-Order Logic Fitch-style Proof Helper</h1>
+    <div id="wrap">
+      <div id="proof-wrap">
+        <h1>Propositional/First-Order Logic Fitch-style Proof Helper</h1>
+        <div id="proof-root"></div>
+      </div>
+      <div id="meta">
+        <h4>Keys</h4>
+      	<p><span class="key">.</span> <span class="key">&</span> <span class="key">^</span> Conjunction &and;</p>
+      	<p><span class="key">|</span> <span class="key">v</span> Disjunction &or;</p>
+      	<p><span class="key">&gt;</span> Implication &rarr;</p>
+      	<p><span class="key">-</span> <span class="key">~</span> <span class="key">!</span> Negation &not;</p>
+      	<p><span class="key">_</span> Bottom &perp;</p>
+      	<p><span class="key">=</span> Biconditional &harr;</p>
+      	<p><span class="key">\</span> <span class="key">V</span> Forall &forall;</p>
+      	<p><span class="key">E</span> <span class="key">@</span> Exists &exist;</p>
+      	<p><span class="key">enter</span> New proposition</p>
+      	<p><span class="key">tab</span> New assumption (<span id="new-assumption-restriction">not on first line</span>)</p>
+      	<p><span class="key">shift+tab</span> Finish assumption (<span id="end-assumption-restriction">last line only</span>)</p>
 
-    <div id="sidebar">
-      <h4>Keys</h4>
-    	<p><span class="key">.</span> <span class="key">&</span> <span class="key">^</span> Conjunction &and;</p>
-    	<p><span class="key">|</span> <span class="key">v</span> Disjunction &or;</p>
-    	<p><span class="key">&gt;</span> Implication &rarr;</p>
-    	<p><span class="key">-</span> <span class="key">~</span> <span class="key">!</span> Negation &not;</p>
-    	<p><span class="key">_</span> Bottom &perp;</p>
-    	<p><span class="key">=</span> Biconditional &harr;</p>
-    	<p><span class="key">\</span> <span class="key">V</span> Forall &forall;</p>
-    	<p><span class="key">E</span> <span class="key">@</span> Exists &exist;</p>
-    	<p><span class="key">enter</span> New proposition</p>
-    	<p><span class="key">tab</span> New assumption (<span id="new-assumption-restriction">not on first line</span>)</p>
-    	<p><span class="key">shift+tab</span> Finish assumption (<span id="end-assumption-restriction">last line only</span>)</p>
+      	<br />
+      	<h4>Examples</h4>
+      	<p><a id="prop-dm-or">Proposition DeMorgan's Law (&or;)</a></p>
+      	<p><a id="prop-dm-and">Propositional DeMorgan's Law (&and;)</a></p>
+      	<p><a id="fol-dm-exist">First-Order Logic DeMorgan's Law (&exist;)</a></p>
+      	<p><a id="fol-dm-forall">First-Order Logic DeMorgan's Law (&forall;)</a></p>
 
-    	<br />
-    	<h4>Examples</h4>
-    	<p><a id="prop-dm-or">Proposition DeMorgan's Law (&or;)</a></p>
-    	<p><a id="prop-dm-and">Propositional DeMorgan's Law (&and;)</a></p>
-    	<p><a id="fol-dm-exist">First-Order Logic DeMorgan's Law (&exist;)</a></p>
-    	<p><a id="fol-dm-forall">First-Order Logic DeMorgan's Law (&forall;)</a></p>
-
-      <br />
-      <h4>Rules</h4>
-      <p class="rule">R: P &there4; P</p>
-      <p class="rule">&and;I: P &amp; Q &there4; P&and;Q</p>
-      <p class="rule">&and;E: P&and;Q &there4; P</p>
-      <p class="rule">&and;E: P&and;Q &there4; Q</p>
-      <p class="rule">&or;I: P &there4; P&or;Q</p>
-      <p class="rule">&or;E: P&or;Q &amp; P&#8866;R &amp; Q&#8866;R &there4; R</p>
-      <p class="rule">&rarr;I: P&#8866;Q &there4; P&rarr;Q</p>
-      <p class="rule">&rarr;E: P&rarr;Q &amp; P &there4; Q</p>
-      <p class="rule">&harr;I: P&#8866Q &amp; Q&#8866P &there4; P&harr;Q</p>
-      <p class="rule">&harr;E: P&harr;Q &amp; P &there4; Q</p>
-      <p class="rule">&harr;E: P&harr;Q &amp; Q &there4; P</p>
-      <p class="rule">&perp;I: P&and;&not;P &there4; &perp;</p>
-      <p class="rule">&not;I: P&#8866;&perp; &there4; &not;P</p>
-      <p class="rule">&not;E: &not;&not;P &there4; P</p>
-      <p class="rule">&forall;I: [x]&#8866P(x) &there4; &forall;xP(x)</p>
-      <p class="rule">&forall;E: &forall;xP(x) &there4; P(y)</p>
-      <p class="rule">&exist;I: P(x) &there4; &exist;yP(y)</p>
-      <p class="rule">&exist;E: &exist;xP(x) &amp; [y]P(y)&#8866R &there4; R</p>
+        <br />
+        <h4>Rules</h4>
+        <p class="rule">R: P &there4; P</p>
+        <p class="rule">&and;I: P &amp; Q &there4; P&and;Q</p>
+        <p class="rule">&and;E: P&and;Q &there4; P</p>
+        <p class="rule">&and;E: P&and;Q &there4; Q</p>
+        <p class="rule">&or;I: P &there4; P&or;Q</p>
+        <p class="rule">&or;E: P&or;Q &amp; P&#8866;R &amp; Q&#8866;R &there4; R</p>
+        <p class="rule">&rarr;I: P&#8866;Q &there4; P&rarr;Q</p>
+        <p class="rule">&rarr;E: P&rarr;Q &amp; P &there4; Q</p>
+        <p class="rule">&harr;I: P&#8866Q &amp; Q&#8866P &there4; P&harr;Q</p>
+        <p class="rule">&harr;E: P&harr;Q &amp; P &there4; Q</p>
+        <p class="rule">&harr;E: P&harr;Q &amp; Q &there4; P</p>
+        <p class="rule">&perp;I: P&and;&not;P &there4; &perp;</p>
+        <p class="rule">&not;I: P&#8866;&perp; &there4; &not;P</p>
+        <p class="rule">&not;E: &not;&not;P &there4; P</p>
+        <p class="rule">&forall;I: [x]&#8866P(x) &there4; &forall;xP(x)</p>
+        <p class="rule">&forall;E: &forall;xP(x) &there4; P(y)</p>
+        <p class="rule">&exist;I: P(x) &there4; &exist;yP(y)</p>
+        <p class="rule">&exist;E: &exist;xP(x) &amp; [y]P(y)&#8866R &there4; R</p>
+      </div>
     </div>
-
-    <div id="proof-root"></div>
 
     <script src="main.js"></script>
   </body>
