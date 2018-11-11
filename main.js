@@ -244,9 +244,13 @@ class Proof {
 }
 
 var proof;
-let urlProof = deserialize(getProofFromUrl());
+let urlProof = getProofFromUrl();
 if (urlProof) {
-  proof = urlProof;
+  try {
+    proof = deserialize(urlProof);
+  } catch (e) {
+    proof = new Proof([parse("")]);
+  }
 } else {
   proof = new Proof([parse("")]);
 }

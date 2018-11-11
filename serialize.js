@@ -41,6 +41,9 @@ function serialize(item) {
 }
 
 function makeTree_(code) {
+  if (code === "") {
+    throw "no sir";
+  }
   if (code === LEFT + RIGHT) {
     return [[""], ""];
   }
