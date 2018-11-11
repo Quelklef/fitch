@@ -63,6 +63,9 @@ function focusAt(loc) {
   }, 1);
 }
 
+// Most recently focused proposition input
+var $recentInput = null;
+
 function $makeLine(line, lineno, scope, linenos, i) {
   var sidetext = "";
   if (line.kind !== kindEmpty) {
@@ -79,6 +82,7 @@ function $makeLine(line, lineno, scope, linenos, i) {
     .append( $('<span>', {class: "lineno"}).html(lineno) )
     .append( $('<span>', {class: "input-group"})
       .append( $('<input>', {class: "input"}).val(line.sourcecode)
+        .on('focus', e => { $recentInput = $(e.target); })
         .on('input', textboxChangeHandler)
         .on('keydown', e => {
           // Only call meta handler on backspace if empty input
@@ -254,12 +258,22 @@ function show() {
 show();
 focusAt([0]);
 
-function clearProof() {
-  proof = new Proof([parse("")]);
-  show();
-  focusAt([0]);
-}
-$('#clear').click(clearProof);
+$('.literal').click(e => {
+  var val = $(e.target).html();
+  switch(val) {
+    case "&gt;": val = ">"; break;
+    case "&amp;": val = "&"; break;
+  }
+  if ($recentInput) {
+    let loc = getLocation($recentInput[0].parentNode.parentNode);
+    let selStart = $recentInput[0].selectionStart;
+    let selEnd = $recentInput[0].selectionEnd;
+    proof.mapItem(loc, line => parse($recentInput.val().slice(0, selStart) + val + $recentInput.val().slice(selEnd)));
+    show();
+    $getItem(loc).find('input').focus();
+    document.activeElement.selectionStart = document.activeElement.selectionEnd = selStart + 1;
+  }
+});
 
 function textboxChangeHandler(ev) {
   /* Handles input to the textboxes */
@@ -270,9 +284,16 @@ function textboxChangeHandler(ev) {
   proof.mapItem(focusLoc, line => parse(ev.target.value));
   show();
   focusAt(focusLoc);
-  document.activeElement.selectionStart = selStart;
-  document.activeElement.selectionEnd = selEnd;
+  // Need a timeout because of a chromium bug
+  setTimeout(() => {
+    $getItem(focusLoc).find('input')[0].setSelectionRange(selStart, selEnd);
+  }, 0);
 }
+
+$('#enter').click(() => metaKeyHandler({ key: "Enter", target: $recentInput[0] }));
+$('#tab').click(() => metaKeyHandler({ key: "Tab", target: $recentInput[0] }));
+$('#shift-tab').click(() => metaKeyHandler({ key: "Tab", shiftKey: true, target: $recentInput[0] }));
+$('#alt-backspace').click(() => metaKeyHandler({ key: "Backspace", altKey: true, target: $recentInput[0] }));
 
 function flash($el) {
   $el.removeClass("flash");
@@ -352,7 +373,9 @@ function metaKeyHandler(ev) {
 
       case "Backspace":
         if (ev.altKey) {
-          clearProof();
+          proof = new Proof([parse("")]);
+          show();
+          focusAt([0]);
         } else {
           // Assumption: Line is empty. Ensured because this function is only called if the line is empty.
           // Do not delete the line if it's the only line
