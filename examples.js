@@ -239,3 +239,30 @@ simpleExample(
 simpleExample('#forallE', ['VxPx', ['[y]', 'Py']]);
 simpleExample('#existsI', ['', ['[x]Px', 'EyPy']]);
 simpleExample('#existsE', ['ExPx', ['[y]Py', 'Py+Qy', 'EyPy+Qy'], 'EyPy+Qy']);
+simpleExample(
+  '#nonempty',
+  [ ''
+  , [ '[x]'
+    , [ '~(P+~P)'
+      , [ 'P'
+        , 'P+~P'
+        , '(P+~P)*~(P+~P)'
+        , '#'
+      ]
+      , '~P'
+      , [ '~P'
+        , 'P+~P'
+        , '(P+~P)*~(P+~P)'
+        , '#'
+      ]
+      , '~~P'
+      , 'P'
+      , '~P'
+      , 'P*~P'
+      , '#'
+    ]
+    , '~~(P+~P)'
+    , 'P+~P'
+  ]
+  , 'P+~P'
+]);

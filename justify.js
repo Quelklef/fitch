@@ -321,6 +321,17 @@ function justifyExistsElimination(goal, scope, linenos) {
     }
   }
 }
+function justifyDomainNonEmpty(goal, scope, linenos) {
+  for (let i = 0; i < scope.length; i++) {
+    let item = scope[i];
+    if (item instanceof Proof
+     && item.assumption.kind === kindDeclaration
+     && item.assumption.body.kind === kindEmpty
+     && item.conclusion.concurs(goal)) {
+      return "D:" + linenos[i] + "-" + (linenos[i+1]-1);
+    }
+  }
+}
 
 function ensureNameVarsDeclared(prop, scope) {
   /* Ensure that all name variables are declared.
@@ -403,6 +414,7 @@ function justify(line, scope, linenos, i) {
     , justifyForallElimination
     , justifyExistsIntroduction
     , justifyExistsElimination
+    , justifyDomainNonEmpty
     ];
 
   for (let i = 0; i < strategies.length; i++) {
