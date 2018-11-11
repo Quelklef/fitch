@@ -1,6 +1,12 @@
 'use strict';
 
 /*
+TODO:
+- Complain if a name variable is used without declaration
+- For some reason, UpArrow moves cursor to left and DownArrow to right
+*/
+
+/*
 POSSIBLE FEATURES:
 - Highlight selected line
 - Highlight direct dependencies of selected line
@@ -482,25 +488,27 @@ function varRepl(ast, nameFrom, nameTo) {
       throw "programmer is an idiot: " + ast.kind;
   }
 }
-function allNames(ast) {
-  /* Recursively collect and return all name nodes */
+function freeVars(ast) {
+  /* Recursively collect and return all free name nodes.
+     Note that this includes propositions as well as bona fide name variables. */
   switch(ast.kind) {
     case CONJUNCTION:
     case DISJUNCTION:
     case IMPLICATION:
     case BICONDITIONAL:
-      return new Set([...allNames(ast.lhs), ...allNames(ast.rhs)]);
+      return new Set([...freeVars(ast.lhs), ...freeVars(ast.rhs)]);
     case NEGATION:
-      return allNames(ast.body);
+      return freeVars(ast.body);
     case FORALL:
     case EXISTS:
-      return new Set([ast.name, ...allNames(ast.body)]);
+      return new Set([ast.name, ...freeVars(ast.body)]);
     case "name":
       return new Set([ast]);
     case "predicate":
       return new Set([ast.target].concat(ast.args));
     case "decl":
-      throw "cannot do allNames on a declaration";
+      var result = freeVars(ast.body);
+      result.delete(ast.name);
     case "invalid":
     case "empty":
     case BOTTOM:
@@ -525,7 +533,7 @@ function justifyForallIntroduction(goal, scope, linenos) {
   }
 }
 function justifyForallElimination(goal, scope, linenos) {
-  let names = Array.from(allNames(goal));
+  let names = Array.from(freeVars(goal));
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
     for (let i = 0; i < scope.length; i++) {
@@ -548,7 +556,7 @@ function justifyExistsIntroduction(goal, scope, linenos) {
     if (item instanceof Proof) {
       continue;
     }
-    let names = Array.from(allNames(item));
+    let names = Array.from(freeVars(item));
     for (let n = 0; n < names.length; n++) {
       let name = names[n];
       if (astEq(varRepl(item, name, goal.name), goal.body)) {
@@ -727,16 +735,16 @@ class Proof {
 
   get conclusion() {
     /* Get the last nonempty propositioin in the proof.
-       If there is none (i.e., the last item is a Proof), return null */
+       If there is none (i.e., the last item is a Proof), return an empty node */
     for (let i = this.items.length - 1; i >= 0; i--) {
       let item = this.items[i];
       if (item instanceof Proof) {
-        return null;
+        return {kind: "empty", sourcecode: ""};
       } else if (item.kind !== "empty") {
         return item;
       }
     }
-    return null;
+    return {kind: "empty", sourcecode: ""};
   }
   get assumption() {
     if (this.items.length === 0) {
@@ -956,3 +964,197 @@ function metaKeyHandler(ev) {
   }
 }
 
+$('#prop-dm-or').click(() => {
+  const propDeMorgansOrProof =
+    new Proof([
+      parse(""),
+      new Proof([
+        parse("-(P|Q)"),
+        new Proof([
+          parse("P"),
+          parse("P|Q"),
+          parse("(P|Q).-(P|Q)"),
+          parse("_"),
+        ]),
+        parse("-P"),
+        new Proof([
+          parse("Q"),
+          parse("P|Q"),
+          parse("(P|Q).-(P|Q)"),
+          parse("_"),
+        ]),
+        parse("-Q"),
+        parse("-P.-Q"),
+      ]),
+      new Proof([
+        parse("-P.-Q"),
+        new Proof([
+          parse("P|Q"),
+          new Proof([
+            parse("P"),
+            parse("-P"),
+            parse("P.-P"),
+            parse("_"),
+          ]),
+          new Proof([
+            parse("Q"),
+            parse("-Q"),
+            parse("Q.-Q"),
+            parse("_"),
+          ]),
+          parse("_"),
+        ]),
+        parse("-(P|Q)")
+      ]),
+      parse("-(P|Q)=(-P.-Q)"),
+    ]);
+
+  proof = propDeMorgansOrProof;
+  show();
+  focusAt([0]);
+});
+
+$('#prop-dm-and').click(() => {
+  let propDeMorgansAndProof =
+    new Proof([
+      parse(""),
+      new Proof([
+        parse("-(P.Q)"),
+        new Proof([
+          parse("-(-P|-Q)"),
+          new Proof([
+            parse("-P"),
+            parse("-P|-Q"),
+            parse("(-P|-Q).-(-P|-Q)"),
+            parse("_"),
+          ]),
+          parse("--P"),
+          parse("P"),
+          new Proof([
+            parse("-Q"),
+            parse("-P|-Q"),
+            parse("(-P|-Q).-(-P|-Q)"),
+            parse("_"),
+          ]),
+          parse("--Q"),
+          parse("Q"),
+          parse("P.Q"),
+          parse("(P.Q).-(P.Q)"),
+          parse("_"),
+        ]),
+        parse("--(-P|-Q)"),
+        parse("-P|-Q"),
+      ]),
+      new Proof([
+        parse("-P|-Q"),
+        new Proof([
+          parse("P.Q"),
+          new Proof([
+            parse("-P"),
+            parse("P"),
+            parse("P.-P"),
+            parse("_"),
+          ]),
+          new Proof([
+            parse("-Q"),
+            parse("Q"),
+            parse("Q.-Q"),
+            parse("_"),
+          ]),
+          parse("_"),
+        ]),
+        parse("-(P.Q)"),
+      ]),
+      parse("-(P.Q)=(-P|-Q)"),
+    ]);
+
+  proof = propDeMorgansAndProof;
+  show();
+  focusAt([0]);
+});
+
+$('#fol-dm-exist').click(() => {
+  const folDeMorgansExistsProof =
+    new Proof([
+      new Proof([
+        parse("-@xP(x)"),
+        new Proof([
+          parse("[a]"),
+          new Proof([
+            parse("P(a)"),
+            parse("@xP(x)"),
+            parse("(@xP(x)).-(@xP(x))"),
+            parse("_"),
+          ]),
+          parse("-P(a)"),
+        ]),
+        parse("\\x-P(x)"),
+      ]),
+      new Proof([
+        parse("\\x-P(x)"),
+        new Proof([
+          parse("@xP(x)"),
+          new Proof([
+            parse("[a]P(a)"),
+            parse("-P(a)"),
+            parse("P(a).-P(a)"),
+            parse("_"),
+          ]),
+          parse("_"),
+        ]),
+        parse("-@xP(x)"),
+      ]),
+      parse("(-@xP(x))=(\\x-P(x))"),
+    ]);
+
+  proof = folDeMorgansExistsProof;
+  show();
+  focusAt([0]);
+});
+
+$('#fol-dm-forall').click(() => {
+  const folDeMorgansForallProof =
+    new Proof([
+      new Proof([
+        parse("-\\xP(x)"),
+        new Proof([
+          parse("-@x-P(x)"),
+          new Proof([
+            parse("[a]"),
+            new Proof([
+              parse("-P(a)"),
+              parse("@x-P(x)"),
+              parse("(@x-P(x)).-(@x-P(x))"),
+              parse("_"),
+            ]),
+            parse("--P(a)"),
+            parse("P(a)"),
+          ]),
+          parse("\\xP(x)"),
+          parse("(\\xP(x)).-(\\xP(x))"),
+          parse("_")
+        ]),
+        parse("--@x-P(x)"),
+        parse("@x-P(x)"),
+      ]),
+      new Proof([
+        parse("@x-P(x)"),
+        new Proof([
+          parse("\\xP(x)"),
+          new Proof([
+            parse("[a]-P(a)"),
+            parse("P(a)"),
+            parse("P(a).-P(a)"),
+            parse("_"),
+          ]),
+          parse("_"),
+        ]),
+        parse("-\\xP(x)"),
+      ]),
+      parse("(-\\xP(x))=(@x-P(x))"),
+    ]);
+
+  proof = folDeMorgansForallProof;
+  show();
+  focusAt([0]);
+});
