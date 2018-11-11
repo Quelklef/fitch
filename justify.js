@@ -8,7 +8,10 @@
    `scope` is a list of other propositions as well as proofs in the 'scope"
    of the line, i.e., able to be used as proof.
    `linenos` is a list, parallel to `scope`, that contains the line numbers
-   of lines and starting line numbers of proofs. */
+   of lines and starting line numbers of proofs.
+
+    Also contains semantic checking for and distinguishing of
+    propositonal variables, predicate variables, and name variables. */
 
 function justifyReiteration(line, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
@@ -207,50 +210,24 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
       throw "Missed case: " + this.kind;
   }
 }
-Proposition.prototype.freeVars = function(excluding = new Set()) {
-  /* Recursively collect and return all free name nodes.
-     Note that this includes propositions as well as bona fide name variables. */
-  // TODO: Kill this broken function
-  switch(this.kind) {
-    case kindConjunction:
-    case kindDisjunction:
-    case kindImplication:
-    case kindBiconditional:
-      return new Set([...this.lhs.freeVars(excluding), ...this.rhs.freeVars(excluding)]);
-    case kindNegation:
-      return this.body.freeVars(excluding);
-    case kindForall:
-    case kindExists:
-      return new Set([this.name, ...this.body.freeVars(excluding)]);
-    case kindName:
-      return new Set([this]);
-    case kindPredicate:
-      return new Set([this.target].concat(this.args));
-    case kindDeclaration:
-      return this.body.freeVars(new Set([this.name, ...excluding]));
-    case kindInvalid:
-    case kindEmpty:
-    case kindBottom:
-      return new Set();
-    default:
-      throw "forgot a case... " + this.kind;
-  }
-}
-Proposition.prototype.freeNameVars = function(excluding = new Set()) {
-  /* Recursively collect and return all free name nodes.
+Proposition.prototype.freeNameVars = function(declFree, excluding = new Set()) {
+  /* Recursively collect and return all free name variables.
      Excludes name nodes in the set `excluding`.
-     Note that this includes propositions as well as bona fide name variables. */
+     Declarations should be considered to be free in some contexts but not in
+     others; swap this with the `declFree` flag.
+     For example, if declarations are considered to be free, then `x` is free
+     in `[x]P(x)`. If not, then it isn't. */
   switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      return new Set([...this.lhs.freeNameVars(excluding), ...this.rhs.freeNameVars(excluding)]);
+      return new Set([...this.lhs.freeNameVars(declFree, excluding), ...this.rhs.freeNameVars(declFree, excluding)]);
     case kindNegation:
-      return this.body.freeNameVars(excluding);
+      return this.body.freeNameVars(declFree, excluding);
     case kindForall:
     case kindExists:
-      return this.body.freeNameVars(new Set([this.name, ...excluding]));
+      return this.body.freeNameVars(declFree, new Set([this.name, ...excluding]));
     case kindName:
       return new Set();
     case kindPredicate:
@@ -258,7 +235,11 @@ Proposition.prototype.freeNameVars = function(excluding = new Set()) {
       let ex = Array.from(excluding);
       return new Set(this.args.filter(name => !ex.some(prop => prop.equals(name))));
     case kindDeclaration:
-      return this.body.freeNameVars(new Set([this.name, ...excluding]));
+      if (declFree) {
+        return this.body.freeNameVars(declFree, excluding);
+      } else {
+        return this.body.freeNameVars(declFree, new Set([this.name, ...excluding]));
+      }
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -283,7 +264,7 @@ function justifyForallIntroduction(goal, scope, linenos) {
   }
 }
 function justifyForallElimination(goal, scope, linenos) {
-  let names = Array.from(goal.freeVars());
+  let names = Array.from(goal.freeNameVars(true));
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
     for (let i = 0; i < scope.length; i++) {
@@ -306,7 +287,7 @@ function justifyExistsIntroduction(goal, scope, linenos) {
     if (item instanceof Proof) {
       continue;
     }
-    let names = Array.from(item.freeVars());
+    let names = Array.from(item.freeNameVars(true));
     for (let n = 0; n < names.length; n++) {
       let name = names[n];
       if (item.substitute(name, goal.name).equals(goal.body)) {
@@ -336,7 +317,7 @@ function justifyExistsElimination(goal, scope, linenos) {
 function ensureNameVarsDeclared(prop, scope) {
   /* Ensure that all name variables are declared.
      If not, throw an error. */
-  let names = Array.from(prop.freeNameVars());
+  let names = Array.from(prop.freeNameVars(false));
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
     if (!scope.some(line => line instanceof Proposition && line.kind === kindDeclaration && line.name.equals(name))) {

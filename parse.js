@@ -1,5 +1,9 @@
 'use strict';
 
+/* Proposition parsing.
+   Propositional variables, predicate variables, and name variables are all conflated into
+   a single kind here (name). They are semantically distinguished in justify.js */
+
 /* -- Type definition -- */
 
 // All the different proposition kinds
@@ -262,7 +266,7 @@ function parseDeclaration(code) {
   [name, rest] = parseName(rest);
   rest = consume(rest, "]");
   try {
-    [body, rest] = parseSimpleProp(rest);
+    [body, rest] = parsePredicate(rest);
   } catch (e) {
     body = Proposition.newEmpty("");
   }
