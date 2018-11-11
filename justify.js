@@ -200,7 +200,7 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
       return Object.assign(new Proposition(this), {body: this.body.substitute(nameFrom, nameTo)});
     case kindForall:
     case kindExists:
-      return Object.assign(new Proposition(this), {name: this.name.substitute(nameFrom, nameTo)});
+      return Object.assign(new Proposition(this), {body: this.body.substitute(nameFrom, nameTo)});
     case kindName:
       return this.concurs(nameFrom) ? nameTo : this;
     case kindPredicate:
