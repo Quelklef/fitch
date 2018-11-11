@@ -4,6 +4,11 @@
 TODO:
 - Complain if a name variable is used without declaration
 - For some reason, UpArrow moves cursor to left and DownArrow to right
+- Rename astEq, since it doesn't actually test for equality
+  Additionally, the `decl` hack with astEq means that someone can prove
+  a `decl` as a proposition via the rules. This should not be allowed.
+  Could be fixed by rejecting all declarations not on the first line
+  of a proof.
 */
 
 /*
@@ -280,9 +285,13 @@ function arrEq(ar0, ar1, eq) {
 }
 function astEq(node0, node1) {
   /* Slight misnomer. Takes two ITEMS and returns true iff
-     they are both lines (AST nodes) and equal. */
+     they are both lines (AST nodes) and equal.
+     Note that this has special behaviour around declarations, in that
+     it compares the BODY of a declaration to another ndoe. */
   if (node0 === null || node1 === null) return false;
   if (node0 instanceof Proof || node1 instanceof Proof) return false;
+  if (node0.kind === "decl") return astEq(node0.body, node1);
+  if (node1.kind === "decl") return astEq(node0, node1.body);
   if (node0.kind !== node1.kind) return false;
   let kind = node0.kind;
   if (kind === "invalid" || kind === "empty") return false;
