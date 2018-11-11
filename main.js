@@ -14,7 +14,7 @@ POSSIBLE FEATURES:
   or lines that depend on one of these lines
 */
 
-// requires: parse.js, justify.js
+// requires: parse.js, serialize.js, justify.js
 
 let $root = $('#proof-root');
 
@@ -56,9 +56,11 @@ function $getItem(location) {
 function focusAt(loc) {
   $getItem(loc).find('input').focus();
   // For whatever reason, this only works in a timeout
-  setTimeout(() =>
-    document.activeElement.selectionStart = document.activeElement.selectionEnd = document.activeElement.value.length
-  , 1);
+  setTimeout(() => {
+    if (document.activeElement.value) {
+      document.activeElement.selectionStart = document.activeElement.selectionEnd = document.activeElement.value.length
+    }
+  }, 1);
 }
 
 function $makeLine(line, lineno, scope, linenos, i) {
@@ -81,7 +83,7 @@ function $makeLine(line, lineno, scope, linenos, i) {
         .on('keydown', e => {
           // Only call meta handler on backspace if empty input
           if (e.key === "Backspace") {
-            if (e.target.value === "") {
+            if (e.target.value === "" || e.altKey) {
               metaKeyHandler(e);
               return false; // Otherwise, would backspace on previous line
             }
@@ -237,14 +239,27 @@ class Proof {
   }
 }
 
-var proof = new Proof();
-proof.items.push(parse(""));
+var proof;
+let urlProof = deserialize(getProofFromUrl());
+if (urlProof) {
+  proof = urlProof;
+} else {
+  proof = new Proof([parse("")]);
+}
 
 function show() {
   $root.empty().append(proof.render());
+  storeProofInUrl(serialize(proof));
 }
 show();
 focusAt([0]);
+
+function clearProof() {
+  proof = new Proof([parse("")]);
+  show();
+  focusAt([0]);
+}
+$('#clear').click(clearProof);
 
 function textboxChangeHandler(ev) {
   /* Handles input to the textboxes */
@@ -336,31 +351,35 @@ function metaKeyHandler(ev) {
         break;
 
       case "Backspace":
-        // Assumption: Line is empty. Ensured because this function is only called if the line is empty.
-        // Do not delete the line if it's the only line
-        if (!(focusLoc.length === 1 && focusLoc[0] === 0 && proof.items.length === 1)) {
-          let prevLoc = proof.prevLocation(focusLoc);
-          proof.mapItem(
-            focusLoc.slice(0, focusLoc.length - 1),
-            proof => {
-              proof.items.splice(focusLoc[focusLoc.length - 1], 1);
-              return proof;
-            }
-          );
-
-          // If that line was the only line in its proof,
-          if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
-            // then an empty proof was left and we should remove it
+        if (ev.altKey) {
+          clearProof();
+        } else {
+          // Assumption: Line is empty. Ensured because this function is only called if the line is empty.
+          // Do not delete the line if it's the only line
+          if (!(focusLoc.length === 1 && focusLoc[0] === 0 && proof.items.length === 1)) {
+            let prevLoc = proof.prevLocation(focusLoc);
             proof.mapItem(
-              focusLoc.slice(0, focusLoc.length - 2),
+              focusLoc.slice(0, focusLoc.length - 1),
               proof => {
-                proof.items.splice(focusLoc[focusLoc.length - 2], 1);
+                proof.items.splice(focusLoc[focusLoc.length - 1], 1);
                 return proof;
               }
             );
+
+            // If that line was the only line in its proof,
+            if (proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length === 0) {
+              // then an empty proof was left and we should remove it
+              proof.mapItem(
+                focusLoc.slice(0, focusLoc.length - 2),
+                proof => {
+                  proof.items.splice(focusLoc[focusLoc.length - 2], 1);
+                  return proof;
+                }
+              );
+            }
+            show();
+            focusAt(prevLoc);
           }
-          show();
-          focusAt(prevLoc);
         }
         break;
     }

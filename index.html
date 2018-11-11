@@ -13,17 +13,18 @@
       </div>
       <div id="meta">
         <h4>Keys</h4>
-      	<p><a class="key">.</a> <a class="key">&</a> <a class="key">^</a> Conjunction &and;</p>
-      	<p><a class="key">|</a> <a class="key">v</a> Disjunction &or;</p>
+      	<p><a class="key">.</a> <a class="key">&</a> <a class="key">^</a> <a class="key">*</a> Conjunction &and;</p>
+      	<p><a class="key">|</a> <a class="key">v</a> <a class="key">+</a> Disjunction &or;</p>
       	<p><a class="key">&gt;</a> Implication &rarr;</p>
       	<p><a class="key">-</a> <a class="key">~</a> <a class="key">!</a> Negation &not;</p>
-      	<p><a class="key">_</a> Bottom &perp;</p>
+      	<p><a class="key">_</a> <a class="key">&#35;</a> Bottom &perp;</p>
       	<p><a class="key">=</a> Biconditional &harr;</p>
       	<p><a class="key">\</a> <a class="key">V</a> Forall &forall;</p>
       	<p><a class="key">E</a> <a class="key">@</a> Exists &exist;</p>
       	<p><a class="key">enter</a> New proposition</p>
       	<p><a class="key">tab</a> New assumption (<a id="new-assumption-restriction">not on first line</a>)</p>
       	<p><a class="key">shift+tab</a> Finish assumption (<a id="end-assumption-restriction">last line only</a>)</p>
+      	<p><a class="key" id="clear">alt+backspace</a> Reset proof</p>
 
       	<br />
       	<h4>Examples (click to show)</h4>
@@ -56,6 +57,7 @@
     </div>
 
     <script src="parse.js"></script>
+    <script src="serialize.js"></script>
     <script src="justify.js"></script>
     <script src="main.js"></script>
     <script src="examples.js"></script>

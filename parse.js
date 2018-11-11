@@ -224,6 +224,7 @@ function parseAtom(code) {
       return parseExistentialOp(code, code[0], Proposition.newExists);
 
     case "_":
+    case "#":
       return [Proposition.newBottom(code[0]), code.slice(1)];
 
     default:
@@ -251,10 +252,10 @@ function parseImplication(code) {
   return parseBinaryOp(code, [">"], Proposition.newImplication, parseBiconditional);
 }
 function parseDisjunction(code) {
-  return parseBinaryOp(code, ["|", "v"], Proposition.newDisjunction, parseImplication);
+  return parseBinaryOp(code, ["|", "v", "+"], Proposition.newDisjunction, parseImplication);
 }
 function parseConjunction(code) {
-  return parseBinaryOp(code, [".", "&", "^"], Proposition.newConjunction, parseDisjunction);
+  return parseBinaryOp(code, [".", "&", "^", "*"], Proposition.newConjunction, parseDisjunction);
 }
 
 function parseSimpleProp(code) {
@@ -292,11 +293,14 @@ function prettifyChar(char) {
     ".": CONJUNCTION,
     "&": CONJUNCTION,
     "^": CONJUNCTION,
+    "*": CONJUNCTION,
     "|": DISJUNCTION,
     "v": DISJUNCTION,
+    "+": DISJUNCTION,
     "(": OPEN,
     ")": CLOSE,
     "_": BOTTOM,
+    "#": BOTTOM,
     "\\": FORALL,
     "V": FORALL,
     "@": EXISTS,
@@ -333,25 +337,28 @@ function prettify(code) {
     .join("");
 }
 
+function parseTop(code) {
+  let toks = lex(code);
+  if (toks === "") {
+    return [Proposition.newEmpty(""), ""];
+  }
+  return parseProposition(toks);
+}
+
 function parse(code) {
   /* Parse a proposition. If it's empty, return special node {kind: "empty"}.
      Otherwise, return the AST, unless there's a syntax error;
      then, return special node {kind: "invalid"} */
-  let toks = lex(code);
-  if (toks === "") {
-    return Proposition.newEmpty("");
-  }
-
-  var ast, rest;
+  var prop, rest;
   try {
-    [ast, rest] = parseProposition(toks);
+    [prop, rest] = parseTop(code);
   } catch (e) {
-    console.log(e);
     return Proposition.newInvalid(code);
   }
+
   if (rest !== "") {
     return Proposition.newInvalid(code);
   }
-  return ast;
+  return prop;
 }
 

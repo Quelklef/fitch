@@ -335,9 +335,6 @@ function ensureNameVarsDeclared(prop, scope) {
 }
 
 function ensureNoPropositionalVariables(prop) {
-  if (prop.kind === kindName) {
-    throw "prop. var. not allowed in FOL";
-  }
   switch(prop.kind) {
     case kindConjunction:
     case kindDisjunction:
