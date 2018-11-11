@@ -354,7 +354,8 @@ function parse(code) {
   try {
     [prop, rest] = parseTop(code);
   } catch (e) {
-    return Proposition.newInvalid(code, e);
+    // We conflate errors because they're typically not user-friendly
+    return Proposition.newInvalid(code, "malformed proposition");
   }
 
   if (rest !== "") {

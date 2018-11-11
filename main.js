@@ -249,6 +249,7 @@ if (urlProof) {
   try {
     proof = deserialize(urlProof);
   } catch (e) {
+    console.log("Error parsing url proof", e);
     proof = new Proof([parse("")]);
   }
 } else {
