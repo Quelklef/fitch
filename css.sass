@@ -6,6 +6,13 @@ h1
   margin-top: 30px
   font-size: 20px
 
+a
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2)
+  padding-bottom: 0
+  &:hover
+    cursor: pointer
+    border-bottom-color: black
+
 body
   &, .input
     font-family: 'Cousine', monospace
@@ -44,6 +51,9 @@ body
   box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.5)
   position: relative
   bottom: 1px
+  &:hover
+    border-color: grey
+    box-shadow: 0px 1px 1px rgba(0, 0, 0, 0.5)
 
 #proof-root
   width: 100%
@@ -148,9 +158,3 @@ body
 .rule
   letter-spacing: 2px
 
-a
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2)
-  padding-bottom: 0
-  &:hover
-    cursor: pointer
-    border-bottom-color: black
