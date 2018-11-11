@@ -476,6 +476,7 @@ function varRepl(ast, nameFrom, nameTo) {
       throw "cannot do variable replacement on a declaration";
     case "invalid":
     case "empty":
+    case BOTTOM:
       return ast;
     default:
       throw "programmer is an idiot: " + ast.kind;
@@ -502,9 +503,10 @@ function allNames(ast) {
       throw "cannot do allNames on a declaration";
     case "invalid":
     case "empty":
+    case BOTTOM:
       return new Set();
     default:
-      throw "forgot a case...";
+      throw "forgot a case... " + ast.kind;
   }
 }
 const RARR = "&rarr;";
@@ -694,9 +696,9 @@ function $makeContext(lines) {
 }
 
 class Proof {
-  constructor() {
+  constructor(items) {
     // List of items: either a line (AST node) or a subproof (`Proof`)
-    this.items = [];
+    this.items = items || [];
   }
 
   static recSize(item) {
@@ -824,7 +826,7 @@ class Proof {
   }
 }
 
-let proof = new Proof();
+var proof = new Proof();
 proof.items.push(parse(""));
 
 function show() {
@@ -953,3 +955,4 @@ function metaKeyHandler(ev) {
     }
   }
 }
+
