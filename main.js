@@ -2,7 +2,6 @@
 
 /*
 TODO:
-- For some reason, UpArrow moves cursor to left and DownArrow to right
 - Rename Proposition.eq, since it doesn't actually test for equality
   Additionally, the `decl` hack with Proposition.eq means that someone can prove
   a `decl` as a proposition via the rules. This should not be allowed.
@@ -60,6 +59,10 @@ function $getItem(location) {
 }
 function focusAt(loc) {
   $getItem(loc).find('input').focus();
+  // For whatever reason, this only works in a timeout
+  setTimeout(() =>
+    document.activeElement.selectionStart = document.activeElement.selectionEnd = document.activeElement.value.length
+  , 1);
 }
 
 function $makeLine(line, lineno, scope, linenos, i) {

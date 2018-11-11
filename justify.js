@@ -331,24 +331,28 @@ function ensureNameVarsDeclared(prop, scope) {
   }
 }
 
-function ensureNoPropostionalVariables(prop) {
+function ensureNoPropositionalVariables(prop) {
+  if (prop.kind === kindName) {
+    throw "prop. var. not allowed in FOL";
+  }
+  prop.children.forEach(ensureNoPropositionalVariables);
   switch(prop.kind) {
     case kindConjunction:
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      ensureNoPropostionalVariables(prop.lhs);
-      ensureNoPropostionalVariables(prop.rhs);
+      ensureNoPropositionalVariables(prop.lhs);
+      ensureNoPropositionalVariables(prop.rhs);
       break;
     case kindNegation:
     case kindForall:
     case kindExists:
-      ensureNoPropostionalVariables(prop.body);
+      ensureNoPropositionalVariables(prop.body);
       break;
     case kindName:
       throw "prop. var. not allowed in FOL";
     case kindDeclaration:
-      ensureNoPropostionalVariables(prop.body);
+      ensureNoPropositionalVariables(prop.body);
       break;
     case kindPredicate:
     case kindInvalid:
@@ -372,7 +376,7 @@ function justify(line, scope, linenos, i) {
    ensureNameVarsDeclared(line, scope);
 
    if (line.kind === kindForall || line.kind === kindExists || line.kind === kindDeclaration) {
-      ensureNoPropostionalVariables(line);
+      ensureNoPropositionalVariables(line);
    }
 
    if (i === 0) {

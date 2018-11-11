@@ -80,7 +80,7 @@ class Proposition {
 
   static equals(prop1, prop2) {
     /* Note that this has special behaviour around declarations, in that
-       it compares the BODY of a declaration to anprop2 Proposition. */
+       it compares the BODY of a declaration to the other Proposition. */
     if (prop1 === null || prop2 === null) return false;
     if (!(prop1 instanceof Proposition && prop2 instanceof Proposition)) return false;
     if (prop1.kind === kindDeclaration) return Proposition.equals(prop1.body, prop2);
