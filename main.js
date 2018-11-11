@@ -2,10 +2,11 @@
 
 /*
 TODO:
+- Get rid of the 'name' kind of Proposition, it's dumb.
 - Complain if a name variable is used without declaration
 - For some reason, UpArrow moves cursor to left and DownArrow to right
-- Rename astEq, since it doesn't actually test for equality
-  Additionally, the `decl` hack with astEq means that someone can prove
+- Rename Proposition.eq, since it doesn't actually test for equality
+  Additionally, the `decl` hack with Proposition.eq means that someone can prove
   a `decl` as a proposition via the rules. This should not be allowed.
   Could be fixed by rejecting all declarations not on the first line
   of a proof.
@@ -109,6 +110,10 @@ class Proof {
   constructor(items) {
     // List of items: either a line (AST node) or a subproof (`Proof`)
     this.items = items || [];
+  }
+
+  equals(other) {
+    return other instanceof Proof && other.items == this.items;
   }
 
   static recSize(item) {
