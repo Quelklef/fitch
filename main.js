@@ -2,7 +2,6 @@
 
 /*
 TODO:
-- Get rid of the 'name' kind of Proposition, it's dumb.
 - Complain if a name variable is used without declaration
 - For some reason, UpArrow moves cursor to left and DownArrow to right
 - Rename Proposition.eq, since it doesn't actually test for equality
