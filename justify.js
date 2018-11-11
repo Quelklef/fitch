@@ -18,7 +18,19 @@
     We do NOT allow quantification over predicates and do NOT allow
     naked propositions within foralls, exists, and declarations. */
 
+function flattenDeclarations(scope) {
+  /* Many proof strategies concern themselves only with the bodies
+     of declarations rather than the declarations themselves.
+     This unwraps all declarations in the scope. */
+  return scope.map(item =>
+    item instanceof Proposition && item.kind === kindDeclaration
+      ? item.body
+      : item
+  );
+}
+
 function justifyReiteration(line, scope, linenos) {
+  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     if (scope[i] instanceof Proposition && scope[i].concurs(line)) {
       return "R:" + linenos[i];
@@ -26,6 +38,7 @@ function justifyReiteration(line, scope, linenos) {
   }
 }
 function justifyConjunctionIntroduction(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   if (goal.kind !== kindConjunction) {
     return null;
   }
@@ -48,6 +61,7 @@ function justifyConjunctionIntroduction(goal, scope, linenos) {
   }
 }
 function justifyConjunctionElimination(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let line = scope[i]
     if (line instanceof Proposition && line.kind === kindConjunction && (line.lhs.concurs(goal) || line.rhs.concurs(goal))) {
@@ -56,6 +70,7 @@ function justifyConjunctionElimination(goal, scope, linenos) {
   }
 }
 function justifyDisjunctionIntroduction(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   if (goal.kind !== kindDisjunction) {
     return null;
   }
@@ -67,6 +82,7 @@ function justifyDisjunctionIntroduction(goal, scope, linenos) {
   }
 }
 function justifyDisjunctionElimination(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   // Get proofs with the desired conclusion
   for (let i = 0; i < scope.length; i++) {
     let line = scope[i];
@@ -92,6 +108,7 @@ function justifyDisjunctionElimination(goal, scope, linenos) {
   }
 }
 function justifyImplicationIntroduction(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   if (goal.kind !== kindImplication) {
     return null;
   }
@@ -105,6 +122,7 @@ function justifyImplicationIntroduction(goal, scope, linenos) {
   }
 }
 function justifyImplicationElimination(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let iitem = scope[i];
     if (iitem instanceof Proof || iitem.kind !== kindImplication || !iitem.rhs.concurs(goal)) {
@@ -122,6 +140,7 @@ function justifyImplicationElimination(goal, scope, linenos) {
   }
 }
 function justifyBiconditionalIntroducton(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   if (goal.kind !== kindBiconditional) {
     return null;
   }
@@ -148,6 +167,7 @@ function justifyBiconditionalIntroducton(goal, scope, linenos) {
   }
 }
 function justifyBiconditionalElimination(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proposition && item.kind === kindBiconditional && (item.lhs.concurs(goal) || item.rhs.concurs(goal))) {
@@ -156,6 +176,7 @@ function justifyBiconditionalElimination(goal, scope, linenos) {
   }
 }
 function justifyBottomIntroduction(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proposition && item.kind === kindConjunction &&
@@ -166,6 +187,7 @@ function justifyBottomIntroduction(goal, scope, linenos) {
   }
 }
 function justifyNegationIntroduction(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   if (goal.kind !== kindNegation) {
     return null;
   }
@@ -177,6 +199,7 @@ function justifyNegationIntroduction(goal, scope, linenos) {
   }
 }
 function justifyNegationElimination(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proposition && item.kind === kindNegation && item.body.kind === kindNegation && item.body.body.concurs(goal)) {
@@ -272,6 +295,7 @@ function justifyForallIntroduction(goal, scope, linenos) {
   }
 }
 function justifyForallElimination(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   let names = Array.from(goal.freeNameVars(true));
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
@@ -287,6 +311,7 @@ function justifyForallElimination(goal, scope, linenos) {
   }
 }
 function justifyExistsIntroduction(goal, scope, linenos) {
+  scope = flattenDeclarations(scope);
   if (goal.kind !== kindExists) {
     return null;
   }
