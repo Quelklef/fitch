@@ -237,5 +237,5 @@ simpleExample(
 ]
 );
 simpleExample('#forallE', ['VxP(x)', ['[y]', 'P(y)']]);
-simpleExample('#existsI', ['P(x)', 'EyP(y)']);
+simpleExample('#existsI', ['', ['[x]P(x)', 'EyP(y)']]);
 simpleExample('#existsE', ['ExP(x)', ['[y]P(y)', 'P(y)|Q(y)', 'EyP(y)|Q(y)'], 'EyP(y)|Q(y)']);

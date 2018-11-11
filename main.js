@@ -2,7 +2,6 @@
 
 /*
 TODO:
-- Complain if a name variable is used without declaration
 - For some reason, UpArrow moves cursor to left and DownArrow to right
 - Rename Proposition.eq, since it doesn't actually test for equality
   Additionally, the `decl` hack with Proposition.eq means that someone can prove
@@ -63,12 +62,18 @@ function focusAt(loc) {
   $getItem(loc).find('input').focus();
 }
 
-function $makeLine(line, lineno, justification) {
-  let sidetext =
-    line.kind === "empty" ? ""
-    : line.kind === "invalid" ? "malformed proposition"
-    : justification === null ? "invalid step"
-    : justification;
+function $makeLine(line, lineno, scope, linenos, i) {
+  var sidetext = "";
+  if (line.kind !== kindEmpty) {
+    var errored = false;
+    try {
+      sidetext = justify(line, scope, linenos, i);
+    } catch (errorReason) {
+      errored = true;
+      sidetext = errorReason;
+    }
+  }
+
   let $r = $('<p>', {class: "line"})
     .append( $('<span>', {class: "lineno"}).html(lineno) )
     .append( $('<span>', {class: "input-group"})
@@ -89,10 +94,7 @@ function $makeLine(line, lineno, justification) {
       .append( $('<span>', {class: "overlay"}).html(prettify(line.sourcecode)) ) )
     .append( $('<p>', {class: "proof"}).html(sidetext) );
 
-  if (line.kind === "invalid") {
-    $r.addClass("parse-error");
-  }
-  if (line.kind !== "empty" && justification === null) {
+  if (errored) {
     $r.addClass("invalid");
   }
   return $r;
@@ -135,7 +137,7 @@ class Proof {
       ));
       let lineno = linenos[linenos.length - 1];
       return item instanceof Proof ? item.render(scope, linenos)
-                                   : $makeLine(item, lineno, justify(item, scope, linenos, i));
+                                   : $makeLine(item, lineno, scope, linenos, i);
     }));
   }
 

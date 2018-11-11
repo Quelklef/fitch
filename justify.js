@@ -177,7 +177,8 @@ function justifyNegationElimination(goal, scope, linenos) {
 Proposition.prototype.substitute = function(nameFrom, nameTo) {
   /* Return `this` with the name `nameFrom` recursively replaced with `nameTo`.
      Only replaces items that can be quantified over in FOL (i.e., predicate arguments)
-     And proposition variables; does not replace predicate names. */
+     And proposition variables; does not replace predicate names.
+     Note that declarations are treated specially. */
   switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
@@ -195,7 +196,9 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
       // Do NOT replace the target since predicates cannot be quantified over in FOL
       return Object.assign(new Proposition(this), {args: this.args.map(arg => arg.substitute(nameFrom, nameTo))});
     case kindDeclaration:
-      throw "Cannot do variable replacement on a declaration";
+      // This implementation is tricky.
+      // The reason we do it this way exists but I'm too tired to explain :|
+      return this.body.substitute(nameFrom, nameTo);
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -204,27 +207,58 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
       throw "Missed case: " + this.kind;
   }
 }
-Proposition.prototype.freeVars = function() {
+Proposition.prototype.freeVars = function(excluding = new Set()) {
   /* Recursively collect and return all free name nodes.
+     Note that this includes propositions as well as bona fide name variables. */
+  // TODO: Kill this broken function
+  switch(this.kind) {
+    case kindConjunction:
+    case kindDisjunction:
+    case kindImplication:
+    case kindBiconditional:
+      return new Set([...this.lhs.freeVars(excluding), ...this.rhs.freeVars(excluding)]);
+    case kindNegation:
+      return this.body.freeVars(excluding);
+    case kindForall:
+    case kindExists:
+      return new Set([this.name, ...this.body.freeVars(excluding)]);
+    case kindName:
+      return new Set([this]);
+    case kindPredicate:
+      return new Set([this.target].concat(this.args));
+    case kindDeclaration:
+      return this.body.freeVars(new Set([this.name, ...excluding]));
+    case kindInvalid:
+    case kindEmpty:
+    case kindBottom:
+      return new Set();
+    default:
+      throw "forgot a case... " + this.kind;
+  }
+}
+Proposition.prototype.freeNameVars = function(excluding = new Set()) {
+  /* Recursively collect and return all free name nodes.
+     Excludes name nodes in the set `excluding`.
      Note that this includes propositions as well as bona fide name variables. */
   switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      return new Set([...this.lhs.freeVars(), ...this.rhs.freeVars()]);
+      return new Set([...this.lhs.freeNameVars(excluding), ...this.rhs.freeNameVars(excluding)]);
     case kindNegation:
-      return this.body.freeVars();
+      return this.body.freeNameVars(excluding);
     case kindForall:
     case kindExists:
-      return new Set([this.name, ...this.body.freeVars()]);
+      return this.body.freeNameVars(new Set([this.name, ...excluding]));
     case kindName:
-      return new Set([this]);
+      return new Set();
     case kindPredicate:
-      return new Set([this.target].concat(this.args));
+      // Only return not-excluded arguments
+      let ex = Array.from(excluding);
+      return new Set(this.args.filter(name => !ex.some(prop => prop.equals(name))));
     case kindDeclaration:
-      var result = this.body.freeVars();
-      result.delete(this.name);
+      return this.body.freeNameVars(new Set([this.name, ...excluding]));
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -298,10 +332,30 @@ function justifyExistsElimination(goal, scope, linenos) {
     }
   }
 }
+
+function ensureNameVarsDeclared(prop, scope) {
+  /* Ensure that all name variables are declared.
+     If not, throw an error. */
+  let names = Array.from(prop.freeNameVars());
+  for (let n = 0; n < names.length; n++) {
+    let name = names[n];
+    if (!scope.some(line => line instanceof Proposition && line.kind === kindDeclaration && line.name.equals(name))) {
+      throw `undeclared name variable '${name.name}'`;
+    }
+  }
+}
+
 function justify(line, scope, linenos, i) {
   /* Justify a line (AST Node) with all the lines of the given scope.
      The line numbers must be supplied in the parallel array `linenos`.
-     `i` is the index of the line in its context */
+     `i` is the index of the line in its context.
+     If the line cannot be justified, throws an error with the reason. */
+   if (line.kind === kindInvalid) {
+     throw "malformed proposition";
+   }
+
+   ensureNameVarsDeclared(line, scope);
+
    if (i === 0) {
      return "assumed";
    }
@@ -333,5 +387,5 @@ function justify(line, scope, linenos, i) {
     }
   }
 
-  return null;
+  throw "invalid step";
 }
