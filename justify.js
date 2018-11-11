@@ -261,7 +261,6 @@ function justifyForallElimination(goal, scope, linenos) {
   }
 }
 function justifyExistsIntroduction(goal, scope, linenos) {
-  console.log(goal, scope, linenos);
   if (goal.kind !== kindExists) {
     return null;
   }
@@ -273,7 +272,6 @@ function justifyExistsIntroduction(goal, scope, linenos) {
     let names = Array.from(freeVars(item));
     for (let n = 0; n < names.length; n++) {
       let name = names[n];
-      console.log(varRepl(item, name, goal.name), varRepl(item, name, goal.name).equals(goal.body));
       if (varRepl(item, name, goal.name).equals(goal.body)) {
         return EXISTS + "I:" + linenos[i] + "[" + name.name + RARR + goal.name.name + "]";
       }
