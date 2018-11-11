@@ -11,7 +11,12 @@
    of lines and starting line numbers of proofs.
 
     Also contains semantic checking for and distinguishing of
-    propositonal variables, predicate variables, and name variables. */
+    propositonal variables, predicate variables, and name variables.
+
+    Note that we allow combination of propositional and predicate logic
+    by treating foralls and exists similar to propositional variables.
+    We do NOT allow quantification over predicates and do NOT allow
+    naked propositions within foralls, exists, and declarations. */
 
 function justifyReiteration(line, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
@@ -321,8 +326,37 @@ function ensureNameVarsDeclared(prop, scope) {
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
     if (!scope.some(line => line instanceof Proposition && line.kind === kindDeclaration && line.name.equals(name))) {
-      throw `undeclared name variable '${name.name}'`;
+      throw `'${name.name}' is free`;
     }
+  }
+}
+
+function ensureNoPropostionalVariables(prop) {
+  switch(prop.kind) {
+    case kindConjunction:
+    case kindDisjunction:
+    case kindImplication:
+    case kindBiconditional:
+      ensureNoPropostionalVariables(prop.lhs);
+      ensureNoPropostionalVariables(prop.rhs);
+      break;
+    case kindNegation:
+    case kindForall:
+    case kindExists:
+      ensureNoPropostionalVariables(prop.body);
+      break;
+    case kindName:
+      throw "prop. var. not allowed in FOL";
+    case kindDeclaration:
+      ensureNoPropostionalVariables(prop.body);
+      break;
+    case kindPredicate:
+    case kindInvalid:
+    case kindEmpty:
+    case kindBottom:
+      break;
+    default:
+      throw "forgot a case... " + prop.kind;
   }
 }
 
@@ -336,6 +370,10 @@ function justify(line, scope, linenos, i) {
    }
 
    ensureNameVarsDeclared(line, scope);
+
+   if (line.kind === kindForall || line.kind === kindExists || line.kind === kindDeclaration) {
+      ensureNoPropostionalVariables(line);
+   }
 
    if (i === 0) {
      return "assumed";
