@@ -41,8 +41,7 @@ const binaryOps = [IMPLICATION, BICONDITIONAL, CONJUNCTION, DISJUNCTION];
 
 function parseName(code) {
   /* Names must be single-char */
-  // Cannot use E and V as they're for exists/forall
-  if (/^[a-zA-Z]$/.test(code[0]) && code[0] !== "E" && code[0] !== "V") {
+  if (/^[a-zA-Z]$/.test(code[0]) && code[0] !== "E" && code[0] !== "V" && code[0] !== "v") {
     return [ {kind: "name", name: code[0], sourcecode: code[0]}
            , code.slice(1)
            ];
@@ -156,8 +155,8 @@ function parseBinaryOp(code, operators, kind, parseFunc) {
 
 function parseBiconditional(code) { return parseBinaryOp(code, ["="], BICONDITIONAL, parseAtom); }
 function parseImplication(code) { return parseBinaryOp(code, [">"], IMPLICATION, parseBiconditional); }
-function parseDisjunction(code) { return parseBinaryOp(code, ["|"], DISJUNCTION, parseImplication); }
-function parseConjunction(code) { return parseBinaryOp(code, [".", "&"], CONJUNCTION, parseDisjunction); }
+function parseDisjunction(code) { return parseBinaryOp(code, ["|", "v"], DISJUNCTION, parseImplication); }
+function parseConjunction(code) { return parseBinaryOp(code, [".", "&", "^"], CONJUNCTION, parseDisjunction); }
 
 function parseSimpleProp(code) {
   /* Proposition which is not a variable declaration */
@@ -202,7 +201,9 @@ function prettifyChar(char) {
     "!": NEGATION,
     ".": CONJUNCTION,
     "&": CONJUNCTION,
+    "^": CONJUNCTION,
     "|": DISJUNCTION,
+    "v": DISJUNCTION,
     "(": OPEN,
     ")": CLOSE,
     "_": BOTTOM,
