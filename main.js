@@ -974,8 +974,16 @@ function metaKeyHandler(ev) {
   }
 }
 
+/* -- Examples -- */
+
+function displayExample(ex) {
+  proof = ex;
+  show();
+  focusAt([0]);
+}
+
 $('#prop-dm-or').click(() => {
-  const propDeMorgansOrProof =
+  dispalyExample(
     new Proof([
       parse(""),
       new Proof([
@@ -1017,15 +1025,12 @@ $('#prop-dm-or').click(() => {
         parse("-(P|Q)")
       ]),
       parse("-(P|Q)=(-P.-Q)"),
-    ]);
-
-  proof = propDeMorgansOrProof;
-  show();
-  focusAt([0]);
+    ]),
+  );
 });
 
 $('#prop-dm-and').click(() => {
-  let propDeMorgansAndProof =
+  displayExample(
     new Proof([
       parse(""),
       new Proof([
@@ -1076,15 +1081,12 @@ $('#prop-dm-and').click(() => {
         parse("-(P.Q)"),
       ]),
       parse("-(P.Q)=(-P|-Q)"),
-    ]);
-
-  proof = propDeMorgansAndProof;
-  show();
-  focusAt([0]);
+    ]),
+  );
 });
 
 $('#fol-dm-exist').click(() => {
-  const folDeMorgansExistsProof =
+  displayExample(
     new Proof([
       parse(""),
       new Proof([
@@ -1116,15 +1118,12 @@ $('#fol-dm-exist').click(() => {
         parse("-@xP(x)"),
       ]),
       parse("(-@xP(x))=(\\x-P(x))"),
-    ]);
-
-  proof = folDeMorgansExistsProof;
-  show();
-  focusAt([0]);
+    ]),
+  );
 });
 
 $('#fol-dm-forall').click(() => {
-  const folDeMorgansForallProof =
+  displayExample(
     new Proof([
       parse(""),
       new Proof([
@@ -1164,9 +1163,53 @@ $('#fol-dm-forall').click(() => {
         parse("-\\xP(x)"),
       ]),
       parse("(-\\xP(x))=(@x-P(x))"),
-    ]);
-
-  proof = folDeMorgansForallProof;
-  show();
-  focusAt([0]);
+    ]),
+  );
 });
+
+function toProof(lines) {
+  if (lines instanceof Array) return new Proof(lines.map(toProof));
+  return parse(lines);
+}
+function simpleExample(selector, lines) {
+  $(selector).click(() => displayExample(toProof(lines)));
+}
+
+simpleExample('#reiteration', ['P', 'P']);
+simpleExample('#conjunctionI', ['P', ['Q', 'P.Q']]);
+simpleExample('#conjunctionE1', ['P.Q', 'P']);
+simpleExample('#conjunctionE2', ['P.Q', 'Q']);
+simpleExample('#disjunctionI', ['P', 'P|Q']);
+simpleExample('#disjunctionE', ['P|(P.Q)', ['P', 'P'], ['P.Q', 'P'], 'P']);
+simpleExample('#implicationI', ['Q', ['P', 'Q'], 'P>Q']);
+simpleExample('#implicationE', ['P>Q', ['P', 'Q']]);
+simpleExample('#biconditionalI', ['P.Q', ['P', 'Q'], ['Q', 'P'], 'P=Q']);
+simpleExample('#biconditionalE1', ['P=Q', ['P', 'Q']]);
+simpleExample('#biconditionalE2', ['P=Q', ['Q', 'P']]);
+simpleExample('#bottomI', ['P.-P', '_']);
+simpleExample('#negationI', ['-(P|Q)', ['P', 'P|Q', '(P|Q).-(P|Q)', '_'], '-P']);
+simpleExample('#negationE', ['--P', 'P']);
+simpleExample(
+  '#forallI',
+  [ ''
+  , [ '[y]'
+    , [ '-(P(y)|-P(y))'
+      , [ 'P(y)'
+        , 'P(y)|-P(y)'
+        , '(P(y)|-P(y)).-(P(y)|-P(y))'
+        , '_'
+      ]
+      , '-P(y)'
+      , 'P(y)|-P(y)'
+      , '(P(y)|-P(y)).-(P(y)|-P(y))'
+      , '_'
+    ]
+    , '--(P(y)|-P(y))'
+    , 'P(y)|-P(y)'
+  ]
+  , 'VxP(x)|-P(x)'
+]
+);
+simpleExample('#forallE', ['VxP(x)', ['[y]', 'P(y)']]);
+simpleExample('#existsI', ['P(x)', 'EyP(y)']);
+simpleExample('#existsE', ['ExP(x)', ['[y]P(y)', 'P(y)|Q(y)', 'EyP(y)|Q(y)'], 'EyP(y)|Q(y)']);
