@@ -6,15 +6,37 @@
    as well as storing and retrieving proofs to/from the URL. */
 
 const LEFT = "$";
-const RIGHT = ":";
+const RIGHT = "!";
 const SEP = ";";
-const ANY_RE = /[;:\$]/g;
+const ANY_RE = /[;\$!]/g;
+
+function normalize(code) {
+  const replacements = {
+    "-": "~",
+    "!": "~",
+    ".": "*",
+    "&": "*",
+    "|": "+",
+    "v": "+",
+    "\\": "V",
+    "@": "E",
+    "_": "#",
+  };
+
+  var result = "";
+  for (let i = 0; i < code.length; i++) {
+    var c = code[i];
+    c = replacements[c] || c;
+    result += c;
+  }
+  return result;
+}
 
 function serialize(item) {
   if (item instanceof Proof) {
     return LEFT + item.items.map(serialize).join(SEP) + RIGHT;
   } else { // Proposition
-    return item.sourcecode;
+    return normalize(item.sourcecode);
   }
 }
 
