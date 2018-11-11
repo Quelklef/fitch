@@ -1085,6 +1085,7 @@ $('#prop-dm-and').click(() => {
 $('#fol-dm-exist').click(() => {
   const folDeMorgansExistsProof =
     new Proof([
+      parse(""),
       new Proof([
         parse("-@xP(x)"),
         new Proof([
@@ -1124,6 +1125,7 @@ $('#fol-dm-exist').click(() => {
 $('#fol-dm-forall').click(() => {
   const folDeMorgansForallProof =
     new Proof([
+      parse(""),
       new Proof([
         parse("-\\xP(x)"),
         new Proof([
