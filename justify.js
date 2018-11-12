@@ -290,7 +290,7 @@ function justifyForallIntroduction(goal, scope, linenos) {
      && proof.assumption.kind === kindDeclaration
      && proof.assumption.body.kind === kindEmpty
      && proof.conclusion.substitute(proof.assumption.name, goal.name).concurs(goal.body)) {
-      return FORALL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + " [" + proof.assumption.name.name + RARR + goal.name.name + "]";
+      return FORALL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + "[" + proof.assumption.name.name + RARR + goal.name.name + "]";
     }
   }
 }
