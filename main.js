@@ -148,12 +148,12 @@ class Proof {
     for (let i = this.items.length - 1; i >= 0; i--) {
       let item = this.items[i];
       if (item instanceof Proof) {
-        return {kind: "empty", sourcecode: ""};
+        return Proposition.newEmpty("");
       } else if (item.kind !== "empty") {
         return item;
       }
     }
-    return {kind: "empty", sourcecode: ""};
+    return Proposition.newEmpty("");
   }
   get assumption() {
     if (this.items.length === 0) {
