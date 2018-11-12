@@ -12,7 +12,7 @@
         <div id="proof-root"></div>
       </div>
       <div id="meta">
-        <h4>Controls</h4>
+        <h4>Usage</h4>
         <p><a class="key literal">.</a> <a class="key literal">&amp;</a> <a class="key literal">^</a> <a class="key literal">*</a> Conjunction &and;</p>
         <p><a class="key literal">|</a> <a class="key literal">v</a> <a class="key literal">+</a> Disjunction &or;</p>
         <p><a class="key literal">&gt;</a> Implication &rarr;</p>
@@ -25,6 +25,8 @@
         <p><a class="key" id="tab">tab</a> New assumption (<span id="new-assumption-restriction">not on first line</span>)</p>
         <p><a class="key" id="shift-tab">shift+tab</a> Finish assumption (<span id="end-assumption-restriction">last line only</span>)</p>
         <p><a class="key" id="alt-backspace">alt+backspace</a> Reset proof</p>
+        <p><a class="button" id="astext">Convert to plaintext</a></p>
+        <p><textarea id="outputtext"></textarea></p>
 
         <br />
         <h4>Examples</h4>
@@ -65,6 +67,7 @@
     <script src="serialize.js"></script>
     <script src="justify.js"></script>
     <script src="main.js"></script>
+    <script src="show.js"></script>
     <script src="examples.js"></script>
   </body>
 </html>

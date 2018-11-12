@@ -6,6 +6,20 @@ h1
   margin-top: 30px
   font-size: 20px
 
+#outputtext
+  width: 100%
+  max-width: 100%
+  min-width: 100%
+  display: none
+  &.filled
+    display: inline-block
+    padding: 3px
+    height: 100px
+    border: 1px solid lightgrey
+  &:focus
+    outline: none
+    border: 1px solid grey
+
 a
   text-decoration: none
   color: black
@@ -14,6 +28,15 @@ a
   &:hover
     cursor: pointer
     border-bottom-color: black
+  &.button
+    display: inline-block
+    padding: 5px 8px
+    border-radius: 2px
+    border: 1px solid lightgrey
+    &:hover
+      border-color: grey
+      background-color: rgba(0, 0, 0, 0.05)
+      box-shadow: 0 0 1px rgba(0, 0, 0, 0.2)
 
 body
   &, .input

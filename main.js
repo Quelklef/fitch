@@ -2,7 +2,8 @@
 
 /*
 TODO:
-- Add URL serialization
+- Proof.render is a fucking disaster and NEEDS to be improved
+  - Then, change show.js::asText
 */
 
 /*
@@ -66,7 +67,7 @@ function focusAt(loc) {
 // Most recently focused proposition input
 var $recentInput = null;
 
-function $makeLine(line, lineno, scope, linenos, i) {
+function $makeLine(line, lineno, scope, linenos, depth, i) {
   var sidetext = "";
   if (line.kind !== kindEmpty) {
     var errored = false;
@@ -127,19 +128,19 @@ class Proof {
     }
   }
 
-  render(initScope = [], initLinenos = [1]) {
+  render(renderProof = $makeContext, renderProp = $makeLine, initScope = [], initLinenos = [1], depth = 0) {
     /* `initScope` is all the lines that can be used as proof
        `initlinenos` is a parallel list of the line nubers for the scope
        Returns a jQuery entity */
-    return $makeContext(this.items.map((item, i) => {
+    return renderProof(this.items.map((item, i) => {
       let scope = initScope.concat(this.items.slice(0, i));
       let linenos = initLinenos.concat(Array.from(Array(i),
           (_, j) => initLinenos[initLinenos.length - 1] + this.items.slice(0, j + 1).map(Proof.recSize).reduce((a, c) => a + c, 0)
       ));
       let lineno = linenos[linenos.length - 1];
-      return item instanceof Proof ? item.render(scope, linenos)
-                                   : $makeLine(item, lineno, scope, linenos, i);
-    }));
+      return item instanceof Proof ? item.render(renderProof, renderProp, scope, linenos, depth + 1)
+                                   : renderProp(item, lineno, scope, linenos, depth + 1, i);
+    }), depth);
   }
 
   get conclusion() {
@@ -278,6 +279,12 @@ $('.literal').click(e => {
     $getItem(loc).find('input').focus();
     document.activeElement.selectionStart = document.activeElement.selectionEnd = selStart + 1;
   }
+});
+
+$('#astext').click(() => {
+  let t = asText(proof);
+  $('#outputtext').html(t).addClass('filled');
+  $('#outputtext').select();
 });
 
 function textboxChangeHandler(ev) {
