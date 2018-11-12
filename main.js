@@ -356,6 +356,15 @@ function metaKeyHandler(ev) {
               parentProof.items.splice(focusLoc[focusLoc.length - 1], 1);
               return parentProof;
             });
+            // It's possible that this left a proof with no items in it; remove it if that's the case
+            proof.mapItem(focusLoc.slice(0, focusLoc.length - 2), grandparentProof => {
+              let parentI = focusLoc[focusLoc.length - 2];
+              let parentProof = grandparentProof.items[parentI];
+              if (parentProof.items.length === 0) {
+                grandparentProof.items.splice(parentI, 1);
+              }
+              return grandparentProof;
+            });
             show();
             focusAt(proof.linenoToLoc(focusLineno));
           }

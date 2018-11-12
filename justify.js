@@ -444,7 +444,14 @@ function justify(line, scope, linenos, i) {
 
   for (let i = 0; i < strategies.length; i++) {
     let strat = strategies[i];
-    let justification = strat(line, scope, linenos);
+    var justification;
+    try {
+      justification = strat(line, scope, linenos);
+    } catch (e) {
+      console.log("justification error", strat);
+      console.log(e);
+      throw "program error";
+    }
     if (justification) {
       return justification;
     }
