@@ -279,7 +279,7 @@ Proposition.prototype.freeNameVars = function(declFree, excluding = new Set()) {
       throw "forgot a case... " + this.kind;
   }
 }
-const RARR = "&rarr;";
+const RARR = String.fromCodePoint(0x2192);
 function justifyForallIntroduction(goal, scope, linenos) {
   if (goal.kind !== kindForall) {
     return null;
@@ -406,6 +406,9 @@ function justify(line, scope, linenos, i) {
      If the line cannot be justified, throws an error with the reason. */
    if (line.kind === kindInvalid) {
      throw line.error;
+   }
+   if (line.kind === kindEmpty) {
+     return "";
    }
 
    ensureNameVarsDeclared(line, scope);

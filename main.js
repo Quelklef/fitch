@@ -79,7 +79,7 @@ function $makeLine(line, lineno, scope, linenos, i) {
   }
 
   let $r = $('<p>', {class: "line"})
-    .append( $('<span>', {class: "lineno"}).html(lineno) )
+    .append( $('<span>', {class: "lineno"}).text(lineno) )
     .append( $('<span>', {class: "input-group"})
       .append( $('<input>', {class: "input"}).val(line.sourcecode)
         .on('focus', e => { $recentInput = $(e.target); })
@@ -96,8 +96,8 @@ function $makeLine(line, lineno, scope, linenos, i) {
           }
           return !["Tab"].includes(e.key);
         }) )
-      .append( $('<span>', {class: "overlay"}).html(prettify(line.sourcecode)) ) )
-    .append( $('<p>', {class: "proof"}).html(sidetext) );
+      .append( $('<span>', {class: "overlay"}).text(prettify(line.sourcecode)) ) )
+    .append( $('<p>', {class: "proof"}).text(sidetext) );
 
   if (errored) {
     $r.addClass("invalid");

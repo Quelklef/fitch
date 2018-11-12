@@ -118,15 +118,15 @@ function arrEq(ar0, ar1, eq) {
   return true;
 }
 
-const IMPLICATION = "&rarr;";
-const BICONDITIONAL = "&harr;";
-const NEGATION = "&not;";
-const CONJUNCTION = "&and;";
-const DISJUNCTION = "&or;";
-const BOTTOM = "&perp;";
+const IMPLICATION = String.fromCharCode(0x2192); // →
+const BICONDITIONAL = String.fromCharCode(0x2194); // ⟷
+const NEGATION = String.fromCharCode(0x00AC); // ¬
+const CONJUNCTION = String.fromCharCode(0x2227); // ∧
+const DISJUNCTION = String.fromCharCode(0x2228); // ∨
+const BOTTOM = String.fromCharCode(0x22A5);
 
-const FORALL = "&forall;";
-const EXISTS = "&exist;";
+const FORALL = String.fromCharCode(0x2200); // ∀
+const EXISTS = String.fromCharCode(0x2203); // ∃
 const VAR_OPEN = "[";
 const VAR_CLOSE = "]";
 
