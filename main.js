@@ -283,7 +283,7 @@ $('.literal').click(e => {
 
 $('#astext').click(() => {
   let t = asText(proof);
-  $('#outputtext').html(t).addClass('filled');
+  $('#outputtext').val(t).addClass('filled');
   $('#outputtext').select();
 });
 
