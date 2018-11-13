@@ -364,7 +364,7 @@ function parse(code) {
       // This may not be the case, but it probably is.
       return Proposition.newInvalid(code, "do not use ( for predicate");
     } else {
-      return Proposition.newInvalid(code, "nonempty rest");
+      return Proposition.newInvalid(code, "malformed proposition");
     }
   }
   return prop;
