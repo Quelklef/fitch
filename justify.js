@@ -15,8 +15,7 @@
 
     Note that we allow combination of propositional and predicate logic
     by treating foralls and exists similar to propositional variables.
-    We do NOT allow quantification over predicates and do NOT allow
-    naked propositions within foralls, exists, and declarations. */
+    We do NOT allow quantification over predicates. */
 
 function flattenDeclarations(scope) {
   /* Many proof strategies concern themselves only with the bodies
@@ -370,35 +369,6 @@ function ensureNameVarsDeclared(prop, scope) {
   }
 }
 
-function ensureNoPropositionalVariables(prop) {
-  switch(prop.kind) {
-    case kindConjunction:
-    case kindDisjunction:
-    case kindImplication:
-    case kindBiconditional:
-      ensureNoPropositionalVariables(prop.lhs);
-      ensureNoPropositionalVariables(prop.rhs);
-      break;
-    case kindNegation:
-    case kindForall:
-    case kindExists:
-      ensureNoPropositionalVariables(prop.body);
-      break;
-    case kindName:
-      throw "prop. var. not allowed in FOL";
-    case kindDeclaration:
-      ensureNoPropositionalVariables(prop.body);
-      break;
-    case kindPredicate:
-    case kindInvalid:
-    case kindEmpty:
-    case kindBottom:
-      break;
-    default:
-      throw "forgot a case... " + prop.kind;
-  }
-}
-
 function justify(line, scope, linenos, i) {
   /* Justify a line (AST Node) with all the lines of the given scope.
      The line numbers must be supplied in the parallel array `linenos`.
@@ -412,10 +382,6 @@ function justify(line, scope, linenos, i) {
    }
 
    ensureNameVarsDeclared(line, scope);
-
-   if (line.kind === kindForall || line.kind === kindExists || line.kind === kindDeclaration) {
-      ensureNoPropositionalVariables(line);
-   }
 
    if (i === 0) {
      return "assumption";

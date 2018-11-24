@@ -2,6 +2,25 @@
 
 // requires: main*js
 
+function runTests() {
+  let $exs = $('.example');
+  function nextTest(i) {
+    $($exs[i]).click();  // run example
+    if (i < $exs.length) {
+      setTimeout(() => nextTest(i+1), 100);
+    }
+  }
+  nextTest(0);
+}
+
+// alt+T to run tests
+$(document).keydown(ev => {
+  console.log(ev.key);
+  if (ev.key === "t" && ev.altKey) {
+    runTests();
+  }
+});
+
 function displayExample(ex) {
   proof = ex;
   show();
