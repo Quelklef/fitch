@@ -15,7 +15,6 @@ function runTests() {
 
 // alt+T to run tests
 $(document).keydown(ev => {
-  console.log(ev.key);
   if (ev.key === "t" && ev.altKey) {
     runTests();
   }
