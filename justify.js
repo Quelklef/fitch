@@ -369,6 +369,37 @@ function ensureNameVarsDeclared(prop, scope) {
   }
 }
 
+function ensureNotQuantifyingOverPropositions(prop, capturedNames = new Set()) {
+  switch(prop.kind) {
+    case kindConjunction:
+    case kindDisjunction:
+    case kindImplication:
+    case kindBiconditional:
+      return ensureNotQuantifyingOverPropositions(prop.lhs, capturedNames) && ensureNotQuantifyingOverPropositions(prop.rhs, capturedNames);
+    case kindNegation:
+      return ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
+    case kindForall:
+    case kindExists:
+      return ensureNotQuantifyingOverPropositions(prop.body, new Set([...capturedNames, prop.name]));
+    case kindName:
+      if (Array.from(capturedNames).some(name => name.concurs(prop))) {
+        throw `Cannot quantify over proposition '${prop.name}'`;
+      }
+    case kindPredicate:
+      break; // A predicate propositions consists of a predicate and name variables, so not propositons
+    case kindDeclaration:
+      // This implementation is tricky.
+      // The reason we do it this way exists but I'm too tired to explain :|
+      return ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
+    case kindInvalid:
+    case kindEmpty:
+    case kindBottom:
+      break;
+    default:
+      throw "Missed case: " + prop.kind;
+  }
+}
+
 function justify(line, scope, linenos, i) {
   /* Justify a line (AST Node) with all the lines of the given scope.
      The line numbers must be supplied in the parallel array `linenos`.
@@ -382,6 +413,7 @@ function justify(line, scope, linenos, i) {
    }
 
    ensureNameVarsDeclared(line, scope);
+   ensureNotQuantifyingOverPropositions(line, scope);
 
    if (i === 0) {
      return "assumption";
