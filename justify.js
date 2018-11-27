@@ -375,22 +375,28 @@ function ensureNotQuantifyingOverPropositions(prop, capturedNames = new Set()) {
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      return ensureNotQuantifyingOverPropositions(prop.lhs, capturedNames) && ensureNotQuantifyingOverPropositions(prop.rhs, capturedNames);
+      ensureNotQuantifyingOverPropositions(prop.lhs, capturedNames);
+      ensureNotQuantifyingOverPropositions(prop.rhs, capturedNames);
+      break;
     case kindNegation:
-      return ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
+      ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
+      break;
     case kindForall:
     case kindExists:
-      return ensureNotQuantifyingOverPropositions(prop.body, new Set([...capturedNames, prop.name]));
+      ensureNotQuantifyingOverPropositions(prop.body, new Set([...capturedNames, prop.name]));
+      break;
     case kindName:
       if (Array.from(capturedNames).some(name => name.concurs(prop))) {
         throw `Cannot quantify over proposition '${prop.name}'`;
       }
+      break;
     case kindPredicate:
       break; // A predicate propositions consists of a predicate and name variables, so not propositons
     case kindDeclaration:
       // This implementation is tricky.
       // The reason we do it this way exists but I'm too tired to explain :|
-      return ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
+      ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
+      break;
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -413,7 +419,7 @@ function justify(line, scope, linenos, i) {
    }
 
    ensureNameVarsDeclared(line, scope);
-   ensureNotQuantifyingOverPropositions(line, scope);
+   ensureNotQuantifyingOverPropositions(line);
 
    if (i === 0) {
      return "assumption";
