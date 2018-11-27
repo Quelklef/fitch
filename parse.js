@@ -336,7 +336,7 @@ function prettify(code) {
 function parseTop(code) {
   let toks = lex(code);
   if (toks === "") {
-    return [Proposition.newEmpty(""), ""];
+    return [Proposition.newEmpty(code), ""];
   }
   return parseProposition(toks);
 }
