@@ -279,75 +279,45 @@ function parseProposition(code) {
   return parseSimpleProp(code);
 }
 
-function prettifyChar(char) {
-  const mapping = {
-    ">": IMPLICATION,
-    "=": BICONDITIONAL,
-    "-": NEGATION,
-    "~": NEGATION,
-    "!": NEGATION,
-    ".": CONJUNCTION,
-    "&": CONJUNCTION,
-    "^": CONJUNCTION,
-    "*": CONJUNCTION,
-    "|": DISJUNCTION,
-    "v": DISJUNCTION,
-    "+": DISJUNCTION,
-    "(": OPEN,
-    ")": CLOSE,
-    "_": BOTTOM,
-    "#": BOTTOM,
-    "\\": FORALL,
-    "V": FORALL,
-    "@": EXISTS,
-    "E": EXISTS,
-  };
-
-  if (char in mapping) {
-    return mapping[char];
-  }
-
-  if (/^[a-zA-Z]$/i.test(char)) {
-    return char;
-  }
-
-  throw "invalid char";
-}
-
-function lex(code) {
-  /* Does not actually lex into tokens. Just a lightweight
-     transformation from source to parsable formats */
-   return Array.from(code).filter(char => char !== " ").join("");
-}
-
 function prettify(code) {
   /* Transforms source code into code to be displayed */
   return Array.from(code)
-    .map(char => {
-      try {
-        return prettifyChar(char);
-      } catch (e) {
-        return char;
-      }
-    })
+    .map(char => ({
+        ">": IMPLICATION,
+        "=": BICONDITIONAL,
+        "-": NEGATION,
+        "~": NEGATION,
+        "!": NEGATION,
+        ".": CONJUNCTION,
+        "&": CONJUNCTION,
+        "^": CONJUNCTION,
+        "*": CONJUNCTION,
+        "|": DISJUNCTION,
+        "v": DISJUNCTION,
+        "+": DISJUNCTION,
+        "(": OPEN,
+        ")": CLOSE,
+        "_": BOTTOM,
+        "#": BOTTOM,
+        "\\": FORALL,
+        "V": FORALL,
+        "@": EXISTS,
+        "E": EXISTS,
+      })[char] || char)
     .join("");
-}
-
-function parseTop(code) {
-  let toks = lex(code);
-  if (toks === "") {
-    return [Proposition.newEmpty(code), ""];
-  }
-  return parseProposition(toks);
 }
 
 function parse(code) {
   /* Parse a proposition. If it's empty, return special node {kind: "empty"}.
      Otherwise, return the AST, unless there's a syntax error;
      then, return special node {kind: "invalid"} */
+  if (code === "") {
+    return Proposition.newEmpty(code);
+  }
+
   var prop, rest;
   try {
-    [prop, rest] = parseTop(code);
+    [prop, rest] = parseProposition(code);
   } catch (e) {
     // We conflate errors because they're typically not user-friendly
     return Proposition.newInvalid(code, "malformed proposition");
