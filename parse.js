@@ -16,9 +16,6 @@ const kindBottom = "bottom";
 
 const kindForall = "forall";
 const kindExists = "exists";
-// Declarations like `[a]P(a)`.
-// These propositions are treated specially.
-const kindDeclaration = "declaration";
 
 const kindName = "name";
 const kindPredicate = "predicate";
@@ -26,6 +23,9 @@ const kindPredicate = "predicate";
 // These are both not "real" propositions
 const kindEmpty = "empty"; // For empty lines
 const kindInvalid = "invalid"; // For a parsing error
+
+// Any proposition can have a 'declarting' attribute which should have a name node.
+// This denotes that the proposition declares some name variable.
 
 class Proposition {
   constructor(dict) {
@@ -62,9 +62,6 @@ class Proposition {
   static newExists(name, body, sourcecode) {
     return new Proposition({ kind: kindExists, name: name, body: body, sourcecode: sourcecode });
   }
-  static newDeclaration(name, body, sourcecode) {
-    return new Proposition({ kind: kindDeclaration, name: name, body: body, sourcecode: sourcecode });
-  }
   static newName(name, sourcecode) {
     return new Proposition({ kind: kindName, name: name, sourcecode: sourcecode });
   }
@@ -80,13 +77,9 @@ class Proposition {
 
   static concurs(prop1, prop2) {
     /* Tests if the two propositions "concur".
-       This is essentially an equality check, ecept that declarations are
-       treated specically. Instead of comparing declarations to other
-       propositions, we compare the declaration's body. */
+       This is essentially an equality check, ecept that declarations are ignored. */
     if (prop1 === null || prop2 === null) return false;
     if (!(prop1 instanceof Proposition && prop2 instanceof Proposition)) return false;
-    if (prop1.kind === kindDeclaration) return Proposition.concurs(prop1.body, prop2);
-    if (prop2.kind === kindDeclaration) return Proposition.concurs(prop1, prop2.body);
     if (prop1.kind !== prop2.kind) return false;
     let kind = prop1.kind;
     if (kind === kindInvalid || kind === kindEmpty) return false;
@@ -274,7 +267,9 @@ function parseDeclaration(code) {
   } catch (e) {
     body = Proposition.newEmpty("");
   }
-  return [Proposition.newDeclaration(name, body, code.slice(0, code.length - rest.length)), rest];
+  body.declaring = name;
+  body.sourcecode = "[" + name.sourcecode + "]" + body.sourcecode;
+  return [body, rest];
 }
 
 function parseProposition(code) {

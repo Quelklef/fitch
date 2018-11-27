@@ -17,19 +17,7 @@
     by treating foralls and exists similar to propositional variables.
     We do NOT allow quantification over predicates. */
 
-function flattenDeclarations(scope) {
-  /* Many proof strategies concern themselves only with the bodies
-     of declarations rather than the declarations themselves.
-     This unwraps all declarations in the scope. */
-  return scope.map(item =>
-    item instanceof Proposition && item.kind === kindDeclaration
-      ? item.body
-      : item
-  );
-}
-
 function justifyReiteration(line, scope, linenos) {
-  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     if (scope[i] instanceof Proposition && scope[i].concurs(line)) {
       return "R:" + linenos[i];
@@ -37,7 +25,6 @@ function justifyReiteration(line, scope, linenos) {
   }
 }
 function justifyConjunctionIntroduction(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   if (goal.kind !== kindConjunction) {
     return null;
   }
@@ -60,7 +47,6 @@ function justifyConjunctionIntroduction(goal, scope, linenos) {
   }
 }
 function justifyConjunctionElimination(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let line = scope[i]
     if (line instanceof Proposition && line.kind === kindConjunction && (line.lhs.concurs(goal) || line.rhs.concurs(goal))) {
@@ -69,7 +55,6 @@ function justifyConjunctionElimination(goal, scope, linenos) {
   }
 }
 function justifyDisjunctionIntroduction(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   if (goal.kind !== kindDisjunction) {
     return null;
   }
@@ -81,7 +66,6 @@ function justifyDisjunctionIntroduction(goal, scope, linenos) {
   }
 }
 function justifyDisjunctionElimination(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   // Get proofs with the desired conclusion
   for (let i = 0; i < scope.length; i++) {
     let line = scope[i];
@@ -107,7 +91,6 @@ function justifyDisjunctionElimination(goal, scope, linenos) {
   }
 }
 function justifyImplicationIntroduction(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   if (goal.kind !== kindImplication) {
     return null;
   }
@@ -121,7 +104,6 @@ function justifyImplicationIntroduction(goal, scope, linenos) {
   }
 }
 function justifyImplicationElimination(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let iitem = scope[i];
     if (iitem instanceof Proof || iitem.kind !== kindImplication || !iitem.rhs.concurs(goal)) {
@@ -139,7 +121,6 @@ function justifyImplicationElimination(goal, scope, linenos) {
   }
 }
 function justifyBiconditionalIntroducton(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   if (goal.kind !== kindBiconditional) {
     return null;
   }
@@ -166,7 +147,6 @@ function justifyBiconditionalIntroducton(goal, scope, linenos) {
   }
 }
 function justifyBiconditionalElimination(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proposition && item.kind === kindBiconditional && (item.lhs.concurs(goal) || item.rhs.concurs(goal))) {
@@ -175,7 +155,6 @@ function justifyBiconditionalElimination(goal, scope, linenos) {
   }
 }
 function justifyBottomIntroduction(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proposition && item.kind === kindConjunction &&
@@ -186,7 +165,6 @@ function justifyBottomIntroduction(goal, scope, linenos) {
   }
 }
 function justifyNegationIntroduction(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   if (goal.kind !== kindNegation) {
     return null;
   }
@@ -198,7 +176,6 @@ function justifyNegationIntroduction(goal, scope, linenos) {
   }
 }
 function justifyNegationElimination(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proposition && item.kind === kindNegation && item.body.kind === kindNegation && item.body.body.concurs(goal)) {
@@ -228,10 +205,6 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
     case kindPredicate:
       // Do NOT replace the target since predicates cannot be quantified over in FOL
       return Object.assign(new Proposition(this), {args: this.args.map(arg => arg.substitute(nameFrom, nameTo))});
-    case kindDeclaration:
-      // This implementation is tricky.
-      // The reason we do it this way exists but I'm too tired to explain :|
-      return this.body.substitute(nameFrom, nameTo);
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -247,6 +220,9 @@ Proposition.prototype.freeNameVars = function(declFree, excluding = new Set()) {
      others; swap this with the `declFree` flag.
      For example, if declarations are considered to be free, then `x` is free
      in `[x]P(x)`. If not, then it isn't. */
+  if (!declFree && this.declaring) {
+    excluding = new Set([this.declaring, ...excluding]);
+  }
   switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
@@ -264,12 +240,6 @@ Proposition.prototype.freeNameVars = function(declFree, excluding = new Set()) {
       // Only return not-excluded arguments
       let ex = Array.from(excluding);
       return new Set(this.args.filter(name => !ex.some(prop => prop.concurs(name))));
-    case kindDeclaration:
-      if (declFree) {
-        return this.body.freeNameVars(declFree, excluding);
-      } else {
-        return this.body.freeNameVars(declFree, new Set([this.name, ...excluding]));
-      }
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -286,15 +256,14 @@ function justifyForallIntroduction(goal, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
     let proof = scope[i];
     if (proof instanceof Proof
-     && proof.assumption.kind === kindDeclaration
-     && proof.assumption.body.kind === kindEmpty
-     && proof.conclusion.substitute(proof.assumption.name, goal.name).concurs(goal.body)) {
-      return FORALL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + "[" + proof.assumption.name.name + RARR + goal.name.name + "]";
+     && proof.assumption.declaring
+     && proof.assumption.kind === kindEmpty
+     && proof.conclusion.substitute(proof.assumption.declaring, goal.name).concurs(goal.body)) {
+      return FORALL + "I:" + linenos[i] + "-" + (linenos[i+1]-1) + "[" + proof.assumption.declaring.name + RARR + goal.name.name + "]";
     }
   }
 }
 function justifyForallElimination(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   let names = Array.from(goal.freeNameVars(true));
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
@@ -310,7 +279,6 @@ function justifyForallElimination(goal, scope, linenos) {
   }
 }
 function justifyExistsIntroduction(goal, scope, linenos) {
-  scope = flattenDeclarations(scope);
   if (goal.kind !== kindExists) {
     return null;
   }
@@ -337,9 +305,9 @@ function justifyExistsElimination(goal, scope, linenos) {
     for (let j = 0; j < scope.length; j++) {
       let jproof = scope[j];
       if (jproof instanceof Proof
-       && jproof.assumption.kind === kindDeclaration
+       && jproof.assumption.declaring
        && jproof.conclusion.concurs(goal)
-       && iline.body.concurs(jproof.assumption.body.substitute(jproof.assumption.name, iline.name))) {
+       && iline.body.concurs(jproof.assumption.substitute(jproof.assumption.declaring, iline.name))) {
         return EXISTS + "E:" + linenos[i] + "," + linenos[j] + "-" + (linenos[j+1]-1);
       }
     }
@@ -349,8 +317,8 @@ function justifyDomainNonEmpty(goal, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
     let item = scope[i];
     if (item instanceof Proof
-     && item.assumption.kind === kindDeclaration
-     && item.assumption.body.kind === kindEmpty
+     && item.assumption.declaring
+     && item.assumption.kind === kindEmpty
      && item.conclusion.concurs(goal)) {
       return "D:" + linenos[i] + "-" + (linenos[i+1]-1);
     }
@@ -363,7 +331,7 @@ function ensureNameVarsDeclared(prop, scope) {
   let names = Array.from(prop.freeNameVars(false));
   for (let n = 0; n < names.length; n++) {
     let name = names[n];
-    if (!scope.some(line => line instanceof Proposition && line.kind === kindDeclaration && line.name.concurs(name))) {
+    if (!scope.some(line => line instanceof Proposition && name.concurs(line.declaring))) {
       throw `'${name.name}' is free`;
     }
   }
@@ -392,11 +360,6 @@ function ensureNotQuantifyingOverPropositions(prop, capturedNames = new Set()) {
       break;
     case kindPredicate:
       break; // A predicate propositions consists of a predicate and name variables, so not propositons
-    case kindDeclaration:
-      // This implementation is tricky.
-      // The reason we do it this way exists but I'm too tired to explain :|
-      ensureNotQuantifyingOverPropositions(prop.body, capturedNames);
-      break;
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
@@ -424,7 +387,7 @@ function justify(line, scope, linenos, i) {
    if (i === 0) {
      return "assumption";
    } else {
-     if (line.kind === kindDeclaration) {
+     if (line.declaring) {
        throw "declaration must be assumption";
      }
    }
