@@ -89,30 +89,35 @@ body
 .context
   border-left: 3px solid black
   margin-left: 5px
-  margin-right: 0
+  &+.context // Useful to have a big gap between sequential contexts
+    margin-top: 12px
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3)
 
 .invalid
-  background-color: transparentize(red, 0.8)
-.parse-error
-  background-color: transparentize(orange, 0.6)
+  background-color: rgb(255, 100, 100)
+  .lineno, .overlay, .proof
+    color: white !important
+    font-weight: bold
 
 .input
   width: 70%
   padding-right: 10px // Give cursor room to be visible
 
 .line
+  box-sizing: border-box
   &, .input
     font-size: 14px !important
   .overlay, .input
     letter-spacing: 4px
   border: 0
   margin: 3px 0
-  padding: 3px 10px
+  padding: 4px 10px
   width: 100%
   color: rgba(0, 0, 0, 0)
   position: relative
 
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1)
+  &:not(:last-of-type)
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1)
   &:first-of-type
     border-bottom: 1px solid black
 
@@ -141,30 +146,6 @@ body
       position: relative
       color: transparent
       caret-color: black
-
-.context
-  border-color: black
-  > .context
-    border-color: red
-    > .context
-      border-color: blue
-      > .context
-        border-color: green
-        > .context
-          border-color: pink
-          .context
-            border-left-style: dashed
-          > .context
-            border-color: red
-            > .context
-              border-color: blue
-              > .context
-                border-color: green
-                > .context
-                  border-color: pink
-                  .context
-                    border-left-style: solid
-                    border-color: black
 
 .flash
   animation: flash 5s

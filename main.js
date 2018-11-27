@@ -105,8 +105,23 @@ function $makeLine(line, lineno, scope, linenos, depth, i) {
   }
   return $r;
 }
-function $makeContext(lines) {
+function $makeContext(lines, depth) {
+  const colors = [
+    [100, 100, 100],
+    [0, 0, 200],
+    [255, 100, 100],
+    [120, 255, 120],
+    [120, 50, 120],
+  ];
+
   var $el = $('<div>', {class: "context"});
+  let col = colors[depth % colors.length];
+  const lightenRatio = 13 / 14;
+  let lighten = n => n + Math.floor(lightenRatio * (255 - n));
+  $el.css({
+    "border-color": "rgb(" + col[0] + "," + col[1] + "," + col[2] + ")",
+    "background-color": "rgb(" + lighten(col[0]) + "," + lighten(col[1]) + "," + lighten(col[2]) + ")"
+  });
   for (let i = 0; i < lines.length; i++) {
     $el.append(lines[i]);
   }
