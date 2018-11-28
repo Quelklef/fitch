@@ -359,8 +359,11 @@ function metaKeyHandler(ev) {
 
       case "Tab":
         if (ev.shiftKey) {
+          // Do not allow shift-tab on first level
+          if (focusLoc.length === 1 && focusLoc[0] === proof.items.length - 1) {
+            // Do nothing
           // Only allow shift+tab on the last line of a context
-          if (focusLoc[focusLoc.length - 1] + 1 !== proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length) {
+          } else if (focusLoc[focusLoc.length - 1] + 1 !== proof.getItem(focusLoc.slice(0, focusLoc.length - 1)).items.length) {
             // If used wrongly, flash a warning
             flash($('#end-assumption-restriction'));
           } else {
