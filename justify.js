@@ -148,9 +148,15 @@ function justifyBiconditionalIntroducton(goal, scope, linenos) {
 }
 function justifyBiconditionalElimination(goal, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
-    let item = scope[i];
-    if (item instanceof Proposition && item.kind === kindBiconditional && (item.lhs.concurs(goal) || item.rhs.concurs(goal))) {
-      return BICONDITIONAL + "E:" + linenos[i];
+    let bicond = scope[i];
+    if (bicond.kind !== kindBiconditional || !(bicond.lhs.concurs(goal) || bicond.rhs.concurs(goal))) {
+      continue;
+    }
+    for (let j = 0; j < scope.length; j++) {
+      let item = scope[j];
+      if (bicond.lhs.concurs(goal) && bicond.rhs.concurs(item) || bicond.lhs.concurs(item) && bicond.rhs.concurs(goal)) {
+        return BICONDITIONAL + "E:" + linenos[i] + "," + linenos[j];
+      }
     }
   }
 }
