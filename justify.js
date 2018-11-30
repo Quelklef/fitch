@@ -296,7 +296,7 @@ function justifyExistsIntroduction(goal, scope, linenos) {
     let names = Array.from(item.freeNameVars(true));
     for (let n = 0; n < names.length; n++) {
       let name = names[n];
-      if (item.substitute(name, goal.name).concurs(goal.body)) {
+      if (goal.body.substitute(goal.name, name).concurs(item)) {
         return EXISTS + "I:" + linenos[i] + "[" + name.name + RARR + goal.name.name + "]";
       }
     }
