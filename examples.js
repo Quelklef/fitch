@@ -68,7 +68,7 @@ $('#prop-dm-or').click(() => {
         ]),
         parse("~(P+Q)")
       ]),
-      parse("~(P+Q)=(~P*~Q)"),
+      parse("~(P+Q)/(~P*~Q)"),
     ]),
   );
 });
@@ -124,7 +124,7 @@ $('#prop-dm-and').click(() => {
         ]),
         parse("~(P*Q)"),
       ]),
-      parse("~(P*Q)=(~P+~Q)"),
+      parse("~(P*Q)/(~P+~Q)"),
     ]),
   );
 });
@@ -161,7 +161,7 @@ $('#fol-dm-exist').click(() => {
         ]),
         parse("~ExPx"),
       ]),
-      parse("(~ExPx)=(Vx~Px)"),
+      parse("(~ExPx)/(Vx~Px)"),
     ]),
   );
 });
@@ -206,7 +206,7 @@ $('#fol-dm-forall').click(() => {
         ]),
         parse("~VxPx"),
       ]),
-      parse("(~VxPx)=(Ex~Px)"),
+      parse("(~VxPx)/(Ex~Px)"),
     ]),
   );
 });
@@ -227,9 +227,9 @@ simpleExample('#disjunctionI', ['P', 'P+Q']);
 simpleExample('#disjunctionE', ['P+(P*Q)', ['P', 'P'], ['P*Q', 'P'], 'P']);
 simpleExample('#implicationI', ['Q', ['P', 'Q'], 'P>Q']);
 simpleExample('#implicationE', ['P>Q', ['P', 'Q']]);
-simpleExample('#biconditionalI', ['P*Q', ['P', 'Q'], ['Q', 'P'], 'P=Q']);
-simpleExample('#biconditionalE1', ['P=Q', ['P', 'Q']]);
-simpleExample('#biconditionalE2', ['P=Q', ['Q', 'P']]);
+simpleExample('#biconditionalI', ['P*Q', ['P', 'Q'], ['Q', 'P'], 'P/Q']);
+simpleExample('#biconditionalE1', ['P/Q', ['P', 'Q']]);
+simpleExample('#biconditionalE2', ['P/Q', ['Q', 'P']]);
 simpleExample('#bottomI', ['P*~P', '#']);
 simpleExample('#negationI', ['~(P+Q)', ['P', 'P+Q', '(P+Q)*~(P+Q)', '#'], '~P']);
 simpleExample('#negationE', ['~~P', 'P']);
@@ -284,3 +284,6 @@ simpleExample(
   ]
   , 'P+~P'
 ]);
+simpleExample('#reflexivity', ['[a]', ['', 'a=a']]);
+simpleExample('#transitivity', ['[a]', ['[b]a=b', ['[c]b=c', 'a=c']]]);
+simpleExample('#symmetry', ['[a]', ['[b]a=b', 'b=a']]);

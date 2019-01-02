@@ -20,7 +20,7 @@
 function justifyReiteration(line, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
     if (scope[i] instanceof Proposition && scope[i].concurs(line)) {
-      return "R:" + linenos[i];
+      return "RI:" + linenos[i];
     }
   }
 }
@@ -200,6 +200,7 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
+    case kindEquality:
       return Object.assign(new Proposition(this), {lhs: this.lhs.substitute(nameFrom, nameTo), rhs: this.rhs.substitute(nameFrom, nameTo)});
     case kindNegation:
       return Object.assign(new Proposition(this), {body: this.body.substitute(nameFrom, nameTo)});
@@ -219,7 +220,7 @@ Proposition.prototype.substitute = function(nameFrom, nameTo) {
       throw "Missed case: " + this.kind;
   }
 }
-Proposition.prototype.freeNameVars = function(declFree, excluding = new Set()) {
+Proposition.prototype.freeNameVars = function(declFree, excluding = []) {
   /* Recursively collect and return all free name variables.
      Excludes name nodes in the set `excluding`.
      Declarations should be considered to be free in some contexts but not in
@@ -227,29 +228,31 @@ Proposition.prototype.freeNameVars = function(declFree, excluding = new Set()) {
      For example, if declarations are considered to be free, then `x` is free
      in `[x]P(x)`. If not, then it isn't. */
   if (!declFree && this.declaring) {
-    excluding = new Set([this.declaring, ...excluding]);
+    excluding = [this.declaring, ...excluding];
   }
   switch(this.kind) {
     case kindConjunction:
     case kindDisjunction:
     case kindImplication:
     case kindBiconditional:
-      return new Set([...this.lhs.freeNameVars(declFree, excluding), ...this.rhs.freeNameVars(declFree, excluding)]);
+      return [...this.lhs.freeNameVars(declFree, excluding), ...this.rhs.freeNameVars(declFree, excluding)];
+    case kindEquality:
+      return [this.lhs, this.rhs].filter(name => !excluding.some(prop => prop.concurs(name)))
     case kindNegation:
       return this.body.freeNameVars(declFree, excluding);
     case kindForall:
     case kindExists:
-      return this.body.freeNameVars(declFree, new Set([this.name, ...excluding]));
+      return this.body.freeNameVars(declFree, [this.name, ...excluding]);
     case kindName:
-      return new Set();
+      // Is a proposition, not a name variable
+      return [];
     case kindPredicate:
       // Only return not-excluded arguments
-      let ex = Array.from(excluding);
-      return new Set(this.args.filter(name => !ex.some(prop => prop.concurs(name))));
+      return this.args.filter(name => !excluding.some(prop => prop.concurs(name)));
     case kindInvalid:
     case kindEmpty:
     case kindBottom:
-      return new Set();
+      return [];
     default:
       throw "forgot a case... " + this.kind;
   }
@@ -326,7 +329,44 @@ function justifyDomainNonEmpty(goal, scope, linenos) {
      && item.assumption.declaring
      && item.assumption.kind === kindEmpty
      && item.conclusion.concurs(goal)) {
-      return "D:" + linenos[i] + "-" + (linenos[i+1]-1);
+      return "NE:" + linenos[i] + "-" + (linenos[i+1]-1);
+    }
+  }
+}
+
+function justifyReflexivity(goal, scope, linenos) {
+  if (goal.kind === kindEquality && goal.lhs.concurs(goal.rhs)) {
+    return "=R:" + linenos[linenos.length - 1];
+  }
+}
+function justifyTransitivity(goal, scope, linenos) {
+  if (goal.kind !== kindEquality) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let iproof = scope[i];
+    if (iproof.kind !== kindEquality) continue;
+    for (let j = 0; j < scope.length; j++) {
+      let jproof = scope[j];
+      if (jproof.kind === kindEquality
+        && iproof.lhs.concurs(goal.lhs)
+        && iproof.rhs.concurs(jproof.lhs)
+        && jproof.rhs.concurs(goal.rhs)) {
+        return "=T:" + linenos[i] + "," + linenos[j];
+      }
+    }
+  }
+}
+function justifySymmetry(goal, scope, linenos) {
+  if (goal.kind !== kindEquality) {
+    return null;
+  }
+  for (let i = 0; i < scope.length; i++) {
+    let line = scope[i];
+    if (line.kind === kindEquality
+      && line.lhs.concurs(goal.rhs)
+      && line.rhs.concurs(goal.lhs)) {
+      return "=S:" + linenos[i];
     }
   }
 }
@@ -365,8 +405,10 @@ function ensureNotQuantifyingOverPropositions(prop, capturedNames = new Set()) {
       }
       break;
     case kindPredicate:
-      break; // A predicate propositions consists of a predicate and name variables, so not propositons
-    case kindInvalid:
+    case kindEquality:
+      // Know that the names are name varaibles, not propositions
+      break;
+   case kindInvalid:
     case kindEmpty:
     case kindBottom:
       break;
@@ -416,6 +458,9 @@ function justify(line, scope, linenos, i) {
     , justifyExistsIntroduction
     , justifyExistsElimination
     , justifyDomainNonEmpty
+    , justifyReflexivity
+    , justifyTransitivity
+    , justifySymmetry
     ];
 
   for (let i = 0; i < strategies.length; i++) {

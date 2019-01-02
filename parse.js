@@ -7,11 +7,13 @@
 /* -- Type definition -- */
 
 // All the different proposition kinds
+// These are arbitrary constants which need only be inequal to each other
 const kindImplication = "implication";
 const kindBiconditional = "biconditional";
 const kindNegation = "negation";
 const kindConjunction = "conjunction";
 const kindDisjunction = "disjunction";
+const kindEquality = "equals";
 const kindBottom = "bottom";
 
 const kindForall = "forall";
@@ -52,6 +54,9 @@ class Proposition {
   }
   static newDisjunction(lhs, rhs, sourcecode) {
     return new Proposition({ kind: kindDisjunction, lhs: lhs, rhs: rhs, sourcecode: sourcecode });
+  }
+  static newEquality(lhs, rhs, sourcecode) {
+    return new Proposition({ kind: kindEquality, lhs: lhs, rhs: rhs, sourcecode: sourcecode });
   }
   static newBottom(sourcecode) {
     return new Proposition({ kind: kindBottom, sourcecode: sourcecode });
@@ -116,7 +121,9 @@ const BICONDITIONAL = String.fromCharCode(0x2194); // ⟷
 const NEGATION = String.fromCharCode(0x00AC); // ¬
 const CONJUNCTION = String.fromCharCode(0x2227); // ∧
 const DISJUNCTION = String.fromCharCode(0x2228); // ∨
-const BOTTOM = String.fromCharCode(0x22A5);
+const BOTTOM = String.fromCharCode(0x22A5); // ⊥
+const EQUAL = "=";
+const INEQUAL = String.fromCharCode(0x2260); // ≠
 
 const FORALL = String.fromCharCode(0x2200); // ∀
 const EXISTS = String.fromCharCode(0x2203); // ∃
@@ -128,7 +135,7 @@ const CLOSE = ")";
 
 const unaryOps = [kindNegation];
 const existentialOps = [kindForall, kindExists];
-const binaryOps = [kindImplication, kindBiconditional, kindConjunction, kindDisjunction];
+const binaryOps = [kindImplication, kindBiconditional, kindConjunction, kindDisjunction, kindEquality];
 
 /* -- Parsing -- */
 /* All parsers are String -> [Proposition, String].
@@ -239,8 +246,16 @@ function parseBinaryOp(code, operators, constructor, parseFunc) {
   return [constructor(lhs, rhs, code.slice(0, code.length - rest.length)), rest];
 }
 
+function parseInequality(code) {
+  return parseBinaryOp(code, ["^"],
+    (lhs, rhs, source) => Proposition.newNegation(Proposition.newEquality(lhs, rhs, source), source),
+  parseAtom);
+}
+function parseEquality(code) {
+  return parseBinaryOp(code, ["="], Proposition.newEquality, parseInequality);
+}
 function parseBiconditional(code) {
-  return parseBinaryOp(code, ["="], Proposition.newBiconditional, parseAtom);
+  return parseBinaryOp(code, ["/"], Proposition.newBiconditional, parseEquality);
 }
 function parseImplication(code) {
   return parseBinaryOp(code, [">"], Proposition.newImplication, parseBiconditional);
@@ -249,7 +264,7 @@ function parseDisjunction(code) {
   return parseBinaryOp(code, ["|", "v", "+"], Proposition.newDisjunction, parseImplication);
 }
 function parseConjunction(code) {
-  return parseBinaryOp(code, [".", "&", "^", "*"], Proposition.newConjunction, parseDisjunction);
+  return parseBinaryOp(code, [".", "&", "*"], Proposition.newConjunction, parseDisjunction);
 }
 
 function parseSimpleProp(code) {
@@ -284,13 +299,12 @@ function prettify(code) {
   return Array.from(code)
     .map(char => ({
         ">": IMPLICATION,
-        "=": BICONDITIONAL,
+        "/": BICONDITIONAL,
         "-": NEGATION,
         "~": NEGATION,
         "!": NEGATION,
         ".": CONJUNCTION,
         "&": CONJUNCTION,
-        "^": CONJUNCTION,
         "*": CONJUNCTION,
         "|": DISJUNCTION,
         "v": DISJUNCTION,
@@ -303,11 +317,12 @@ function prettify(code) {
         "V": FORALL,
         "@": EXISTS,
         "E": EXISTS,
+        "^": INEQUAL,
       })[char] || char)
     .join("");
 }
 
-function parse(code) {
+function parse(code, throwErrors=false) {
   /* Parse a proposition. If it's empty, return special node {kind: "empty"}.
      Otherwise, return the AST, unless there's a syntax error;
      then, return special node {kind: "invalid"} */
@@ -319,8 +334,12 @@ function parse(code) {
   try {
     [prop, rest] = parseProposition(code);
   } catch (e) {
-    // We conflate errors because they're typically not user-friendly
-    return Proposition.newInvalid(code, "malformed proposition");
+    if (throwErrors) {
+      throw e;
+    } else {
+      // We conflate errors because they're typically not user-friendly
+      return Proposition.newInvalid(code, "malformed proposition");
+    }
   }
 
   if (rest !== "") {
@@ -329,7 +348,11 @@ function parse(code) {
       // This may not be the case, but it probably is.
       return Proposition.newInvalid(code, "do not use ( for predicate");
     } else {
-      return Proposition.newInvalid(code, "malformed proposition");
+      if (throwErrors) {
+        throw `Rest is not empty; it is '${rest}'.`;
+      } else {
+        return Proposition.newInvalid(code, "malformed proposition");
+      }
     }
   }
   return prop;
