@@ -138,6 +138,11 @@ const existentialOps = [kindForall, kindExists];
 const binaryOps = [kindImplication, kindBiconditional, kindConjunction, kindDisjunction, kindEquality];
 
 /* -- Parsing -- */
+/* We attempt to emulate a monadic-ish parser
+   In lieu of do-notation, however, we use actual global contexts.
+   Thus the 'leftover code' is stored in the global scope: */
+var rest;
+/* ... instead of being passed around through functions.
 /* All parsers are String -> [Proposition, String].
    The first value returned is the parsed node.
    The second value is the code left over.
