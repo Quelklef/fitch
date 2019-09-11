@@ -334,39 +334,31 @@ function justifyDomainNonEmpty(goal, scope, linenos) {
   }
 }
 
-function justifyReflexivity(goal, scope, linenos) {
+function justifyEqualityIntroduction(goal, scope, linenos) {
   if (goal.kind === kindEquality && goal.lhs.concurs(goal.rhs)) {
-    return "=R:" + linenos[linenos.length - 1];
+    return "=I:" + linenos[0];
   }
 }
-function justifyTransitivity(goal, scope, linenos) {
-  if (goal.kind !== kindEquality) {
-    return null;
-  }
+function justifyEqualityElimination(goal, scope, linenos) {
   for (let i = 0; i < scope.length; i++) {
-    let iproof = scope[i];
-    if (iproof.kind !== kindEquality) continue;
+    let iline = scope[i];
+    if (!(iline instanceof Proposition)) continue;
+
     for (let j = 0; j < scope.length; j++) {
-      let jproof = scope[j];
-      if (jproof.kind === kindEquality
-        && iproof.lhs.concurs(goal.lhs)
-        && iproof.rhs.concurs(jproof.lhs)
-        && jproof.rhs.concurs(goal.rhs)) {
-        return "=T:" + linenos[i] + "," + linenos[j];
+      let jline = scope[j];
+      if (!(jline instanceof Proposition)) continue;
+      if (jline.kind !== kindEquality) continue;
+
+      if (iline.concurs(goal.substitute(jline.lhs, jline.rhs))
+          || goal.concurs(iline.substitute(jline.lhs, jline.rhs))) {
+        return "=E:" + linenos[j] + "," + linenos[i] + "[" + jline.lhs.name + RARR + jline.rhs.name + "]";
       }
-    }
-  }
-}
-function justifySymmetry(goal, scope, linenos) {
-  if (goal.kind !== kindEquality) {
-    return null;
-  }
-  for (let i = 0; i < scope.length; i++) {
-    let line = scope[i];
-    if (line.kind === kindEquality
-      && line.lhs.concurs(goal.rhs)
-      && line.rhs.concurs(goal.lhs)) {
-      return "=S:" + linenos[i];
+
+      if (iline.concurs(goal.substitute(jline.rhs, jline.lhs))
+          || goal.concurs(iline.substitute(jline.rhs, jline.lhs))) {
+        return "=E:" + linenos[j] + "," + linenos[i] + "[" + jline.rhs.name + RARR + jline.lhs.name + "]";
+      }
+
     }
   }
 }
@@ -458,9 +450,8 @@ function justify(line, scope, linenos, i) {
     , justifyExistsIntroduction
     , justifyExistsElimination
     , justifyDomainNonEmpty
-    , justifyReflexivity
-    , justifyTransitivity
-    , justifySymmetry
+    , justifyEqualityIntroduction
+    , justifyEqualityElimination
     ];
 
   for (let i = 0; i < strategies.length; i++) {

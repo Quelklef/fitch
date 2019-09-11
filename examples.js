@@ -284,6 +284,5 @@ simpleExample(
   ]
   , 'P+~P'
 ]);
-simpleExample('#reflexivity', ['[a]', ['', 'a=a']]);
-simpleExample('#transitivity', ['[a]', ['[b]a=b', ['[c]b=c', 'a=c']]]);
-simpleExample('#symmetry', ['[a]', ['[b]a=b', 'b=a']]);
+simpleExample('#equalsI', ['[x]', 'x=x']);
+simpleExample('#equalsE', ['[x]', ['[y]', ['x=y*Px', 'x=y', 'Px', 'Py']]]);
