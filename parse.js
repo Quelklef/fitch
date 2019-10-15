@@ -259,22 +259,22 @@ function parseInequality(code) {
 function parseEquality(code) {
   return parseBinaryOp(code, ["="], Proposition.newEquality, parseInequality);
 }
-function parseBiconditional(code) {
-  return parseBinaryOp(code, ["/"], Proposition.newBiconditional, parseEquality);
-}
-function parseImplication(code) {
-  return parseBinaryOp(code, [">"], Proposition.newImplication, parseBiconditional);
+function parseConjunction(code) {
+  return parseBinaryOp(code, [".", "&", "*"], Proposition.newConjunction, parseEquality);
 }
 function parseDisjunction(code) {
-  return parseBinaryOp(code, ["|", "v", "+"], Proposition.newDisjunction, parseImplication);
+  return parseBinaryOp(code, ["|", "v", "+"], Proposition.newDisjunction, parseConjunction);
 }
-function parseConjunction(code) {
-  return parseBinaryOp(code, [".", "&", "*"], Proposition.newConjunction, parseDisjunction);
+function parseImplication(code) {
+  return parseBinaryOp(code, [">"], Proposition.newImplication, parseDisjunction);
+}
+function parseBiconditional(code) {
+  return parseBinaryOp(code, ["/"], Proposition.newBiconditional, parseImplication);
 }
 
 function parseSimpleProp(code) {
   /* Proposition which is not a variable declaration */
-  return parseConjunction(code);
+  return parseBiconditional(code);
 }
 
 function parseDeclaration(code) {
