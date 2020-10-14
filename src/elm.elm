@@ -33,6 +33,13 @@ array_insert idx val ar =
     , Array.slice idx (Array.length ar) ar
     ]
 
+list_dropLast : List a -> List a
+list_dropLast list =
+  case list of
+    [] -> []
+    [x] -> []
+    x::xs -> x :: list_dropLast xs
+
 -- why is this not built-in
 string_fromBool : Bool -> String
 string_fromBool bool = case bool of
@@ -251,10 +258,10 @@ viewAux path proof = case proof of
           (13, False) -> pathNext path |> Maybe.map (\pathAfter -> DoAllOf [AppendLineAfter path, SetFocusTo pathAfter])
 
           -- Tab pressed
-          (9, False) -> Just <| IndentAt path
+          (9, False) -> Just <| DoAllOf [IndentAt path, SetFocusTo (path ++ [-0-1])]
 
           -- Shift+Tab pressed
-          (9, True) -> Just <| DedentAt path
+          (9, True) -> Just <| DoAllOf [DedentAt path, SetFocusTo (list_dropLast path)]
 
           -- Any other key pressed
           _ -> Nothing
