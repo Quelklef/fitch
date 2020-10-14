@@ -1,10 +1,12 @@
 module Main exposing (..)
 
+import Browser
+import Browser.Dom as Dom
+import Task
 import Array exposing (Array)
 import Maybe exposing (Maybe)
-import Browser
 import Html exposing (Html, Attribute, button, div, text, input)
-import Html.Attributes exposing (value, style)
+import Html.Attributes exposing (value, style, id)
 import Html.Events exposing (onInput, keyCode, preventDefaultOn)
 import Json.Decode as Json
 
@@ -50,8 +52,9 @@ onKeydown respond =
             Just msg -> Json.succeed (msg, True)
     in preventDefaultOn "keydown" (Json.andThen jsonRespond getInfo)
 
-main = Browser.sandbox
+main = Browser.document
   { init = init
+  , subscriptions = always Sub.none
   , update = update
   , view = view
   }
@@ -80,12 +83,25 @@ type alias Proof = Proofy Formula
 -- vv Same structure, contains raw user strings
 type alias RawProof = Proofy String
 
-init : RawProof
-init = ProofBlock (Array.fromList ["assumption"]) (Array.fromList [ProofLine "consequence"])
+init : () -> (RawProof, Cmd m)
+init =
+  let proof = ProofBlock (Array.fromList ["assumption"]) (Array.fromList [ProofLine "consequence"])
+  in always (proof, Cmd.none)
 
 -- vv Path to a formula in a proof, as a list of indicies
 -- vv A negative index is an index into a block head; positive into the body
 type alias Path = List Int
+
+pathNext : Path -> Maybe Path
+pathNext path = case path of
+  [] -> Nothing
+  [idx] ->
+    let newIdx = if idx >= 0 then idx + 1 else idx - 1
+    in Just [newIdx]
+  idx::idxs -> pathNext idxs |> Maybe.map (\tail -> idx :: tail)
+
+pathToId : Path -> String
+pathToId path = "path_" ++ String.join "_" (List.map String.fromInt path)
 
 proofGet : Int -> Proofy a -> Maybe (Proofy a)
 proofGet idx proof =
@@ -138,19 +154,28 @@ proofInsertLineAfter idx line proof =
         |> Maybe.map (\newHead -> ProofBlock newHead body)
 
 type Message =
-  SetFormula Path String
+  Noop
+  | DoAllOf (List Message)
+  | SetFocusTo Path
+  | SetFormula Path String
   | AppendLineAfter Path
   | IndentAt Path
   | DedentAt Path
 
-update : Message -> RawProof -> RawProof
+update : Message -> RawProof -> (RawProof, Cmd Message)
 update msg proof =
-  let result = case msg of
-        SetFormula path newFormula -> doSetFormula path newFormula proof
-        AppendLineAfter path -> doAppendLineAfter path proof
-        IndentAt path -> doIndentAt path proof
-        DedentAt path -> doDedentAt path proof
-  in result |> Maybe.withDefault proof
+  case msg of
+    Noop -> (proof, Cmd.none)
+    DoAllOf [] -> (proof, Cmd.none)
+    DoAllOf (msgHead::msgRest) ->
+      let (updatedProof1, cmd1) = update msgHead proof
+          (updatedProof2, cmd2) = update (DoAllOf msgRest) updatedProof1
+      in (updatedProof2, Cmd.batch [cmd1, cmd2])
+    SetFocusTo path            -> (proof, Task.attempt (always Noop) (Dom.focus <| pathToId path))
+    SetFormula path newFormula -> (doSetFormula path newFormula proof |> Maybe.withDefault proof, Cmd.none)
+    AppendLineAfter path       -> (doAppendLineAfter path proof       |> Maybe.withDefault proof, Cmd.none)
+    IndentAt path              -> (doIndentAt path proof              |> Maybe.withDefault proof, Cmd.none)
+    DedentAt path              -> (doDedentAt path proof              |> Maybe.withDefault proof, Cmd.none)
 
 doSetFormula : Path -> String -> RawProof -> Maybe RawProof
 doSetFormula path newFormula proof =
@@ -204,8 +229,13 @@ doDedentAt path proof =
     idx::idxs -> proofReplaceM idx (\subproof -> doDedentAt idxs subproof) proof
 
 
-view : RawProof -> Html Message
-view proof = viewAux [] proof
+view : RawProof -> Browser.Document Message
+view proof =
+  let html = viewAux [] proof
+  in
+    { title = "Fitch-Stlye Proof Helper"
+    , body = [html]
+    }
 
 viewAux : Path -> RawProof -> Html Message
 viewAux path proof = case proof of
@@ -213,11 +243,12 @@ viewAux path proof = case proof of
     div []
       [ input
         [ value formula
+        , id (pathToId path)
         , onInput (SetFormula path)
         , onKeydown (\(keyCode, shiftKey) -> case (keyCode, shiftKey) of
 
           -- Enter pressed
-          (13, False) -> Just <| AppendLineAfter path
+          (13, False) -> pathNext path |> Maybe.map (\pathAfter -> DoAllOf [AppendLineAfter path, SetFocusTo pathAfter])
 
           -- Tab pressed
           (9, False) -> Just <| IndentAt path
