@@ -140,14 +140,16 @@ proofInsertLineAfter idx line proof =
 type Message =
   SetFormula Path String
   | AppendLineAfter Path
-  | IndentLine Path
+  | IndentAt Path
+  | DedentAt Path
 
 update : Message -> RawProof -> RawProof
 update msg proof =
   let result = case msg of
         SetFormula path newFormula -> doSetFormula path newFormula proof
         AppendLineAfter path -> doAppendLineAfter path proof
-        IndentLine path -> doIndentLine path proof
+        IndentAt path -> doIndentAt path proof
+        DedentAt path -> doDedentAt path proof
   in result |> Maybe.withDefault proof
 
 doSetFormula : Path -> String -> RawProof -> Maybe RawProof
@@ -165,13 +167,42 @@ doAppendLineAfter path proof =
     [idx] -> proofInsertLineAfter idx "" proof
     idx::idxs -> proofReplaceM idx (\subproof -> doAppendLineAfter idxs subproof) proof
 
-doIndentLine : Path -> RawProof -> Maybe RawProof
-doIndentLine path proof =
+doIndentAt : Path -> RawProof -> Maybe RawProof
+doIndentAt path proof =
   case path of
     [] -> case proof of
       ProofLine line -> Just <| ProofBlock (Array.fromList [line]) (Array.fromList [ProofLine ""])
       ProofBlock _ _ -> Nothing
-    idx::idxs -> proofReplaceM idx (\subproof -> doIndentLine idxs subproof) proof
+    idx::idxs -> proofReplaceM idx (\subproof -> doIndentAt idxs subproof) proof
+
+doDedentAt : Path -> RawProof -> Maybe RawProof
+doDedentAt path proof =
+  case path of
+    [] -> Nothing
+
+    [idx] -> case proof of
+      ProofLine _ -> Nothing
+      ProofBlock head body ->
+        -- We allow dedenting a block back to a line only if:
+        let dedentOk =
+              -- vv The block has only one assumption
+              Array.length head == 1
+              -- vv The dedent is targeting the assumption
+              && idx == -0-1
+              -- vv The block has only one subproof in its body
+              && Array.length body == 1
+              -- vv That subproof is an empty line
+              && (Array.get 0 body
+                |> Maybe.map (\subproof -> case subproof of
+                  ProofLine line -> line == ""
+                  ProofBlock _ _ -> False)
+                |> Maybe.withDefault False)
+        in
+          if dedentOk then Array.get 0 head |> Maybe.map ProofLine
+          else Nothing
+
+    idx::idxs -> proofReplaceM idx (\subproof -> doDedentAt idxs subproof) proof
+
 
 view : RawProof -> Html Message
 view proof = viewAux [] proof
@@ -184,11 +215,19 @@ viewAux path proof = case proof of
         [ value formula
         , onInput (SetFormula path)
         , onKeydown (\(keyCode, shiftKey) -> case (keyCode, shiftKey) of
+
           -- Enter pressed
           (13, False) -> Just <| AppendLineAfter path
+
           -- Tab pressed
-          (9, False) -> Just <| IndentLine path
+          (9, False) -> Just <| IndentAt path
+
+          -- Shift+Tab pressed
+          (9, True) -> Just <| DedentAt path
+
+          -- Any other key pressed
           _ -> Nothing
+
         )
         ] []
       , text (Debug.toString path)
