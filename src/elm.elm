@@ -157,7 +157,7 @@ type Message =
   Noop
   | DoAllOf (List Message)
   | SetFocusTo Path
-  | SetFormula Path String
+  | SetFormulaAt Path String
   | AppendLineAfter Path
   | IndentAt Path
   | DedentAt Path
@@ -172,18 +172,18 @@ update msg proof =
           (updatedProof2, cmd2) = update (DoAllOf msgRest) updatedProof1
       in (updatedProof2, Cmd.batch [cmd1, cmd2])
     SetFocusTo path            -> (proof, Task.attempt (always Noop) (Dom.focus <| pathToId path))
-    SetFormula path newFormula -> (doSetFormula path newFormula proof |> Maybe.withDefault proof, Cmd.none)
+    SetFormulaAt path newFormula -> (doSetFormulaAt path newFormula proof |> Maybe.withDefault proof, Cmd.none)
     AppendLineAfter path       -> (doAppendLineAfter path proof       |> Maybe.withDefault proof, Cmd.none)
     IndentAt path              -> (doIndentAt path proof              |> Maybe.withDefault proof, Cmd.none)
     DedentAt path              -> (doDedentAt path proof              |> Maybe.withDefault proof, Cmd.none)
 
-doSetFormula : Path -> String -> RawProof -> Maybe RawProof
-doSetFormula path newFormula proof =
+doSetFormulaAt : Path -> String -> RawProof -> Maybe RawProof
+doSetFormulaAt path newFormula proof =
   case path of
     [] -> case proof of
       ProofBlock _ _ -> Nothing
       ProofLine  oldFormula -> Just (ProofLine newFormula)
-    idx::idxs -> proofReplaceM idx (\subproof -> doSetFormula idxs newFormula subproof) proof
+    idx::idxs -> proofReplaceM idx (\subproof -> doSetFormulaAt idxs newFormula subproof) proof
 
 doAppendLineAfter : Path -> RawProof -> Maybe RawProof
 doAppendLineAfter path proof =
@@ -244,7 +244,7 @@ viewAux path proof = case proof of
       [ input
         [ value formula
         , id (pathToId path)
-        , onInput (SetFormula path)
+        , onInput (SetFormulaAt path)
         , onKeydown (\(keyCode, shiftKey) -> case (keyCode, shiftKey) of
 
           -- Enter pressed
