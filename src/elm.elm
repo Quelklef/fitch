@@ -4,17 +4,9 @@ import Array exposing (Array)
 import Maybe exposing (Maybe)
 import Browser
 import Html exposing (Html, Attribute, button, div, text, input)
-import Html.Attributes exposing (value)
-import Html.Events exposing (onInput, keyCode, on)
+import Html.Attributes exposing (value, style)
+import Html.Events exposing (onInput, keyCode, preventDefaultOn)
 import Json.Decode as Json
-
--- vv From https://stackoverflow.com/a/41072936/4608364
-onEnter : Message -> Attribute Message
-onEnter msg =
-    let isEnter code =
-          if code == 13 then Json.succeed msg
-          else Json.fail "not ENTER"
-    in on "keydown" (Json.andThen isEnter keyCode)
 
 array_replace : Int -> (a -> a) -> Array a -> Maybe (Array a)
 array_replace idx mapper ar =
@@ -38,6 +30,25 @@ array_insert idx val ar =
     , Array.fromList [val]
     , Array.slice idx (Array.length ar) ar
     ]
+
+-- why is this not built-in
+string_fromBool : Bool -> String
+string_fromBool bool = case bool of
+  True -> "True"
+  False -> "False"
+
+-- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
+onKeydown : ((Int, Bool) -> Maybe Message) -> Attribute Message
+onKeydown respond =
+    let
+      getInfo = Json.map2 Tuple.pair
+          (Json.field "keyCode" Json.int)
+          (Json.field "shiftKey" Json.bool)
+      jsonRespond info =
+          case respond info of
+            Nothing -> Json.fail "Maybe.Nothing"
+            Just msg -> Json.succeed (msg, True)
+    in preventDefaultOn "keydown" (Json.andThen jsonRespond getInfo)
 
 main = Browser.sandbox
   { init = init
@@ -129,12 +140,14 @@ proofInsertLineAfter idx line proof =
 type Message =
   SetFormula Path String
   | AppendLineAfter Path
+  | IndentLine Path
 
 update : Message -> RawProof -> RawProof
 update msg proof =
   let result = case msg of
         SetFormula path newFormula -> doSetFormula path newFormula proof
         AppendLineAfter path -> doAppendLineAfter path proof
+        IndentLine path -> doIndentLine path proof
   in result |> Maybe.withDefault proof
 
 doSetFormula : Path -> String -> RawProof -> Maybe RawProof
@@ -152,6 +165,14 @@ doAppendLineAfter path proof =
     [idx] -> proofInsertLineAfter idx "" proof
     idx::idxs -> proofReplaceM idx (\subproof -> doAppendLineAfter idxs subproof) proof
 
+doIndentLine : Path -> RawProof -> Maybe RawProof
+doIndentLine path proof =
+  case path of
+    [] -> case proof of
+      ProofLine line -> Just <| ProofBlock (Array.fromList [line]) (Array.fromList [ProofLine ""])
+      ProofBlock _ _ -> Nothing
+    idx::idxs -> proofReplaceM idx (\subproof -> doIndentLine idxs subproof) proof
+
 view : RawProof -> Html Message
 view proof = viewAux [] proof
 
@@ -159,11 +180,22 @@ viewAux : Path -> RawProof -> Html Message
 viewAux path proof = case proof of
   ProofLine formula ->
     div []
-      [ input [ value formula, onInput (SetFormula path), onEnter (AppendLineAfter path) ] []
+      [ input
+        [ value formula
+        , onInput (SetFormula path)
+        , onKeydown (\(keyCode, shiftKey) -> case (keyCode, shiftKey) of
+          -- Enter pressed
+          (13, False) -> Just <| AppendLineAfter path
+          -- Tab pressed
+          (9, False) -> Just <| IndentLine path
+          _ -> Nothing
+        )
+        ] []
       , text (Debug.toString path)
       ]
+
   ProofBlock head body ->
-    div [] <|
+    div [ style "margin-left" "20px" ] <|
       Array.toList <| Array.append
         (Array.indexedMap (\idx formula -> viewAux (path ++ [-idx-1]) (ProofLine formula)) head)
         (Array.indexedMap (\idx subproof -> viewAux (path ++ [idx]) subproof) body)
