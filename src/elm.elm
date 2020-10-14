@@ -3,9 +3,41 @@ module Main exposing (..)
 import Array exposing (Array)
 import Maybe exposing (Maybe)
 import Browser
-import Html exposing (Html, button, div, text, input)
+import Html exposing (Html, Attribute, button, div, text, input)
 import Html.Attributes exposing (value)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onInput, keyCode, on)
+import Json.Decode as Json
+
+-- vv From https://stackoverflow.com/a/41072936/4608364
+onEnter : Message -> Attribute Message
+onEnter msg =
+    let isEnter code =
+          if code == 13 then Json.succeed msg
+          else Json.fail "not ENTER"
+    in on "keydown" (Json.andThen isEnter keyCode)
+
+array_replace : Int -> (a -> a) -> Array a -> Maybe (Array a)
+array_replace idx mapper ar =
+  Array.get idx ar
+  |> Maybe.map mapper
+  |> Maybe.map (\newVal -> Array.set idx newVal ar)
+
+array_strictSet : Int -> a -> Array a -> Maybe (Array a)
+array_strictSet idx val ar = array_replace idx (always val) ar
+
+array_appendAll : List (Array a) -> Array a
+array_appendAll arrays = case arrays of
+  [] -> Array.empty
+  ar::ars -> Array.append ar (array_appendAll ars)
+
+array_insert : Int -> a -> Array a -> Maybe (Array a)
+array_insert idx val ar =
+  if idx < 0 || idx > Array.length ar then Nothing
+  else Just <| array_appendAll
+    [ Array.slice 0 idx ar
+    , Array.fromList [val]
+    , Array.slice idx (Array.length ar) ar
+    ]
 
 main = Browser.sandbox
   { init = init
@@ -38,7 +70,7 @@ type alias Proof = Proofy Formula
 type alias RawProof = Proofy String
 
 init : RawProof
-init = ProofBlock (Array.fromList ["asm"]) Array.empty
+init = ProofBlock (Array.fromList ["assumption"]) (Array.fromList [ProofLine "consequence"])
 
 -- vv Path to a formula in a proof, as a list of indicies
 -- vv A negative index is an index into a block head; positive into the body
@@ -49,16 +81,61 @@ proofGet idx proof =
   case proof of
     ProofLine _ -> Nothing
     ProofBlock head body ->
-      if idx > 0 then Array.get idx body
+      if idx >= 0 then Array.get idx body
       else Array.get (-idx-1) head
         |> Maybe.map (\formula -> ProofLine formula)
 
+proofSet : Int -> Proofy a -> Proofy a -> Maybe (Proofy a)
+proofSet idx subproof proof =
+  case proof of
+    ProofLine _ -> Nothing
+    ProofBlock head body ->
+      if idx >= 0 then case subproof of
+        ProofLine line -> array_strictSet idx line head
+          |> Maybe.map (\newHead -> ProofBlock newHead body)
+        ProofBlock _ _ -> Nothing
+      else array_strictSet (-idx-1) subproof body
+        |> Maybe.map (\newBody -> ProofBlock head newBody)
+
+proofReplaceM : Int -> (Proofy a -> Maybe (Proofy a)) -> Proofy a -> Maybe (Proofy a)
+proofReplaceM idx mapper proof =
+  case proof of
+    ProofLine _ -> Nothing
+    ProofBlock head body ->
+      if idx >= 0 then
+        Array.get idx body
+        |> Maybe.andThen mapper
+        |> Maybe.map (\newSubproof -> Array.set idx newSubproof body)
+        |> Maybe.map (\newBody -> ProofBlock head newBody)
+      else
+        Array.get (-idx-1) head
+        |> Maybe.map ProofLine
+        |> Maybe.andThen mapper
+        |> Maybe.andThen (\newSubproof -> case newSubproof of
+          ProofLine newLine -> Just <| Array.set (-idx-1) newLine head
+          ProofBlock _ _ -> Nothing)
+        |> Maybe.map (\newHead -> ProofBlock newHead body)
+
+proofInsertLineAfter : Int -> a -> Proofy a -> Maybe (Proofy a)
+proofInsertLineAfter idx line proof =
+  case proof of
+    ProofLine _ -> Nothing
+    ProofBlock head body ->
+      if idx >= 0 then array_insert (idx + 1) (ProofLine line) body
+        |> Maybe.map (\newBody -> ProofBlock head newBody)
+      else array_insert (-idx-1 + 1) line head
+        |> Maybe.map (\newHead -> ProofBlock newHead body)
+
 type Message =
   SetFormula Path String
+  | AppendLineAfter Path
 
 update : Message -> RawProof -> RawProof
-update msg proof = case msg of
-  SetFormula path newFormula -> doSetFormula path newFormula proof |> Maybe.withDefault proof
+update msg proof =
+  let result = case msg of
+        SetFormula path newFormula -> doSetFormula path newFormula proof
+        AppendLineAfter path -> doAppendLineAfter path proof
+  in result |> Maybe.withDefault proof
 
 doSetFormula : Path -> String -> RawProof -> Maybe RawProof
 doSetFormula path newFormula proof =
@@ -66,9 +143,14 @@ doSetFormula path newFormula proof =
     [] -> case proof of
       ProofBlock _ _ -> Nothing
       ProofLine  oldFormula -> Just (ProofLine newFormula)
-    idx::idxs ->
-      proofGet idx proof
-      |> Maybe.andThen (\subproof -> doSetFormula idxs newFormula subproof)
+    idx::idxs -> proofReplaceM idx (\subproof -> doSetFormula idxs newFormula subproof) proof
+
+doAppendLineAfter : Path -> RawProof -> Maybe RawProof
+doAppendLineAfter path proof =
+  case path of
+    [] -> Nothing
+    [idx] -> proofInsertLineAfter idx "" proof
+    idx::idxs -> proofReplaceM idx (\subproof -> doAppendLineAfter idxs subproof) proof
 
 view : RawProof -> Html Message
 view proof = viewAux [] proof
@@ -77,7 +159,9 @@ viewAux : Path -> RawProof -> Html Message
 viewAux path proof = case proof of
   ProofLine formula ->
     div []
-      [ input [ value formula, onInput (SetFormula path) ] [] ]
+      [ input [ value formula, onInput (SetFormula path), onEnter (AppendLineAfter path) ] []
+      , text (Debug.toString path)
+      ]
   ProofBlock head body ->
     div [] <|
       Array.toList <| Array.append
