@@ -43,6 +43,7 @@ init =
 
 type Message =
   Noop
+  | SetFocusTo Path
   | SetFormulaAt Path String
   | NewLineAfter Path Bool
   | IndentAt Path
@@ -55,6 +56,7 @@ update : Message -> RawProof -> (RawProof, Cmd Message)
 update msg proof =
   let result = case msg of
         Noop -> Nothing
+        SetFocusTo path -> Just (proof, setFocusTo path)
         SetFormulaAt path newFormula -> doSetFormulaAt path newFormula proof
         NewLineAfter path preferAssumption -> doNewLineAfter path preferAssumption proof
         IndentAt path -> doIndentAt path proof
@@ -192,6 +194,12 @@ view_ path fullProof proof = case proof of
 
           -- Shift+Tab pressed
           (9, True) -> Just <| DedentAt path
+
+          -- Up arrow key pressed
+          (38, False) -> Path.linearPred fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath)
+
+          -- Down arrow key pressed
+          (40, False) -> Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath)
 
           -- Any other key pressed
           _ -> Nothing

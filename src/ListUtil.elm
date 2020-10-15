@@ -2,6 +2,12 @@ module ListUtil exposing (..)
 
 import List exposing (..)
 
+last : List a -> Maybe a
+last list = case list of
+  [] -> Nothing
+  [x] -> Just x
+  x::xs -> last xs
+
 dropLast : List a -> List a
 dropLast list =
   case list of

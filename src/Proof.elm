@@ -1,8 +1,9 @@
 module Proof exposing (..)
 
-import ArrayUtil
 import Array exposing (Array)
 import Maybe exposing (Maybe)
+
+import ArrayUtil
 
 type Formula =
   Empty

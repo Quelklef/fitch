@@ -27,3 +27,6 @@ insert idx val ar =
 
 cons : a -> Array a -> Array a
 cons x xs = Array.append (Array.fromList [x]) xs
+
+last : Array a -> Maybe a
+last ar = get (length ar - 1) ar
