@@ -67,13 +67,3 @@ replaceM idx mapper proof =
           ProofLine newLine -> Just <| Array.set (-idx-1) newLine head
           ProofBlock _ _ -> Nothing)
         |> Maybe.map (\newHead -> ProofBlock newHead body)
-
-insertLineAfter : Int -> a -> Proofy a -> Maybe (Proofy a)
-insertLineAfter idx line proof =
-  case proof of
-    ProofLine _ -> Nothing
-    ProofBlock head body ->
-      if idx >= 0 then ArrayUtil.insert (idx + 1) (ProofLine line) body
-        |> Maybe.map (\newBody -> ProofBlock head newBody)
-      else ArrayUtil.insert (-idx-1 + 1) line head
-        |> Maybe.map (\newHead -> ProofBlock newHead body)

@@ -24,3 +24,6 @@ insert idx val ar =
     , fromList [val]
     , slice idx (length ar) ar
     ]
+
+cons : a -> Array a -> Array a
+cons x xs = Array.append (Array.fromList [x]) xs
