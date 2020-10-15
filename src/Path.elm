@@ -51,3 +51,13 @@ indexTargetsLastAssumption : Proofy a -> Int -> Bool
 indexTargetsLastAssumption proof idx = case proof of
   ProofLine line -> False
   ProofBlock head body -> idx == -(Array.length head)
+
+-- vv Like indexTargetsLastAssumption, but for paths
+targetsLastAssumption : Proofy a -> Path -> Bool
+targetsLastAssumption proof path = case path of
+  [] -> False
+  [idx] -> indexTargetsLastAssumption proof idx
+  idx::idxs ->
+    Proof.get idx proof
+    |> Maybe.map (\subproof -> targetsLastAssumption subproof idxs)
+    |> Maybe.withDefault False

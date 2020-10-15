@@ -43,35 +43,36 @@ init =
 
 type Message =
   Noop
-  | DoAllOf (List Message)
-  | SetFocusTo Path
   | SetFormulaAt Path String
   | NewLineAfter Path Bool
   | IndentAt Path
   | DedentAt Path
 
+setFocusTo : Path -> Cmd Message
+setFocusTo path = Task.attempt (always Noop) (Dom.focus <| Path.toId path)
+
 update : Message -> RawProof -> (RawProof, Cmd Message)
 update msg proof =
-  case msg of
-    Noop -> (proof, Cmd.none)
-    DoAllOf [] -> (proof, Cmd.none)
-    DoAllOf (msgHead::msgRest) ->
-      let (updatedProof1, cmd1) = update msgHead proof
-          (updatedProof2, cmd2) = update (DoAllOf msgRest) updatedProof1
-      in (updatedProof2, Cmd.batch [cmd1, cmd2])
-    SetFocusTo path -> (proof, Task.attempt (always Noop) (Dom.focus <| Path.toId path))
-    SetFormulaAt path newFormula -> (doSetFormulaAt path newFormula proof |> Maybe.withDefault proof, Cmd.none)
-    NewLineAfter path preferAssumption -> (doNewLineAfter path preferAssumption proof |> Maybe.withDefault proof, Cmd.none)
-    IndentAt path -> (doIndentAt path proof |> Maybe.withDefault proof, Cmd.none)
-    DedentAt path -> (doDedentAt path proof |> Maybe.withDefault proof, Cmd.none)
+  let result = case msg of
+        Noop -> Nothing
+        SetFormulaAt path newFormula -> doSetFormulaAt path newFormula proof
+        NewLineAfter path preferAssumption -> doNewLineAfter path preferAssumption proof
+        IndentAt path -> doIndentAt path proof
+        DedentAt path -> doDedentAt path proof
+  in result |> Maybe.withDefault (proof, Cmd.none)
 
-doSetFormulaAt : Path -> String -> RawProof -> Maybe RawProof
+doSetFormulaAt : Path -> String -> RawProof -> Maybe (RawProof, Cmd Message)
 doSetFormulaAt path newFormula proof =
+  doSetFormulaAt_ path newFormula proof
+  |> Maybe.map (\newProof -> (newProof, Cmd.none))
+
+doSetFormulaAt_ : Path -> String -> RawProof -> Maybe RawProof
+doSetFormulaAt_ path newFormula proof =
   case path of
     [] -> case proof of
       ProofBlock _ _ -> Nothing
       ProofLine  oldFormula -> Just (ProofLine newFormula)
-    idx::idxs -> Proof.replaceM idx (\subproof -> doSetFormulaAt idxs newFormula subproof) proof
+    idx::idxs -> Proof.replaceM idx (\subproof -> doSetFormulaAt_ idxs newFormula subproof) proof
 
 -- vv If the given path targets a ProofLine, rather than a ProofBlock, then
 -- vv inserts a new line after that targeted line.
@@ -84,8 +85,18 @@ doSetFormulaAt path newFormula proof =
 -- vv assumption (ie it's the last assumption), then the inserted line will
 -- vv be an assumption if and only if `preferAssumption` is true; otherwise,
 -- vv it will be a body line.
-doNewLineAfter : Path -> Bool -> RawProof -> Maybe RawProof
+doNewLineAfter : Path -> Bool -> RawProof -> Maybe (RawProof, Cmd Message)
 doNewLineAfter path preferAssumption proof =
+  doNewLineAfter_ path preferAssumption proof
+  |> Maybe.andThen (\newProof ->
+    ListUtil.mapLast (\idx ->
+        if Path.targetsLastAssumption newProof path then 0
+        else if idx < 0 then idx - 1
+        else idx + 1) path
+    |> Maybe.map (\newPath -> (newProof, setFocusTo newPath)))
+
+doNewLineAfter_ : Path -> Bool -> RawProof -> Maybe RawProof
+doNewLineAfter_ path preferAssumption proof =
   case path of
     [] -> Nothing
 
@@ -110,18 +121,28 @@ doNewLineAfter path preferAssumption proof =
             ArrayUtil.insert (idx + 1) (ProofLine "") body
             |> Maybe.map (\newBody -> ProofBlock head newBody)
 
-    idx::idxs -> Proof.replaceM idx (\subproof -> doNewLineAfter idxs preferAssumption subproof) proof
+    idx::idxs -> Proof.replaceM idx (\subproof -> doNewLineAfter_ idxs preferAssumption subproof) proof
 
-doIndentAt : Path -> RawProof -> Maybe RawProof
+doIndentAt : Path -> RawProof -> Maybe (RawProof, Cmd Message)
 doIndentAt path proof =
+  doIndentAt_ path proof
+  |> Maybe.map (\newProof -> (newProof, setFocusTo <| path ++ [-0-1]))
+
+doIndentAt_ : Path -> RawProof -> Maybe RawProof
+doIndentAt_ path proof =
   case path of
     [] -> case proof of
       ProofLine line -> Just <| ProofBlock (Array.fromList [line]) Array.empty
       ProofBlock _ _ -> Nothing
-    idx::idxs -> Proof.replaceM idx (\subproof -> doIndentAt idxs subproof) proof
+    idx::idxs -> Proof.replaceM idx (\subproof -> doIndentAt_ idxs subproof) proof
 
-doDedentAt : Path -> RawProof -> Maybe RawProof
+doDedentAt : Path -> RawProof -> Maybe (RawProof, Cmd Message)
 doDedentAt path proof =
+  doDedentAt_ path proof
+  |> Maybe.map (\newProof -> (newProof, setFocusTo <| ListUtil.dropLast path))
+
+doDedentAt_ : Path -> RawProof -> Maybe RawProof
+doDedentAt_ path proof =
   case path of
     [] -> Nothing
 
@@ -140,19 +161,19 @@ doDedentAt path proof =
           if dedentOk then Array.get 0 head |> Maybe.map ProofLine
           else Nothing
 
-    idx::idxs -> Proof.replaceM idx (\subproof -> doDedentAt idxs subproof) proof
+    idx::idxs -> Proof.replaceM idx (\subproof -> doDedentAt_ idxs subproof) proof
 
 
 view : RawProof -> Browser.Document Message
 view proof =
-  let html = viewAux [] proof proof
+  let html = view_ [] proof proof
   in
     { title = "Fitch-Stlye Proof Helper"
     , body = [html]
     }
 
-viewAux : Path -> RawProof -> RawProof -> Html Message
-viewAux path fullProof proof = case proof of
+view_ : Path -> RawProof -> RawProof -> Html Message
+view_ path fullProof proof = case proof of
   ProofLine formula ->
     div []
       [ input
@@ -164,13 +185,13 @@ viewAux path fullProof proof = case proof of
           -- (Shift+)Enter pressed
           (13, _) ->
             let preferAssumption = shiftKey
-            in Path.linearSucc fullProof path |> Maybe.map (\pathAfter -> DoAllOf [NewLineAfter path preferAssumption, SetFocusTo pathAfter])
+            in Just <| NewLineAfter path preferAssumption
 
           -- Tab pressed
-          (9, False) -> Just <| DoAllOf [IndentAt path, SetFocusTo (path ++ [-0-1])]
+          (9, False) -> Just <| IndentAt path
 
           -- Shift+Tab pressed
-          (9, True) -> Just <| DoAllOf [DedentAt path, SetFocusTo (ListUtil.dropLast path)]
+          (9, True) -> Just <| DedentAt path
 
           -- Any other key pressed
           _ -> Nothing
@@ -183,5 +204,5 @@ viewAux path fullProof proof = case proof of
   ProofBlock head body ->
     div [ style "margin-left" "20px" ] <|
       Array.toList <| Array.append
-        (head |> Array.indexedMap (\idx formula -> viewAux (path ++ [-idx-1]) fullProof (ProofLine formula)))
-        (body |> Array.indexedMap (\idx subproof -> viewAux (path ++ [idx]) fullProof subproof))
+        (head |> Array.indexedMap (\idx formula -> view_ (path ++ [-idx-1]) fullProof (ProofLine formula)))
+        (body |> Array.indexedMap (\idx subproof -> view_ (path ++ [idx]) fullProof subproof))

@@ -8,3 +8,10 @@ dropLast list =
     [] -> []
     [x] -> []
     x::xs -> x :: dropLast xs
+
+mapLast : (a -> a) -> List a -> Maybe (List a)
+mapLast mapper list =
+  case list of
+    [] -> Nothing
+    [x] -> Just [mapper x]
+    x::xs -> mapLast mapper xs |> Maybe.map (\newList -> x :: newList)
