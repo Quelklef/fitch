@@ -17,12 +17,13 @@ import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
-onKeydown : ((Int, Bool) -> Message) -> Attribute Message
+onKeydown : ({ keyCode : Int, shiftKey : Bool } ->  { msg : Message, preventDefault : Bool }) -> Attribute Message
 onKeydown respond =
-    let getInfo = Json.map2 Tuple.pair
+    let getInfo = Json.map2 (\keyCode shiftKey -> { keyCode = keyCode, shiftKey = shiftKey })
           (Json.field "keyCode" Json.int)
           (Json.field "shiftKey" Json.bool)
-    in preventDefaultOn "keydown" (getInfo |> Json.andThen (\info -> Json.succeed (respond info, True)))
+        tupleRespond = respond >> (\{ msg, preventDefault } -> (msg, preventDefault))
+    in preventDefaultOn "keydown" (getInfo |> Json.andThen (\info -> Json.succeed <| tupleRespond info))
 
 main = Browser.document
   { init = init
@@ -178,27 +179,31 @@ view_ path fullProof proof = case proof of
         [ value formula
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
-        , onKeydown (\(keyCode, shiftKey) -> case (keyCode, shiftKey) of
+        , onKeydown (\{ keyCode, shiftKey } -> case (keyCode, shiftKey) of
 
           -- (Shift+)Enter pressed
           (13, _) ->
             let preferAssumption = shiftKey
-            in NewLineAfter path preferAssumption
+            in { msg = NewLineAfter path preferAssumption, preventDefault = True }
 
           -- Tab pressed
-          (9, False) -> IndentAt path
+          (9, False) -> { msg = IndentAt path, preventDefault = True }
 
           -- Shift+Tab pressed
-          (9, True) -> DedentAt path
+          (9, True) -> { msg = DedentAt path, preventDefault = True }
 
           -- Up arrow key pressed
-          (38, False) -> Path.linearPred fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+          (38, False) ->
+            let msg = Path.linearPred fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+            in { msg = msg, preventDefault = True }
 
           -- Down arrow key pressed
-          (40, False) -> Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+          (40, False) ->
+            let msg = Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+            in { msg = msg, preventDefault = True }
 
           -- Any other key pressed
-          _ -> Noop
+          _ -> { msg = Noop, preventDefault = False }
 
         )
         ] []
