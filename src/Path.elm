@@ -15,7 +15,7 @@ pathToLastLine proof = case proof of
   ProofBlock head body ->
     let maybeIdx =
           if Array.length body > 0 then Just <| Array.length body - 1
-          else if Array.length head > 0 then Just <| -(Array.length head - 1)-1
+          else if Array.length head > 0 then Just <| -1
           else Nothing
     in maybeIdx
       |> Maybe.andThen (\idx -> Proof.get idx proof
@@ -27,7 +27,7 @@ pathToFirstLine proof = case proof of
   ProofLine _ -> Just []
   ProofBlock head body ->
     let maybeIdx =
-          if Array.length head > 0 then Just -1
+          if Array.length head > 0 then Just -(Array.length head)
           else if Array.length body > 0 then Just 0
           else Nothing
     in maybeIdx
@@ -42,29 +42,6 @@ targetsLine proof idx =
     _ -> False
 
 -- vv Given an index targeting a line, does the following:
--- vv If the index is in bounds and is followed linearly by another
--- vv line, evaluates to the path of the following line
--- vv Otherwise, evaluates to an out-of-bounds index.
-linearSuccIdxOrOob : Proofy a -> Int -> Int
-linearSuccIdxOrOob proof idx =
-  if indexTargetsLastAssumption proof idx then 0
-  else if idx < 0 then idx - 1
-  else idx + 1
-
--- vv Like linearSuccIdxOrOob, but in the opposite direction
-linearPredIdxOrOob : Proofy a -> Int -> Int
-linearPredIdxOrOob proof idx =
-  let headLen = case proof of
-        ProofLine _ -> 1
-        ProofBlock head body -> Array.length head
-      outOfBounds = case proof of
-        ProofLine _ -> 1
-        ProofBlock head body -> Array.length body
-  in if idx == -1 then outOfBounds
-  else if idx < 0 then idx + 1
-  else if idx == 0 then -headLen
-  else idx - 1
-
 -- vv Given a path in a proof that targets a line, evaluates the
 -- vv path which targets the "linearly next" line, ignoring nesting.
 -- vv For instance, consider the following:
@@ -94,11 +71,10 @@ linearSucc proof path = case path of
 
         -- vv If that fails, we'll look for the result in the succeeding index
         succAttempt () =  -- make it a function so that it's lazy
-          let succIdx = linearSuccIdxOrOob proof idx
-          in Proof.get succIdx proof
+          Proof.get (idx + 1) proof
             |> Maybe.andThen (\subproof -> case subproof of
-              ProofLine _ -> Just [succIdx]
-              ProofBlock _ _ -> pathToFirstLine subproof |> Maybe.map (\pathTail -> succIdx :: pathTail))
+              ProofLine _ -> Just [idx + 1]
+              ProofBlock _ _ -> pathToFirstLine subproof |> Maybe.map (\pathTail -> (idx + 1) :: pathTail))
 
     in case hereAttempt of
       Just _ -> hereAttempt
@@ -116,11 +92,10 @@ linearPred proof path = case path of
           |> Maybe.map (\pathTail -> idx :: pathTail)
 
         predAttempt () =
-          let predIdx = linearPredIdxOrOob proof idx
-          in Proof.get predIdx proof
+          Proof.get (idx - 1) proof
             |> Maybe.andThen (\subproof -> case subproof of
-              ProofLine _ -> Just [predIdx]
-              ProofBlock _ _ -> pathToLastLine subproof |> Maybe.map (\pathTail -> predIdx :: pathTail))
+              ProofLine _ -> Just [idx - 1]
+              ProofBlock _ _ -> pathToLastLine subproof |> Maybe.map (\pathTail -> (idx - 1) :: pathTail))
 
     in case hereAttempt of
       Just _ -> hereAttempt
@@ -129,21 +104,10 @@ linearPred proof path = case path of
 toId : Path -> String
 toId path = "path_" ++ String.join "_" (List.map String.fromInt path)
 
--- vv Given an index and a proof, evaluates to whether or not
--- vv the subproof targeted by that index is, in particular, the
--- vv final assumption (ie the final line in the proof's head).
--- vv If the proof is a ProofLine instead of a ProofBlock,
--- vv evaluates to False.
-indexTargetsLastAssumption : Proofy a -> Int -> Bool
-indexTargetsLastAssumption proof idx = case proof of
-  ProofLine line -> False
-  ProofBlock head body -> idx == -(Array.length head)
-
--- vv Like indexTargetsLastAssumption, but for paths
 targetsLastAssumption : Proofy a -> Path -> Bool
 targetsLastAssumption proof path = case path of
   [] -> False
-  [idx] -> indexTargetsLastAssumption proof idx
+  [idx] -> idx == -1
   idx::idxs ->
     Proof.get idx proof
     |> Maybe.map (\subproof -> targetsLastAssumption subproof idxs)

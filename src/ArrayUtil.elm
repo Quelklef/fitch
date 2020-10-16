@@ -1,5 +1,6 @@
 module ArrayUtil exposing (..)
 
+import List
 import Array exposing (..)
 
 replace : Int -> (a -> a) -> Array a -> Maybe (Array a)
@@ -30,3 +31,10 @@ cons x xs = Array.append (Array.fromList [x]) xs
 
 last : Array a -> Maybe a
 last ar = get (length ar - 1) ar
+
+reverse : Array a -> Array a
+reverse ar =
+  ar
+  |> Array.toList
+  |> List.reverse
+  |> Array.fromList

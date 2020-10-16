@@ -91,10 +91,11 @@ doNewLineAfter : Path -> Bool -> RawProof -> Maybe (RawProof, Cmd Message)
 doNewLineAfter path preferAssumption proof =
   doNewLineAfter_ path preferAssumption proof
   |> Maybe.andThen (\newProof ->
-    ListUtil.mapLast (\idx ->
-        if Path.targetsLastAssumption newProof path then 0
-        else if idx < 0 then idx - 1
-        else idx + 1) path
+    path |> ListUtil.mapLast (\idx ->
+        if Path.targetsLastAssumption newProof path then
+          if preferAssumption then -1 else 0
+        else if idx < 0 then idx
+        else idx + 1)
     |> Maybe.map (\newPath -> (newProof, setFocusTo newPath)))
 
 doNewLineAfter_ : Path -> Bool -> RawProof -> Maybe RawProof
@@ -108,14 +109,14 @@ doNewLineAfter_ path preferAssumption proof =
         ProofBlock head body ->
 
           -- vv Index targets last assumption
-          if Path.indexTargetsLastAssumption proof idx then
+          if idx == -1 then
             if preferAssumption
-            then Just <| ProofBlock (Array.push "" head) body
+            then Just <| ProofBlock (ArrayUtil.cons "" head) body
             else Just <| ProofBlock head (ArrayUtil.cons (ProofLine "") body)
 
           -- vv Index targets an assumption that is not the last one
           else if idx < 0 then
-            ArrayUtil.insert (-idx-1 + 1) "" head
+            ArrayUtil.insert (-idx-1) "" head
             |> Maybe.map (\newHead -> ProofBlock newHead body)
 
           -- vv Index targets a body line
@@ -212,5 +213,5 @@ view_ path fullProof proof = case proof of
   ProofBlock head body ->
     div [ style "margin-left" "20px" ] <|
       Array.toList <| Array.append
-        (head |> Array.indexedMap (\idx formula -> view_ (path ++ [-idx-1]) fullProof (ProofLine formula)))
+        (ArrayUtil.reverse (head |> Array.indexedMap (\idx formula -> view_ (path ++ [-idx-1]) fullProof (ProofLine formula))))
         (body |> Array.indexedMap (\idx subproof -> view_ (path ++ [idx]) fullProof subproof))
