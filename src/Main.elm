@@ -17,17 +17,12 @@ import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
-onKeydown : ((Int, Bool) -> Maybe Message) -> Attribute Message
+onKeydown : ((Int, Bool) -> Message) -> Attribute Message
 onKeydown respond =
-    let
-      getInfo = Json.map2 Tuple.pair
+    let getInfo = Json.map2 Tuple.pair
           (Json.field "keyCode" Json.int)
           (Json.field "shiftKey" Json.bool)
-      jsonRespond info =
-          case respond info of
-            Nothing -> Json.fail "Maybe.Nothing"
-            Just msg -> Json.succeed (msg, True)
-    in preventDefaultOn "keydown" (Json.andThen jsonRespond getInfo)
+    in preventDefaultOn "keydown" (getInfo |> Json.andThen (\info -> Json.succeed (respond info, True)))
 
 main = Browser.document
   { init = init
@@ -188,22 +183,22 @@ view_ path fullProof proof = case proof of
           -- (Shift+)Enter pressed
           (13, _) ->
             let preferAssumption = shiftKey
-            in Just <| NewLineAfter path preferAssumption
+            in NewLineAfter path preferAssumption
 
           -- Tab pressed
-          (9, False) -> Just <| IndentAt path
+          (9, False) -> IndentAt path
 
           -- Shift+Tab pressed
-          (9, True) -> Just <| DedentAt path
+          (9, True) -> DedentAt path
 
           -- Up arrow key pressed
-          (38, False) -> Path.linearPred fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath)
+          (38, False) -> Path.linearPred fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
 
           -- Down arrow key pressed
-          (40, False) -> Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath)
+          (40, False) -> Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
 
           -- Any other key pressed
-          _ -> Nothing
+          _ -> Noop
 
         )
         ] []
