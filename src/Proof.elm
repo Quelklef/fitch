@@ -50,6 +50,14 @@ set idx subproof proof =
       else ArrayUtil.strictSet (-idx-1) subproof body
         |> Maybe.map (\newBody -> ProofBlock head newBody)
 
+remove : Int -> Proofy a -> Maybe (Proofy a)
+remove idx proof =
+  case proof of
+    ProofLine _ -> Nothing
+    ProofBlock head body ->
+      if idx >= 0 then ArrayUtil.remove idx body |> Maybe.map (\newBody -> ProofBlock head newBody)
+      else ArrayUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
+
 replaceM : Int -> (Proofy a -> Maybe (Proofy a)) -> Proofy a -> Maybe (Proofy a)
 replaceM idx mapper proof =
   case proof of

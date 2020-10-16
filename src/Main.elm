@@ -44,6 +44,7 @@ type Message =
   | NewLineAfter Path Bool
   | IndentAt Path
   | DedentAt Path
+  | BackspaceAt Path
 
 setFocusTo : Path -> Cmd Message
 setFocusTo path = Task.attempt (always Noop) (Dom.focus <| Path.toId path)
@@ -57,6 +58,7 @@ update msg proof =
         NewLineAfter path preferAssumption -> doNewLineAfter path preferAssumption proof
         IndentAt path -> doIndentAt path proof
         DedentAt path -> doDedentAt path proof
+        BackspaceAt path -> doBackspaceAt path proof
   in result |> Maybe.withDefault (proof, Cmd.none)
 
 doSetFormulaAt : Path -> String -> RawProof -> Maybe (RawProof, Cmd Message)
@@ -162,6 +164,37 @@ doDedentAt_ path proof =
 
     idx::idxs -> Proof.replaceM idx (\subproof -> doDedentAt_ idxs subproof) proof
 
+doBackspaceAt : Path -> RawProof -> Maybe (RawProof, Cmd Message)
+doBackspaceAt path proof =
+  if not <| Path.targetsEmptyLine proof path
+    then Nothing
+    else
+      let maybeNewProof = doBackspaceAt_ path proof
+          maybeNewPath =
+            if Path.targetsBody path || Path.targetsFirstAssumption proof path
+            then Path.linearPred proof path
+            else Just path
+      in
+        Maybe.map2 (\newProof newPath -> (newProof, setFocusTo newPath)) maybeNewProof maybeNewPath
+
+doBackspaceAt_ : Path -> RawProof -> Maybe RawProof
+doBackspaceAt_ path proof = case path of
+  [] -> Nothing
+  [idx] -> case proof of
+    ProofLine _ -> Nothing
+    ProofBlock head body ->
+            if idx < 0 then ArrayUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
+            else (ArrayUtil.remove idx body) |> Maybe.map (\newBody -> ProofBlock head newBody)
+  idx::idxs ->
+    proof
+    |> Proof.replaceM idx (\subproof -> doBackspaceAt_ idxs subproof)
+    -- vv Don't leave behind an empty block
+    |> Maybe.andThen (\newProof -> case Proof.get idx newProof of
+      Just (ProofBlock head body) ->
+        if Array.length head == 0 && Array.length body == 0
+        then Proof.remove idx newProof
+        else Just newProof
+      _ -> Just newProof)
 
 view : RawProof -> Browser.Document Message
 view proof =
@@ -201,6 +234,9 @@ view_ path fullProof proof = case proof of
           (40, False) ->
             let msg = Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
             in { msg = msg, preventDefault = True }
+
+          -- Backspace key pressed
+          (8, False) -> { msg = BackspaceAt path, preventDefault = False }
 
           -- Any other key pressed
           _ -> { msg = Noop, preventDefault = False }

@@ -38,3 +38,8 @@ reverse ar =
   |> Array.toList
   |> List.reverse
   |> Array.fromList
+
+remove : Int -> Array a -> Maybe (Array a)
+remove idx ar =
+  if idx < 0 || idx >= length ar then Nothing
+  else Just <| append (slice 0 idx ar) (slice (idx + 1) (length ar) ar)

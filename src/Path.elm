@@ -3,6 +3,8 @@ module Path exposing (..)
 import Array
 import Maybe exposing (Maybe)
 
+import ListUtil
+
 import Proof exposing (Proofy(..))
 
 -- vv Path to a formula in a proof, as a list of indicies
@@ -104,6 +106,17 @@ linearPred proof path = case path of
 toId : Path -> String
 toId path = "path_" ++ String.join "_" (List.map String.fromInt path)
 
+targetsFirstAssumption : Proofy a -> Path -> Bool
+targetsFirstAssumption proof path = case path of
+  [] -> False
+  [idx] -> case proof of
+    ProofLine _ -> False
+    ProofBlock head body -> idx == -(Array.length head)
+  idx::idxs ->
+    Proof.get idx proof
+    |> Maybe.map (\subproof -> targetsFirstAssumption subproof idxs)
+    |> Maybe.withDefault False
+
 targetsLastAssumption : Proofy a -> Path -> Bool
 targetsLastAssumption proof path = case path of
   [] -> False
@@ -112,3 +125,19 @@ targetsLastAssumption proof path = case path of
     Proof.get idx proof
     |> Maybe.map (\subproof -> targetsLastAssumption subproof idxs)
     |> Maybe.withDefault False
+
+into : Proofy a -> Path -> Maybe (Proofy a)
+into proof path = case path of
+  [] -> Just proof
+  idx::idxs -> Proof.get idx proof |> Maybe.andThen (\subproof -> into subproof idxs)
+
+targetsEmptyLine : Proofy String -> Path -> Bool
+targetsEmptyLine proof path = case into proof path of
+  Just (ProofLine "") -> True
+  _ -> False
+
+targetsBody : Path -> Bool
+targetsBody path =
+  ListUtil.last path
+  |> Maybe.map (\lastIdx -> lastIdx >= 0)
+  |> Maybe.withDefault False
