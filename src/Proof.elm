@@ -5,16 +5,7 @@ import Maybe exposing (Maybe)
 
 import ArrayUtil
 
-type Formula =
-  Empty
-  | Variable String
-  | Negation Formula
-  | Conjunction Formula
-  | Disjunction Formula
-  | Implication Formula
-  | Forall String Formula
-  | Exists String Formula
-  | Declaring String Formula
+import Formula exposing (Formula)
 
 -- vv Something in the shape of a proof,
 -- vv but containing an unknown type representing proof lines

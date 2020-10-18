@@ -21,3 +21,11 @@ mapLast mapper list =
     [] -> Nothing
     [x] -> Just [mapper x]
     x::xs -> mapLast mapper xs |> Maybe.map (\newList -> x :: newList)
+
+startsWith : List a -> List a -> Bool
+startsWith prefix list = case prefix of
+  [] -> True
+  p::ps ->
+    if head list == Just p
+    then startsWith ps (drop 1 list)
+    else False

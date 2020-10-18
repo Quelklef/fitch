@@ -15,6 +15,7 @@ import ArrayUtil
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
+import Formula
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
 onKeydown : ({ keyCode : Int, shiftKey : Bool } ->  { msg : Message, preventDefault : Bool }) -> Attribute Message
@@ -243,7 +244,12 @@ view_ path fullProof proof = case proof of
 
         )
         ] []
-      , text (Debug.toString path)
+      , text <| let text = case Path.into fullProof path of
+                      Just (ProofLine line) -> Just line
+                      _ -> Nothing
+                    tokens = Maybe.map Formula.tokenize text
+                    parsed = Maybe.andThen Formula.parse text
+                in Debug.toString path ++ "  " ++ Debug.toString parsed ++ "  " ++ Debug.toString tokens
       ]
 
   ProofBlock head body ->
