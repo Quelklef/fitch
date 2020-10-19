@@ -16,7 +16,7 @@ type alias DecoratedLine =
   }
 
 decorate : Proofy String -> Proofy DecoratedLine
-decorate = decorate_ (0, [], []) >> Tuple.first
+decorate = decorate_ (1, [], []) >> Tuple.first
 
 decorate_ : (Lineno, Path, Knowledge) -> Proofy String -> (Proofy DecoratedLine, Lineno)
 decorate_ (lineno, path, knowledge) proof = case proof of
