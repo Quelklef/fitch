@@ -5,7 +5,7 @@ import Tuple
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..))
-import Formula exposing (Formula)
+import Formula exposing (Formula(..))
 
 import ListUtil
 
@@ -18,6 +18,7 @@ justify : Knowledge -> Formula -> Maybe String
 justify knowledge goal =
   let strategies =
         [ justifyReiteration
+        , justifyAndIntro
         ]
   in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
@@ -32,4 +33,27 @@ justifyReiteration knowledge goal =
       if line == goal
       then Just ("RI:" ++ String.fromInt lineno)
       else Nothing)
+
+-- vv Give the line number of an already-known formula, if it's in the knowledge
+linenoOf : Knowledge -> Formula -> Maybe Int
+linenoOf knowledge formula =
+  knowledge
+  |> ListUtil.findMapM (\proof ->
+    case proof of
+      ProofLine (lineno, known) ->
+        if known == formula
+        then Just lineno
+        else Nothing
+      _ -> Nothing)
+
+justifyAndIntro : Strategy
+justifyAndIntro knowledge goal =
+  case goal of
+    And lhs rhs ->
+      let lhsLineno = linenoOf knowledge lhs
+          rhsLineno = linenoOf knowledge rhs
+      in case (lhsLineno, rhsLineno) of
+        (Just l, Just r) -> Just <| "&I:" ++ String.fromInt l ++ "," ++ String.fromInt r
+        _ -> Nothing
+    _ -> Nothing
 
