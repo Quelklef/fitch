@@ -3,7 +3,6 @@ module Main exposing (..)
 import Browser
 import Browser.Dom as Dom
 import Task
-import Array exposing (Array)
 import Maybe exposing (Maybe)
 import Html exposing (Html, Attribute, button, div, p, text, input)
 import Html.Attributes exposing (value, style, id)
@@ -11,7 +10,6 @@ import Html.Events exposing (onInput, keyCode, preventDefaultOn)
 import Json.Decode as Json
 
 import ListUtil
-import ArrayUtil
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
@@ -36,7 +34,7 @@ main = Browser.document
 
 init : () -> (RawProof, Cmd m)
 init =
-  let proof = ProofBlock (Array.fromList ["assumption"]) (Array.fromList [ProofLine "consequence"])
+  let proof = ProofBlock ["assumption"] [ProofLine "consequence"]
   in always (proof, Cmd.none)
 
 type Message =
@@ -111,17 +109,17 @@ doNewLineAfter_ path preferAssumption proof =
           -- vv Index targets last assumption
           if idx == -1 then
             if preferAssumption
-            then Just <| ProofBlock (ArrayUtil.cons "" head) body
-            else Just <| ProofBlock head (ArrayUtil.cons (ProofLine "") body)
+            then Just <| ProofBlock ("" :: head) body
+            else Just <| ProofBlock head (ProofLine "" :: body)
 
           -- vv Index targets an assumption that is not the last one
           else if idx < 0 then
-            ArrayUtil.insert (-idx-1) "" head
+            ListUtil.insert (-idx-1) "" head
             |> Maybe.map (\newHead -> ProofBlock newHead body)
 
           -- vv Index targets a body line
           else
-            ArrayUtil.insert (idx + 1) (ProofLine "") body
+            ListUtil.insert (idx + 1) (ProofLine "") body
             |> Maybe.map (\newBody -> ProofBlock head newBody)
 
     idx::idxs -> Proof.replaceM idx (\subproof -> doNewLineAfter_ idxs preferAssumption subproof) proof
@@ -135,7 +133,7 @@ doIndentAt_ : Path -> RawProof -> Maybe RawProof
 doIndentAt_ path proof =
   case path of
     [] -> case proof of
-      ProofLine line -> Just <| ProofBlock (Array.fromList [line]) Array.empty
+      ProofLine line -> Just <| ProofBlock [line] []
       ProofBlock _ _ -> Nothing
     idx::idxs -> Proof.replaceM idx (\subproof -> doIndentAt_ idxs subproof) proof
 
@@ -155,13 +153,13 @@ doDedentAt_ path proof =
         -- We allow dedenting a block back to a line only if:
         let dedentOk =
               -- vv The block has only one assumption
-              Array.length head == 1
+              List.length head == 1
               -- vv The dedent is targeting the assumption
               && idx == -0-1
               -- vv The block body is empty
-              && Array.length body == 0
+              && List.length body == 0
         in
-          if dedentOk then Array.get 0 head |> Maybe.map ProofLine
+          if dedentOk then ListUtil.get 0 head |> Maybe.map ProofLine
           else Nothing
 
     idx::idxs -> Proof.replaceM idx (\subproof -> doDedentAt_ idxs subproof) proof
@@ -185,15 +183,15 @@ doBackspaceAt_ path proof = case path of
   [idx] -> case proof of
     ProofLine _ -> Nothing
     ProofBlock head body ->
-            if idx < 0 then ArrayUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
-            else (ArrayUtil.remove idx body) |> Maybe.map (\newBody -> ProofBlock head newBody)
+            if idx < 0 then ListUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
+            else (ListUtil.remove idx body) |> Maybe.map (\newBody -> ProofBlock head newBody)
   idx::idxs ->
     proof
     |> Proof.replaceM idx (\subproof -> doBackspaceAt_ idxs subproof)
     -- vv Don't leave behind an empty block
     |> Maybe.andThen (\newProof -> case Proof.get idx newProof of
       Just (ProofBlock head body) ->
-        if Array.length head == 0 && Array.length body == 0
+        if List.length head == 0 && List.length body == 0
         then Proof.remove idx newProof
         else Just newProof
       _ -> Just newProof)
@@ -259,6 +257,6 @@ view_ wholeProof proof = case proof of
 
   ProofBlock head body ->
     div [ style "margin-left" "20px" ] <|
-      Array.toList <| Array.append
-        (ArrayUtil.reverse (head |> Array.map (ProofLine >> view_ wholeProof)))
-        (body |> Array.map (view_ wholeProof))
+      List.append
+        (List.reverse (head |> List.map (ProofLine >> view_ wholeProof)))
+        (body |> List.map (view_ wholeProof))

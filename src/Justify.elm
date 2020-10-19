@@ -2,14 +2,12 @@ module Justify exposing (..)
 
 import List
 import Tuple
-import Array exposing (Array)
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..))
 import Formula exposing (Formula)
 
 import ListUtil
-import ArrayUtil
 
 type alias Lineno = Int
 

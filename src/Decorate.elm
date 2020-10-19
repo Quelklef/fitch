@@ -1,8 +1,6 @@
 module Decorate exposing (..)
 
-import Array exposing (Array)
-
-import ArrayUtil
+import ListUtil
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..))
@@ -34,7 +32,7 @@ decorate_ (lineno, path, knowledge) proof = case proof of
     in (ProofLine decorated, (lineno + 1))
 
   ProofBlock head body ->
-    let decoratedHead = head |> Array.indexedMap (\idx text ->
+    let decoratedHead = head |> List.indexedMap (\idx text ->
             { text = text
             , formula = Formula.parse text
             , path = path ++ [-idx-1]
@@ -43,23 +41,22 @@ decorate_ (lineno, path, knowledge) proof = case proof of
             })
 
         headKnowledge = head
-          |> Array.indexedMap (\idx text -> (lineno + idx, text))
-          |> ArrayUtil.filterMap (\(lineno_, text) -> Formula.parse text |> Maybe.map (\formula -> (lineno_, formula)))
-          |> Array.map ProofLine
-          |> Array.toList
+          |> List.indexedMap (\idx text -> (lineno + idx, text))
+          |> List.filterMap (\(lineno_, text) -> Formula.parse text |> Maybe.map (\formula -> (lineno_, formula)))
+          |> List.map ProofLine
         newKnowledge = knowledge ++ headKnowledge
-        newLineno = lineno + Array.length head
-        (decoratedBody, lineno2) = decorateArray_ (newLineno, path ++ [0], newKnowledge) body
+        newLineno = lineno + List.length head
+        (decoratedBody, lineno2) = decorateList_ (newLineno, path ++ [0], newKnowledge) body
 
     in (ProofBlock decoratedHead decoratedBody, lineno2)
 
-decorateArray_ : (Lineno, Path, Knowledge) -> Array (Proofy String) -> (Array (Proofy DecoratedLine), Lineno)
-decorateArray_ (lineno, path, knowledge) proofs = case ArrayUtil.uncons proofs of
-  Nothing -> (Array.empty, lineno)
-  Just (head, rest) ->
+decorateList_ : (Lineno, Path, Knowledge) -> List (Proofy String) -> (List (Proofy DecoratedLine), Lineno)
+decorateList_ (lineno, path, knowledge) proofs = case proofs of
+  [] -> ([], lineno)
+  head::rest ->
     let (decoratedHead, lineno2) = decorate_ (lineno, path, knowledge) head
-        (decoratedRest, lineno3) = decorateArray_ (lineno2, naiveLinearSucc path, knowledge) rest
-    in (ArrayUtil.cons decoratedHead decoratedRest, lineno3)
+        (decoratedRest, lineno3) = decorateList_ (lineno2, naiveLinearSucc path, knowledge) rest
+    in (decoratedHead :: decoratedRest, lineno3)
 
 naiveLinearSucc : Path -> Path
 naiveLinearSucc path = case path of

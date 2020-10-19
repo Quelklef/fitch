@@ -1,6 +1,6 @@
 module Path exposing (..)
 
-import Array
+import List
 import Maybe exposing (Maybe)
 
 import ListUtil
@@ -16,8 +16,8 @@ pathToLastLine proof = case proof of
   ProofLine _ -> Just []
   ProofBlock head body ->
     let maybeIdx =
-          if Array.length body > 0 then Just <| Array.length body - 1
-          else if Array.length head > 0 then Just <| -1
+          if List.length body > 0 then Just <| List.length body - 1
+          else if List.length head > 0 then Just <| -1
           else Nothing
     in maybeIdx
       |> Maybe.andThen (\idx -> Proof.get idx proof
@@ -29,8 +29,8 @@ pathToFirstLine proof = case proof of
   ProofLine _ -> Just []
   ProofBlock head body ->
     let maybeIdx =
-          if Array.length head > 0 then Just -(Array.length head)
-          else if Array.length body > 0 then Just 0
+          if List.length head > 0 then Just -(List.length head)
+          else if List.length body > 0 then Just 0
           else Nothing
     in maybeIdx
       |> Maybe.andThen (\idx -> Proof.get idx proof
@@ -111,7 +111,7 @@ targetsFirstAssumption proof path = case path of
   [] -> False
   [idx] -> case proof of
     ProofLine _ -> False
-    ProofBlock head body -> idx == -(Array.length head)
+    ProofBlock head body -> idx == -(List.length head)
   idx::idxs ->
     Proof.get idx proof
     |> Maybe.map (\subproof -> targetsFirstAssumption subproof idxs)

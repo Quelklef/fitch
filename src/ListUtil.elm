@@ -4,6 +4,40 @@ import List exposing (..)
 
 import MaybeUtil
 
+get : Int -> List a -> Maybe a
+get idx list = case list of
+  [] -> Nothing
+  head::tail ->
+    if idx == 0
+    then Just head
+    else get (idx - 1) tail
+
+set : Int -> a -> List a -> Maybe (List a)
+set idx val list = case list of
+  [] -> Nothing
+  head::tail ->
+    if idx == 0
+    then Just (val::tail)
+    else set (idx - 1) val tail
+         |> Maybe.map (\newTail -> head :: newTail)
+
+remove : Int -> List a -> Maybe (List a)
+remove idx list = case list of
+  [] -> Nothing
+  head::tail ->
+    if idx == 0 then Just tail
+    else remove (idx - 1) tail
+
+insert : Int -> a -> List a -> Maybe (List a)
+insert idx val list =
+  if idx == 0
+  then Just (val::list)
+  else case list of
+    [] -> Nothing
+    head::tail ->
+      insert (idx - 1) val tail
+      |> Maybe.map (\newTail -> head :: newTail)
+
 last : List a -> Maybe a
 last list = case list of
   [] -> Nothing
