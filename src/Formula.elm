@@ -242,8 +242,11 @@ parseIff = parseBinOpWithFallthrough TokIff parseIf Iff
 parseForall = parseBinOp TokForall parseNameRaw parseIff Forall
 parseExists = parseBinOp TokExists parseNameRaw parseForall Exists
 
+parseEmpty = eof |> kThen (return Empty)
+
 parseTop =
-  parseIff
+  parseEmpty
+  |> or parseIff
   |> or parseExists
   |> or parseForall
 

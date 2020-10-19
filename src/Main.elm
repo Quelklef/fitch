@@ -5,7 +5,7 @@ import Browser.Dom as Dom
 import Task
 import Array exposing (Array)
 import Maybe exposing (Maybe)
-import Html exposing (Html, Attribute, button, div, text, input)
+import Html exposing (Html, Attribute, button, div, p, text, input)
 import Html.Attributes exposing (value, style, id)
 import Html.Events exposing (onInput, keyCode, preventDefaultOn)
 import Json.Decode as Json
@@ -15,7 +15,8 @@ import ArrayUtil
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
-import Formula
+import Formula exposing (Formula)
+import Decorate
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
 onKeydown : ({ keyCode : Int, shiftKey : Bool } ->  { msg : Message, preventDefault : Bool }) -> Attribute Message
@@ -199,18 +200,18 @@ doBackspaceAt_ path proof = case path of
 
 view : RawProof -> Browser.Document Message
 view proof =
-  let html = view_ [] proof proof
+  let html = view_ proof (Decorate.decorate proof)
   in
     { title = "Fitch-Stlye Proof Helper"
     , body = [html]
     }
 
-view_ : Path -> RawProof -> RawProof -> Html Message
-view_ path fullProof proof = case proof of
-  ProofLine formula ->
+view_ : RawProof -> Proofy Decorate.DecoratedLine -> Html Message
+view_ wholeProof proof = case proof of
+  ProofLine { text, formula, path, lineno, justification } ->
     div []
       [ input
-        [ value formula
+        [ value text
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
         , onKeydown (\{ keyCode, shiftKey } -> case (keyCode, shiftKey) of
@@ -228,12 +229,12 @@ view_ path fullProof proof = case proof of
 
           -- Up arrow key pressed
           (38, False) ->
-            let msg = Path.linearPred fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+            let msg = Path.linearPred wholeProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
             in { msg = msg, preventDefault = True }
 
           -- Down arrow key pressed
           (40, False) ->
-            let msg = Path.linearSucc fullProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+            let msg = Path.linearSucc wholeProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
             in { msg = msg, preventDefault = True }
 
           -- Backspace key pressed
@@ -244,16 +245,20 @@ view_ path fullProof proof = case proof of
 
         )
         ] []
-      , text <| let text = case Path.into fullProof path of
-                      Just (ProofLine line) -> Just line
-                      _ -> Nothing
-                    tokens = Maybe.map Formula.tokenize text
-                    parsed = Maybe.andThen Formula.parse text
-                in Debug.toString path ++ "  " ++ Debug.toString parsed ++ "  " ++ Debug.toString tokens
+      , let tokens = Formula.tokenize text
+            parsed = Formula.parse text
+        in Html.pre [] [ Html.text <|
+          "text: " ++ text ++ "\n" ++
+          "path: " ++ Debug.toString path ++ "\n" ++
+          "tokens: " ++ Debug.toString tokens ++ "\n" ++
+          "tree: " ++ Debug.toString parsed ++ "\n" ++
+          "lineno: " ++ Debug.toString lineno ++ "\n" ++
+          "justification: " ++ Debug.toString justification
+        ]
       ]
 
   ProofBlock head body ->
     div [ style "margin-left" "20px" ] <|
       Array.toList <| Array.append
-        (ArrayUtil.reverse (head |> Array.indexedMap (\idx formula -> view_ (path ++ [-idx-1]) fullProof (ProofLine formula))))
-        (body |> Array.indexedMap (\idx subproof -> view_ (path ++ [idx]) fullProof subproof))
+        (ArrayUtil.reverse (head |> Array.map (ProofLine >> view_ wholeProof)))
+        (body |> Array.map (view_ wholeProof))

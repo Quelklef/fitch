@@ -2,6 +2,8 @@ module ListUtil exposing (..)
 
 import List exposing (..)
 
+import MaybeUtil
+
 last : List a -> Maybe a
 last list = case list of
   [] -> Nothing
@@ -29,3 +31,8 @@ startsWith prefix list = case prefix of
     if head list == Just p
     then startsWith ps (drop 1 list)
     else False
+
+findMapM : (a -> Maybe b) -> List a -> Maybe b
+findMapM mapper items = case items of
+  [] -> Nothing
+  x::xs -> mapper x |> MaybeUtil.orLazy (\() -> findMapM mapper xs)

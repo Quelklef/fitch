@@ -43,3 +43,18 @@ remove : Int -> Array a -> Maybe (Array a)
 remove idx ar =
   if idx < 0 || idx >= length ar then Nothing
   else Just <| append (slice 0 idx ar) (slice (idx + 1) (length ar) ar)
+
+drop : Int -> Array a -> Array a
+drop n ar = slice n (length ar) ar
+
+uncons : Array a -> Maybe (a, Array a)
+uncons ar = case (get 0 ar, drop 1 ar) of
+  (Just head, rest) -> Just (head, rest)
+  (_, _) -> Nothing
+
+filterMap : (a -> Maybe b) -> Array a -> Array b
+filterMap mapper ar = case uncons ar of
+  Nothing -> Array.empty
+  Just (head, rest) -> case mapper head of
+    Nothing -> filterMap mapper rest
+    Just result -> cons result (filterMap mapper rest)
