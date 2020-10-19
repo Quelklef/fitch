@@ -27,6 +27,7 @@ remove idx list = case list of
   head::tail ->
     if idx == 0 then Just tail
     else remove (idx - 1) tail
+         |> Maybe.map (\newTail -> head :: newTail)
 
 insert : Int -> a -> List a -> Maybe (List a)
 insert idx val list =
