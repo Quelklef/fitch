@@ -246,12 +246,9 @@ view_ wholeProof proof = case proof of
       , let tokens = Formula.tokenize text
             parsed = Formula.parse text
         in Html.pre [] [ Html.text <|
-          "text: " ++ text ++ "\n" ++
-          "path: " ++ Debug.toString path ++ "\n" ++
-          "tokens: " ++ Debug.toString tokens ++ "\n" ++
-          "tree: " ++ Debug.toString parsed ++ "\n" ++
-          "lineno: " ++ Debug.toString lineno ++ "\n" ++
-          "justification: " ++ Debug.toString justification
+          "line #" ++ Debug.toString lineno ++ " | path: " ++ Debug.toString path ++ "\n" ++
+          "parsed as: " ++ Debug.toString parsed ++ "\n" ++
+          "just'n: " ++ Debug.toString justification
         ]
       ]
 
