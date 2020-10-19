@@ -252,15 +252,18 @@ parseTop =
 
 parseTokens : List Token -> Maybe Formula
 parseTokens tokens =
-  let isValid token = case token of
+  let isMeaningful token = case token of
         TokInvalid _ -> False
         TokIgnored _ -> False
         _ -> True
-      valids () = List.filter isValid tokens
+      isValid token = case token of
+        TokInvalid _ -> False
+        _ -> True
+      meaningfulTokens () = List.filter isMeaningful tokens
       hasInvalid = List.any (not << isValid) tokens
   in if hasInvalid
      then Nothing
-     else valids ()
+     else meaningfulTokens ()
           |> with parseTop (\result -> eof |> kThen (return result))
           |> Maybe.map (\(result, rest) -> result)
 
