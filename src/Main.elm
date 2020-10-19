@@ -206,7 +206,7 @@ view proof =
 
 view_ : RawProof -> Proofy Decorate.DecoratedLine -> Html Message
 view_ wholeProof proof = case proof of
-  ProofLine { text, formula, path, lineno, justification } ->
+  ProofLine { text, formula, path, lineno, justification, knowledge } ->
     div []
       [ input
         [ value text

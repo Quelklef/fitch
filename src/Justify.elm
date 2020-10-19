@@ -12,7 +12,7 @@ import ListUtil
 type alias Lineno = Int
 
 -- vv A 'context' or 'scope' of all the proofs available for a particular line to use in justification
-type alias Knowledge = List (Proofy (Lineno, Formula))
+type alias Knowledge = List (Proofy { lineno : Lineno, formula : Formula })
 
 justify : Knowledge -> Formula -> Maybe String
 justify knowledge goal =
@@ -29,19 +29,19 @@ justifyReiteration knowledge goal =
   knowledge
   |> ListUtil.findMapM (\known -> case known of
     ProofBlock _ _ -> Nothing
-    ProofLine (lineno, line) ->
-      if line == goal
+    ProofLine { lineno, formula } ->
+      if formula == goal
       then Just ("RI:" ++ String.fromInt lineno)
       else Nothing)
 
 -- vv Give the line number of an already-known formula, if it's in the knowledge
 linenoOf : Knowledge -> Formula -> Maybe Int
-linenoOf knowledge formula =
+linenoOf knowledge target =
   knowledge
   |> ListUtil.findMapM (\proof ->
     case proof of
-      ProofLine (lineno, known) ->
-        if known == formula
+      ProofLine { lineno, formula } ->
+        if formula == target
         then Just lineno
         else Nothing
       _ -> Nothing)
