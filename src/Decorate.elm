@@ -36,7 +36,7 @@ decorate_ (lineno, path, knowledge) proof = case proof of
             { text = text
             , formula = Formula.parse text
             , path = path ++ [-idx-1]
-            , lineno = lineno + idx
+            , lineno = lineno + (List.length head - idx - 1)
             , justification = Just "as"
             })
 
