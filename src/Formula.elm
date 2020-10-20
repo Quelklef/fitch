@@ -1,6 +1,6 @@
 module Formula exposing (..)
 
-import Result
+import Set exposing (Set)
 
 import StringUtil
 import MaybeUtil
@@ -303,3 +303,22 @@ substitute from to formula =
     Forall arg body -> if arg == from then formula else Forall arg (substitute from to body)
     Exists arg body -> if arg == from then formula else Exists arg (substitute from to body)
     Equality lhs rhs -> Equality (mapName lhs) (mapName rhs)
+
+-- vv Return all free variables which do not represent predicates or propositions
+freeObjectVars : Formula -> Set Char
+freeObjectVars formula = case formula of
+  Empty -> Set.empty
+  Bottom -> Set.empty
+  -- vv Declared variables are not considered to be free
+  Declaration name -> Set.empty
+  -- vv Predicate variables are not included
+  Application name args -> Set.fromList args
+  Name name -> Set.singleton name
+  Negation body -> freeObjectVars body
+  Conjunction lhs rhs -> Set.union (freeObjectVars lhs) (freeObjectVars rhs)
+  Disjunction lhs rhs -> Set.union (freeObjectVars lhs) (freeObjectVars rhs)
+  Implication lhs rhs -> Set.union (freeObjectVars lhs) (freeObjectVars rhs)
+  Biconditional lhs rhs -> Set.union (freeObjectVars lhs) (freeObjectVars rhs)
+  Forall arg body -> Set.remove arg (freeObjectVars body)
+  Exists arg body -> Set.remove arg (freeObjectVars body)
+  Equality lhs rhs -> Set.fromList [lhs, rhs]

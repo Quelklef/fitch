@@ -40,7 +40,7 @@ justify knowledge goal =
         , justifyNegationIntro
         , justifyNegationElim
         , justifyForallIntro
-        -- , justifyForallElim
+        , justifyForallElim
         -- , justifyExistsIntro
         -- , justifyExistsElim
         -- , justifyDomainNonEmpty
@@ -235,3 +235,18 @@ justifyForallIntro knowledge goal =
             else Nothing
           _ -> Nothing)
     _ -> Nothing
+
+justifyForallElim : Strategy
+justifyForallElim knowledge goal =
+  knowledge
+  |> Iter.fromList
+  |> Iter.filterMap (\known ->
+    case known of
+      ProofLine line -> case line.formula of
+        Just (Forall forallName forallClaim) -> Just (known, forallName, forallClaim)
+        _ -> Nothing
+      _ -> Nothing)
+  |> (\x -> Iter.product x (Iter.fromSet <| Formula.freeObjectVars goal))
+  |> Iter.findMapM (\((forall, forallName, forallClaim), freeVar) ->
+      goal == (forallClaim |> Formula.substitute forallName freeVar)
+      |> MaybeUtil.fromBool ("VE:" ++ rangeOf forall ++ "[" ++ (String.fromChar forallName) ++ "->" ++ (String.fromChar freeVar) ++ "]"))
