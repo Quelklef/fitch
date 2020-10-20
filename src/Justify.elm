@@ -34,6 +34,18 @@ justify knowledge goal =
         , justifyOrElim
         , justifyIfIntro
         , justifyIfElim
+        -- , justifyBiconditionalIntroducton
+        -- , justifyBiconditionalElimination
+        -- , justifyBottomIntroduction
+        -- , justifyNegationIntroduction
+        -- , justifyNegationElimination
+        -- , justifyForallIntroduction
+        -- , justifyForallElimination
+        -- , justifyExistsIntroduction
+        -- , justifyExistsElimination
+        -- , justifyDomainNonEmpty
+        -- , justifyEqualityIntroduction
+        -- , justifyEqualityElimination
         ]
   in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
