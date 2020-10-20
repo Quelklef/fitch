@@ -32,6 +32,8 @@ justify knowledge goal =
         , justifyAndElim
         , justifyOrIntro
         , justifyOrElim
+        , justifyIfIntro
+        , justifyIfElim
         ]
   in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
@@ -133,3 +135,30 @@ justifyOrElim knowledge goal =
                && (Proof.assumptions blockA |> List.map .formula) == [Just lhs]
                && (Proof.assumptions blockB |> List.map .formula) == [Just rhs]
          in isSufficient |> MaybeUtil.fromBool ("|E:" ++ rangeOf disjunction ++ "," ++ rangeOf blockA ++ "," ++ rangeOf blockB))
+
+justifyIfIntro : Strategy
+justifyIfIntro knowledge goal =
+  case goal of
+    If lhs rhs ->
+      knowledge
+      |> findKnown (\known ->
+        (Proof.assumptions known |> List.map .formula) == [Just lhs]
+        && (Proof.conclusion known |> Maybe.andThen .formula) == Just rhs)
+      |> List.head
+      |> Maybe.map rangeOf
+      |> Maybe.map (\range -> "->I:" ++ range)
+    _ -> Nothing
+
+justifyIfElim : Strategy
+justifyIfElim knowledge goal =
+  let ifs = knowledge |> findMapKnown (\known -> case known of
+        ProofLine line -> case line.formula of
+          Just (If lhs rhs) -> Just (known, lhs, rhs)
+          _ -> Nothing
+        _ -> Nothing)
+      statements = knowledge |> findMapKnown (\known -> case known of
+        ProofLine line -> Just line
+        _ -> Nothing)
+  in Iter.product (Iter.fromList ifs) (Iter.fromList statements)
+     |> Iter.find (\((implication, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs)
+     |> Maybe.map (\((implication, _, _), statement) -> "->E:" ++ rangeOf implication ++ "," ++ rangeOf (ProofLine statement))

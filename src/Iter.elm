@@ -18,11 +18,23 @@ map mapper iter = case iter of
   One get -> One (get >> mapper)
   Cat left right -> Cat (map mapper left) (map mapper << right)
 
+find : (a -> Bool) -> Iter a -> Maybe a
+find cond iter = case iter of
+  Fin -> Nothing
+  One get -> let got = get () in MaybeUtil.fromBool got (cond got)
+  Cat left right -> find cond left |> MaybeUtil.orLazy (find cond << right)
+
 flatMap : (a -> Iter b) -> Iter a -> Iter b
 flatMap mapper iter = case iter of
   Fin -> Fin
   One get -> Cat Fin (get >> mapper)
   Cat left right -> Cat (flatMap mapper left) (flatMap mapper << right)
+
+product : Iter a -> Iter b -> Iter (a, b)
+product iterA iterB =
+  iterA |> flatMap (\a ->
+  iterB |> map (\b ->
+    (a, b)))
 
 product3 : Iter a -> Iter b -> Iter c -> Iter (a, b, c)
 product3 iterA iterB iterC =
