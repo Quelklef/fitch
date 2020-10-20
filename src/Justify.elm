@@ -34,18 +34,18 @@ justify knowledge goal =
         , justifyDisjunctionElim
         , justifyImplicationIntro
         , justifyImplicationElim
-        -- , justifyBiconditionalIntroducton
-        -- , justifyBiconditionalElimination
-        -- , justifyBottomIntroduction
-        -- , justifyNegationIntroduction
-        -- , justifyNegationElimination
-        -- , justifyForallIntroduction
-        -- , justifyForallElimination
-        -- , justifyExistsIntroduction
-        -- , justifyExistsElimination
+        , justifyBiconditionalIntro
+        , justifyBiconditionalElim
+        -- , justifyBottomIntro
+        -- , justifyNegationIntro
+        -- , justifyNegationElim
+        -- , justifyForallIntro
+        -- , justifyForallElim
+        -- , justifyExistsIntro
+        -- , justifyExistsElim
         -- , justifyDomainNonEmpty
-        -- , justifyEqualityIntroduction
-        -- , justifyEqualityElimination
+        -- , justifyEqualityIntro
+        -- , justifyEqualityElim
         ]
   in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
@@ -73,6 +73,12 @@ rangeOfKnownFormula target knowledge =
       _ -> False)
   |> List.head
   |> Maybe.map rangeOf
+
+statements : Knowledge -> List DecoratedLine
+statements = List.filterMap <| \known ->
+  case known of
+    ProofLine line -> Just line
+    ProofBlock _ _ -> Nothing
 
 justifyReiteration : Strategy
 justifyReiteration knowledge goal =
@@ -150,9 +156,36 @@ justifyImplicationElim knowledge goal =
           Just (Implication lhs rhs) -> Just (known, lhs, rhs)
           _ -> Nothing
         _ -> Nothing)
-      statements = knowledge |> List.filterMap (\known -> case known of
-        ProofLine line -> Just line
-        _ -> Nothing)
-  in Iter.product (Iter.fromList implications) (Iter.fromList statements)
+  in Iter.product (Iter.fromList implications) (Iter.fromList <| statements knowledge)
      |> Iter.find (\((implication, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs)
      |> Maybe.map (\((implication, _, _), statement) -> "->E:" ++ rangeOf implication ++ "," ++ rangeOf (ProofLine statement))
+
+justifyBiconditionalIntro : Strategy
+justifyBiconditionalIntro knowledge goal =
+  case goal of
+    Biconditional lhs rhs ->
+      knowledge
+      |> List.filterMap (\known ->
+        case known of
+          ProofLine _ -> Nothing
+          ProofBlock _ _ -> Just known)
+      |> (\blocks -> Iter.product (Iter.fromList blocks) (Iter.fromList blocks))
+      |> Iter.find (\(blockA, blockB) ->
+        (Proof.assumptions blockA |> List.map .formula) == [Just lhs]
+        && (Proof.conclusion blockA |> Maybe.andThen .formula) == Just rhs
+        && (Proof.assumptions blockB |> List.map .formula) == [Just rhs]
+        && (Proof.conclusion blockB |> Maybe.andThen .formula) == Just lhs)
+      |> Maybe.map (\(blockA, blockB) -> "<->I:" ++ rangeOf blockA ++ "," ++ rangeOf blockB)
+    _ -> Nothing
+
+justifyBiconditionalElim : Strategy
+justifyBiconditionalElim knowledge goal =
+  let biconditionals = knowledge |> List.filterMap (\known -> case known of
+        ProofLine line -> case line.formula of
+          Just (Biconditional lhs rhs) -> Just (known, lhs, rhs)
+          _ -> Nothing
+        _ -> Nothing)
+  in Iter.product (Iter.fromList biconditionals) (Iter.fromList <| statements knowledge)
+     |> Iter.find (\((biconditional, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs
+                                                          || statement.formula == Just rhs && goal == lhs)
+     |> Maybe.map (\((biconditional, lhs, rhs), statement) -> "<->E:" ++ rangeOf biconditional ++ "," ++ rangeOf (ProofLine statement))
