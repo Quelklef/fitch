@@ -3,6 +3,7 @@ module Proof exposing (..)
 import Maybe exposing (Maybe)
 
 import ListUtil
+import MaybeUtil
 
 import Formula exposing (Formula)
 
@@ -47,6 +48,36 @@ remove idx proof =
     ProofBlock head body ->
       if idx >= 0 then ListUtil.remove idx body |> Maybe.map (\newBody -> ProofBlock head newBody)
       else ListUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
+
+firstLine : Proofy a -> Maybe a
+firstLine proof = case proof of
+  ProofLine line -> Just line
+  ProofBlock head body ->
+    List.head head
+    |> MaybeUtil.orLazy (\() -> List.head body |> Maybe.andThen firstLine)
+
+lastLine : Proofy a -> Maybe a
+lastLine proof = case proof of
+  ProofLine line -> Just line
+  ProofBlock head body ->
+    ListUtil.last body
+    |> Maybe.andThen lastLine
+    |> MaybeUtil.orLazy (\() -> ListUtil.last head)
+
+assumptions : Proofy a -> List a
+assumptions proof = case proof of
+  ProofLine _ -> []
+  ProofBlock head _ -> head
+
+conclusion : Proofy a -> Maybe a
+conclusion proof = case proof of
+  ProofLine _ -> Nothing
+  ProofBlock _ _ -> lastLine proof
+
+map : (a -> b) -> Proofy a -> Proofy b
+map mapper proof = case proof of
+  ProofLine line -> ProofLine (mapper line)
+  ProofBlock head body -> ProofBlock (List.map mapper head) (List.map (map mapper) body)
 
 replaceM : Int -> (Proofy a -> Maybe (Proofy a)) -> Proofy a -> Maybe (Proofy a)
 replaceM idx mapper proof =

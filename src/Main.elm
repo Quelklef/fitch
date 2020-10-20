@@ -15,6 +15,7 @@ import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
 import Formula exposing (Formula)
 import Decorate
+import Justify
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
 onKeydown : ({ keyCode : Int, shiftKey : Bool } ->  { msg : Message, preventDefault : Bool }) -> Attribute Message
@@ -34,7 +35,9 @@ main = Browser.document
 
 init : () -> (RawProof, Cmd m)
 init =
-  let proof = ProofBlock ["assumption"] [ProofLine "consequence"]
+  let proof = ProofBlock
+        [ "a|b" ]
+        [ ProofBlock ["a"] [ProofLine "x"], ProofBlock ["b"] [ProofLine "x"], ProofLine "x" ]
   in always (proof, Cmd.none)
 
 type Message =
@@ -204,9 +207,9 @@ view proof =
     , body = [html]
     }
 
-view_ : RawProof -> Proofy Decorate.DecoratedLine -> Html Message
+view_ : RawProof -> Proofy Justify.DecoratedLine -> Html Message
 view_ wholeProof proof = case proof of
-  ProofLine { text, formula, path, lineno, justification, knowledge } ->
+  ProofLine { text, formula, path, lineno, justification } ->
     div []
       [ input
         [ value text

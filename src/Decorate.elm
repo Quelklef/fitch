@@ -5,28 +5,7 @@ import ListUtil
 import Path exposing (Path)
 import Proof exposing (Proofy(..))
 import Formula exposing (Formula)
-import Justify exposing (Lineno, Knowledge)
-
-type alias DecoratedLine =
-  { text : String
-  , formula : Maybe Formula
-  , path : Path
-  , lineno : Lineno
-  , knowledge : Knowledge
-  , justification : Maybe String
-  }
-
-toKnowledge : List (Proofy DecoratedLine) -> Knowledge
-toKnowledge =
-  let trim decoratedLine =
-        decoratedLine.formula
-        |> Maybe.map (\formula -> { lineno = decoratedLine.lineno, formula = formula })
-  in List.filterMap <| \proof -> case proof of
-    ProofLine line -> trim line |> Maybe.map ProofLine
-    ProofBlock head body -> Just <|
-      ProofBlock
-        (List.filterMap trim head)
-        (toKnowledge body)
+import Justify exposing (Lineno, Knowledge, DecoratedLine)
 
 decorate : Proofy String -> Proofy DecoratedLine
 decorate = decorate_ (1, [], []) >> Tuple.first
@@ -40,7 +19,6 @@ decorate_ (lineno, path, knowledge) proof = case proof of
           , formula = formula
           , path = path
           , lineno = lineno
-          , knowledge = knowledge
           , justification = formula |> Maybe.andThen (Justify.justify knowledge)
           }
     in (ProofLine decorated, (lineno + 1))
@@ -51,11 +29,10 @@ decorate_ (lineno, path, knowledge) proof = case proof of
             , formula = Formula.parse text
             , path = path ++ [-idx-1]
             , lineno = lineno + (List.length head - idx - 1)
-            , knowledge = knowledge
             , justification = Just "as"
             })
 
-        newKnowledge = knowledge ++ toKnowledge (List.map ProofLine decoratedHead)
+        newKnowledge = knowledge ++ List.map ProofLine decoratedHead
         newLineno = lineno + List.length head
         (decoratedBody, lineno2) = decorateList_ (newLineno, path ++ [0], newKnowledge) body
 
@@ -66,7 +43,7 @@ decorateList_ (lineno, path, knowledge) proofs = case proofs of
   [] -> ([], lineno)
   head::rest ->
     let (decoratedHead, lineno2) = decorate_ (lineno, path, knowledge) head
-        newKnowledge = knowledge ++ toKnowledge [decoratedHead]
+        newKnowledge = knowledge ++ [decoratedHead]
         (decoratedRest, lineno3) = decorateList_ (lineno2, naiveLinearSucc path, newKnowledge) rest
     in (decoratedHead :: decoratedRest, lineno3)
 
