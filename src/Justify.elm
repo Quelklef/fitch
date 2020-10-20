@@ -36,9 +36,9 @@ justify knowledge goal =
         , justifyImplicationElim
         , justifyBiconditionalIntro
         , justifyBiconditionalElim
-        -- , justifyBottomIntro
-        -- , justifyNegationIntro
-        -- , justifyNegationElim
+        , justifyBottomIntro
+        , justifyNegationIntro
+        , justifyNegationElim
         -- , justifyForallIntro
         -- , justifyForallElim
         -- , justifyExistsIntro
@@ -79,6 +79,11 @@ statements = List.filterMap <| \known ->
   case known of
     ProofLine line -> Just line
     ProofBlock _ _ -> Nothing
+
+blocks : Knowledge -> List (Proofy DecoratedLine)
+blocks = List.filter (\known -> case known of
+  ProofBlock _ _ -> True
+  _ -> False)
 
 justifyReiteration : Strategy
 justifyReiteration knowledge goal =
@@ -121,15 +126,12 @@ justifyDisjunctionIntro knowledge goal =
 
 justifyDisjunctionElim : Strategy
 justifyDisjunctionElim knowledge goal =
-  let blocks = knowledge |> List.filter (\known -> case known of
-          ProofBlock _ _ -> True
-          _ -> False)
-      disjunctions = knowledge |> List.filterMap (\known -> case known of
+  let disjunctions = knowledge |> List.filterMap (\known -> case known of
           ProofLine line -> case line.formula of
             Just (Disjunction lhs rhs) -> Just (known, lhs, rhs)
             _ -> Nothing
           _ -> Nothing)
-  in Iter.product3 (Iter.fromList disjunctions) (Iter.fromList blocks) (Iter.fromList blocks)
+  in Iter.product3 (Iter.fromList disjunctions) (Iter.fromList <| blocks knowledge) (Iter.fromList <| blocks knowledge)
      |> Iter.find (\((disjunction, lhs, rhs), blockA, blockB) ->
              (Proof.conclusion blockA |> Maybe.andThen .formula) == Just goal
              && (Proof.conclusion blockB |> Maybe.andThen .formula) == Just goal
@@ -164,12 +166,7 @@ justifyBiconditionalIntro : Strategy
 justifyBiconditionalIntro knowledge goal =
   case goal of
     Biconditional lhs rhs ->
-      knowledge
-      |> List.filterMap (\known ->
-        case known of
-          ProofLine _ -> Nothing
-          ProofBlock _ _ -> Just known)
-      |> (\blocks -> Iter.product (Iter.fromList blocks) (Iter.fromList blocks))
+      Iter.product (Iter.fromList <| blocks knowledge ) (Iter.fromList <| blocks knowledge )
       |> Iter.find (\(blockA, blockB) ->
         (Proof.assumptions blockA |> List.map .formula) == [Just lhs]
         && (Proof.conclusion blockA |> Maybe.andThen .formula) == Just rhs
@@ -187,5 +184,38 @@ justifyBiconditionalElim knowledge goal =
         _ -> Nothing)
   in Iter.product (Iter.fromList biconditionals) (Iter.fromList <| statements knowledge)
      |> Iter.find (\((biconditional, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs
-                                                          || statement.formula == Just rhs && goal == lhs)
+                                                           || statement.formula == Just rhs && goal == lhs)
      |> Maybe.map (\((biconditional, lhs, rhs), statement) -> "<->E:" ++ rangeOf biconditional ++ "," ++ rangeOf (ProofLine statement))
+
+justifyBottomIntro : Strategy
+justifyBottomIntro knowledge goal =
+  knowledge
+  |> ListUtil.find (\known ->
+    case known of
+      ProofLine line -> case line.formula of
+        Just (Conjunction lhs rhs) -> lhs == Negation rhs || rhs == Negation lhs
+        _ -> False
+      _ -> False)
+  |> Maybe.map (\line -> "#I:" ++ rangeOf line)
+
+justifyNegationIntro : Strategy
+justifyNegationIntro knowledge goal =
+  case goal of
+    Negation negated ->
+      blocks knowledge
+      |> List.filter (\block -> (Proof.assumptions block |> List.map .formula) == [Just negated]
+                             && (Proof.conclusion block |> Maybe.andThen .formula) == Just Bottom)
+      |> List.head
+      |> Maybe.map (\block -> "~I:" ++ rangeOf block)
+    _ -> Nothing
+
+justifyNegationElim : Strategy
+justifyNegationElim knowledge goal =
+  knowledge
+  |> ListUtil.find (\known ->
+    case known of
+      ProofLine line -> case line.formula of
+        Just (Negation (Negation body)) -> body == goal
+        _ -> False
+      _ -> False)
+  |> Maybe.map (\line -> "~E:" ++ rangeOf line)
