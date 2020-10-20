@@ -43,9 +43,9 @@ justify knowledge goal =
         , justifyForallElim
         , justifyExistsIntro
         , justifyExistsElim
-        -- , justifyDomainNonEmpty
-        -- , justifyEqualityIntro
-        -- , justifyEqualityElim
+        , justifyDomainNonempty
+        , justifyEqualityIntro
+        , justifyEqualityElim
         ]
   in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
@@ -276,3 +276,36 @@ justifyExistsElim knowledge goal =
             |> MaybeUtil.fromBool ("EE:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block)
           _ -> Nothing
       _ -> Nothing)
+
+justifyDomainNonempty : Strategy
+justifyDomainNonempty knowledge goal =
+  blocks knowledge
+  |> ListUtil.find (\block ->
+      case Proof.assumptions block |> List.map .formula of
+        [Just (Declaration _)] -> (Proof.conclusion block |> Maybe.andThen .formula) == Just goal
+        _ -> False)
+  |> Maybe.map (\block -> "NE:" ++ rangeOf block)
+
+justifyEqualityIntro : Strategy
+justifyEqualityIntro knowledge goal =
+  case goal of
+    Equality lhs rhs -> lhs == rhs |> MaybeUtil.fromBool "=I"
+    _ -> Nothing
+
+justifyEqualityElim : Strategy
+justifyEqualityElim knowledge goal =
+  knowledge
+  |> Iter.fromList
+  |> Iter.filterMap (\known -> case known of
+    ProofLine line -> case line.formula of
+      Just (Equality lhs rhs) -> Just (known, lhs, rhs)
+      _ -> Nothing
+    _ -> Nothing)
+  |> (\x -> Iter.product x (Iter.fromList <| statements knowledge))
+  |> Iter.findMapM (\((equality, lhs, rhs), statement) ->
+    let tryReplacement fromName toName =
+          (statement.formula |> Maybe.map (Formula.substitute fromName toName)) == Just goal
+          |> MaybeUtil.fromBool (
+                "=E:" ++ rangeOf equality ++ "," ++ rangeOf (ProofLine statement)
+                ++ "[" ++ String.fromChar fromName ++ "->" ++ String.fromChar toName ++ "]")
+    in tryReplacement lhs rhs |> MaybeUtil.orElseLazy (\() -> tryReplacement rhs lhs))
