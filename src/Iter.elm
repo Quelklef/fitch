@@ -22,7 +22,7 @@ find : (a -> Bool) -> Iter a -> Maybe a
 find cond iter = case iter of
   Fin -> Nothing
   One get -> let got = get () in MaybeUtil.fromBool got (cond got)
-  Cat left right -> find cond left |> MaybeUtil.orLazy (find cond << right)
+  Cat left right -> find cond left |> MaybeUtil.orElseLazy (find cond << right)
 
 flatMap : (a -> Iter b) -> Iter a -> Iter b
 flatMap mapper iter = case iter of
@@ -42,9 +42,3 @@ product3 iterA iterB iterC =
   iterB |> flatMap (\b ->
   iterC |> map (\c ->
     (a, b, c))))
-
-findMapM : (a -> Maybe b) -> Iter a -> Maybe b
-findMapM mapper iter = case iter of
-  Fin -> Nothing
-  One get -> mapper <| get ()
-  Cat left right -> findMapM mapper left |> MaybeUtil.orLazy (findMapM mapper << right)

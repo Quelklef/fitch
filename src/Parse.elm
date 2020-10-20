@@ -8,7 +8,7 @@ import MaybeUtil
 type alias Parser tok res = List tok -> Maybe (res, List tok)
 
 or : Parser tok res -> Parser tok res -> Parser tok res
-or snd fst tokens = fst tokens |> MaybeUtil.orLazy (\() -> snd tokens)
+or snd fst tokens = fst tokens |> MaybeUtil.orElseLazy (\() -> snd tokens)
 
 kThen : Parser tok res -> Parser tok ignored -> Parser tok res
 kThen snd fst tokens = fst tokens |> Maybe.andThen (\(result, rest) -> snd rest)

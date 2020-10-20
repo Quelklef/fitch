@@ -37,6 +37,7 @@ justify knowledge goal =
         ]
   in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
+-- vv Gives a string representation of the range that a proof spans
 rangeOf : Proofy DecoratedLine -> String
 rangeOf proof = case proof of
   ProofLine { lineno } -> String.fromInt lineno
@@ -49,34 +50,22 @@ rangeOf proof = case proof of
 
 type alias Strategy = Knowledge -> Formula -> Maybe String
 
-justifyReiteration : Strategy
-justifyReiteration knowledge goal =
-  knowledge
-  |> ListUtil.findMapM (\known -> case known of
-    ProofBlock _ _ -> Nothing
-    ProofLine line ->
-      if line.formula == Just goal
-      then Just ("RI:" ++ rangeOf known)
-      else Nothing)
-
-findMapKnown : (Proofy DecoratedLine -> Maybe r) -> Knowledge -> List r
-findMapKnown mapper knowledge = knowledge |> List.filterMap mapper
-
-findKnown : (Proofy DecoratedLine -> Bool) -> Knowledge -> List (Proofy DecoratedLine)
-findKnown predicate knowledge =
-  knowledge |> List.filterMap (\proof -> predicate proof |> MaybeUtil.fromBool proof)
-
 -- vv Evaluates to a string representing the line number range
 -- vv of given formula, if it is known
 rangeOfKnownFormula : Formula -> Knowledge -> Maybe String
 rangeOfKnownFormula target knowledge =
   knowledge
-  |> findKnown (\proof ->
+  |> List.filter (\proof ->
     case proof of
       ProofLine line -> line.formula == Just target
       _ -> False)
   |> List.head
   |> Maybe.map rangeOf
+
+justifyReiteration : Strategy
+justifyReiteration knowledge goal =
+  rangeOfKnownFormula goal knowledge
+  |> Maybe.map (\range -> "RI:" ++ range)
 
 justifyAndIntro : Strategy
 justifyAndIntro knowledge goal =
@@ -91,74 +80,67 @@ justifyAndIntro knowledge goal =
 
 justifyAndElim : Strategy
 justifyAndElim knowledge goal =
-  let conjunction =
-        knowledge
-        |> findKnown (\known ->
-          case known of
-            ProofBlock _ _ -> False
-            ProofLine line -> case line.formula of
-              Just (And lhs rhs) -> lhs == goal || rhs == goal
-              _ -> False)
-        |> List.head
-
-  in conjunction |> Maybe.map (\conj -> "&E:" ++ rangeOf conj)
+  knowledge
+  |> List.filter (\known ->
+    case known of
+      ProofBlock _ _ -> False
+      ProofLine line -> case line.formula of
+        Just (And lhs rhs) -> lhs == goal || rhs == goal
+        _ -> False)
+  |> List.head
+  |> Maybe.map (\conjunction -> "&E:" ++ rangeOf conjunction)
 
 justifyOrIntro : Strategy
 justifyOrIntro knowledge goal =
   case goal of
     Or lhs rhs ->
-      let lhsRange () = rangeOfKnownFormula lhs knowledge
-          rhsRange () = rangeOfKnownFormula rhs knowledge
+      let lhsRange = rangeOfKnownFormula lhs knowledge
+          rhsRange = rangeOfKnownFormula rhs knowledge
       in
-        lhsRange () |> MaybeUtil.orLazy rhsRange
-        |> Maybe.map (\lineno -> "|I:" ++ lineno)
+        lhsRange |> MaybeUtil.orElse rhsRange
+        |> Maybe.map (\range -> "|I:" ++ range)
     _ -> Nothing
 
 justifyOrElim : Strategy
 justifyOrElim knowledge goal =
-
-  let blocks = knowledge |> findKnown (\known -> case known of
+  let blocks = knowledge |> List.filter (\known -> case known of
           ProofBlock _ _ -> True
           _ -> False)
-
-      disjunctions = knowledge |> findMapKnown (\known -> case known of
+      disjunctions = knowledge |> List.filterMap (\known -> case known of
           ProofLine line -> case line.formula of
             Just (Or lhs rhs) -> Just (known, lhs, rhs)
             _ -> Nothing
           _ -> Nothing)
-
   in Iter.product3 (Iter.fromList disjunctions) (Iter.fromList blocks) (Iter.fromList blocks)
-     |> Iter.findMapM (\((disjunction, lhs, rhs), blockA, blockB) ->
-         let isSufficient =
-               (Proof.conclusion blockA |> Maybe.andThen .formula) == Just goal
-               && (Proof.conclusion blockB |> Maybe.andThen .formula) == Just goal
-               && (Proof.assumptions blockA |> List.map .formula) == [Just lhs]
-               && (Proof.assumptions blockB |> List.map .formula) == [Just rhs]
-         in isSufficient |> MaybeUtil.fromBool ("|E:" ++ rangeOf disjunction ++ "," ++ rangeOf blockA ++ "," ++ rangeOf blockB))
+     |> Iter.find (\((disjunction, lhs, rhs), blockA, blockB) ->
+             (Proof.conclusion blockA |> Maybe.andThen .formula) == Just goal
+             && (Proof.conclusion blockB |> Maybe.andThen .formula) == Just goal
+             && (Proof.assumptions blockA |> List.map .formula) == [Just lhs]
+             && (Proof.assumptions blockB |> List.map .formula) == [Just rhs])
+     |> Maybe.map (\((disjunction, _, _), blockA, blockB) -> "|E:" ++ rangeOf disjunction ++ "," ++ rangeOf blockA ++ "," ++ rangeOf blockB)
 
 justifyIfIntro : Strategy
 justifyIfIntro knowledge goal =
   case goal of
     If lhs rhs ->
       knowledge
-      |> findKnown (\known ->
+      |> List.filter (\known ->
         (Proof.assumptions known |> List.map .formula) == [Just lhs]
         && (Proof.conclusion known |> Maybe.andThen .formula) == Just rhs)
       |> List.head
-      |> Maybe.map rangeOf
-      |> Maybe.map (\range -> "->I:" ++ range)
+      |> Maybe.map (\block -> "->I:" ++ rangeOf block)
     _ -> Nothing
 
 justifyIfElim : Strategy
 justifyIfElim knowledge goal =
-  let ifs = knowledge |> findMapKnown (\known -> case known of
+  let implications = knowledge |> List.filterMap (\known -> case known of
         ProofLine line -> case line.formula of
           Just (If lhs rhs) -> Just (known, lhs, rhs)
           _ -> Nothing
         _ -> Nothing)
-      statements = knowledge |> findMapKnown (\known -> case known of
+      statements = knowledge |> List.filterMap (\known -> case known of
         ProofLine line -> Just line
         _ -> Nothing)
-  in Iter.product (Iter.fromList ifs) (Iter.fromList statements)
+  in Iter.product (Iter.fromList implications) (Iter.fromList statements)
      |> Iter.find (\((implication, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs)
      |> Maybe.map (\((implication, _, _), statement) -> "->E:" ++ rangeOf implication ++ "," ++ rangeOf (ProofLine statement))

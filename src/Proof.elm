@@ -54,7 +54,7 @@ firstLine proof = case proof of
   ProofLine line -> Just line
   ProofBlock head body ->
     List.head head
-    |> MaybeUtil.orLazy (\() -> List.head body |> Maybe.andThen firstLine)
+    |> MaybeUtil.orElseLazy (\() -> List.head body |> Maybe.andThen firstLine)
 
 lastLine : Proofy a -> Maybe a
 lastLine proof = case proof of
@@ -62,7 +62,7 @@ lastLine proof = case proof of
   ProofBlock head body ->
     ListUtil.last body
     |> Maybe.andThen lastLine
-    |> MaybeUtil.orLazy (\() -> ListUtil.last head)
+    |> MaybeUtil.orElseLazy (\() -> ListUtil.last head)
 
 assumptions : Proofy a -> List a
 assumptions proof = case proof of

@@ -143,8 +143,8 @@ tokenizeWhitespace code =
 tokenizeOne : String -> (Token, String)
 tokenizeOne code =
   tokenizeSymbol code
-  |> MaybeUtil.orLazy (\() -> tokenizeName code)
-  |> MaybeUtil.orLazy (\() -> tokenizeWhitespace code)
+  |> MaybeUtil.orElseLazy (\() -> tokenizeName code)
+  |> MaybeUtil.orElseLazy (\() -> tokenizeWhitespace code)
   |> Maybe.withDefault (TokInvalid <| StringUtil.take 1 code, StringUtil.drop 1 code)
 
 tokenize : String -> List Token

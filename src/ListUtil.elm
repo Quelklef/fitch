@@ -70,4 +70,4 @@ startsWith prefix list = case prefix of
 findMapM : (a -> Maybe b) -> List a -> Maybe b
 findMapM mapper items = case items of
   [] -> Nothing
-  x::xs -> mapper x |> MaybeUtil.orLazy (\() -> findMapM mapper xs)
+  x::xs -> mapper x |> MaybeUtil.orElseLazy (\() -> findMapM mapper xs)
