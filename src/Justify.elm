@@ -39,7 +39,7 @@ justify knowledge goal =
         , justifyBottomIntro
         , justifyNegationIntro
         , justifyNegationElim
-        -- , justifyForallIntro
+        , justifyForallIntro
         -- , justifyForallElim
         -- , justifyExistsIntro
         -- , justifyExistsElim
@@ -219,3 +219,19 @@ justifyNegationElim knowledge goal =
         _ -> False
       _ -> False)
   |> Maybe.map (\line -> "~E:" ++ rangeOf line)
+
+justifyForallIntro : Strategy
+justifyForallIntro knowledge goal =
+  case goal of
+    Forall forallName forallClaim ->
+      blocks knowledge
+      |> ListUtil.findMapM (\block ->
+        let assumptionMaybes = Proof.assumptions block |> List.map .formula
+            maybeConclusion = Proof.conclusion block |> Maybe.map .formula
+        in case (assumptionMaybes, maybeConclusion) of
+          ( [Just (Declaration blockDeclaringName)], Just conclusion ) ->
+            if Maybe.map (Formula.substitute blockDeclaringName forallName) conclusion == Just forallClaim
+            then Just ("VI:" ++ rangeOf block ++ "[" ++ String.fromChar blockDeclaringName ++ "->" ++ String.fromChar forallName ++ "]")
+            else Nothing
+          _ -> Nothing)
+    _ -> Nothing

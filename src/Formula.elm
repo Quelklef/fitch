@@ -282,3 +282,24 @@ parseTokens tokens =
 
 parse : String -> Maybe Formula
 parse = tokenize >> parseTokens
+
+-- --
+
+substitute : Char -> Char -> Formula -> Formula
+substitute from to formula =
+  let mapName str = if str == from then to else str
+  in case formula of
+    Empty -> Empty
+    Bottom -> Bottom
+    Declaration name -> Declaration (mapName name)
+    Application name args -> Application name (List.map mapName args)
+    Name name -> Name (mapName name)
+    Negation body -> Negation (substitute from to body)
+    Conjunction lhs rhs -> Conjunction (substitute from to lhs) (substitute from to rhs)
+    Disjunction lhs rhs -> Disjunction (substitute from to lhs) (substitute from to rhs)
+    Implication lhs rhs -> Implication (substitute from to lhs) (substitute from to rhs)
+    Biconditional lhs rhs -> Biconditional (substitute from to lhs) (substitute from to rhs)
+    -- vv Recur on Forall/Exists unless variable name shadowed
+    Forall arg body -> if arg == from then formula else Forall arg (substitute from to body)
+    Exists arg body -> if arg == from then formula else Exists arg (substitute from to body)
+    Equality lhs rhs -> Equality (mapName lhs) (mapName rhs)
