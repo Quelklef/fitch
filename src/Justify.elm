@@ -28,12 +28,12 @@ justify : Knowledge -> Formula -> Maybe String
 justify knowledge goal =
   let strategies =
         [ justifyReiteration
-        , justifyAndIntro
-        , justifyAndElim
-        , justifyOrIntro
-        , justifyOrElim
-        , justifyIfIntro
-        , justifyIfElim
+        , justifyConjunctionIntro
+        , justifyConjunctionElim
+        , justifyDisjunctionIntro
+        , justifyDisjunctionElim
+        , justifyImplicationIntro
+        , justifyImplicationElim
         -- , justifyBiconditionalIntroducton
         -- , justifyBiconditionalElimination
         -- , justifyBottomIntroduction
@@ -79,10 +79,10 @@ justifyReiteration knowledge goal =
   rangeOfKnownFormula goal knowledge
   |> Maybe.map (\range -> "RI:" ++ range)
 
-justifyAndIntro : Strategy
-justifyAndIntro knowledge goal =
+justifyConjunctionIntro : Strategy
+justifyConjunctionIntro knowledge goal =
   case goal of
-    And lhs rhs ->
+    Conjunction lhs rhs ->
       let lhsRange = rangeOfKnownFormula lhs knowledge
           rhsRange = rangeOfKnownFormula rhs knowledge
       in case (lhsRange, rhsRange) of
@@ -90,22 +90,22 @@ justifyAndIntro knowledge goal =
         _ -> Nothing
     _ -> Nothing
 
-justifyAndElim : Strategy
-justifyAndElim knowledge goal =
+justifyConjunctionElim : Strategy
+justifyConjunctionElim knowledge goal =
   knowledge
   |> List.filter (\known ->
     case known of
       ProofBlock _ _ -> False
       ProofLine line -> case line.formula of
-        Just (And lhs rhs) -> lhs == goal || rhs == goal
+        Just (Conjunction lhs rhs) -> lhs == goal || rhs == goal
         _ -> False)
   |> List.head
   |> Maybe.map (\conjunction -> "&E:" ++ rangeOf conjunction)
 
-justifyOrIntro : Strategy
-justifyOrIntro knowledge goal =
+justifyDisjunctionIntro : Strategy
+justifyDisjunctionIntro knowledge goal =
   case goal of
-    Or lhs rhs ->
+    Disjunction lhs rhs ->
       let lhsRange = rangeOfKnownFormula lhs knowledge
           rhsRange = rangeOfKnownFormula rhs knowledge
       in
@@ -113,14 +113,14 @@ justifyOrIntro knowledge goal =
         |> Maybe.map (\range -> "|I:" ++ range)
     _ -> Nothing
 
-justifyOrElim : Strategy
-justifyOrElim knowledge goal =
+justifyDisjunctionElim : Strategy
+justifyDisjunctionElim knowledge goal =
   let blocks = knowledge |> List.filter (\known -> case known of
           ProofBlock _ _ -> True
           _ -> False)
       disjunctions = knowledge |> List.filterMap (\known -> case known of
           ProofLine line -> case line.formula of
-            Just (Or lhs rhs) -> Just (known, lhs, rhs)
+            Just (Disjunction lhs rhs) -> Just (known, lhs, rhs)
             _ -> Nothing
           _ -> Nothing)
   in Iter.product3 (Iter.fromList disjunctions) (Iter.fromList blocks) (Iter.fromList blocks)
@@ -131,10 +131,10 @@ justifyOrElim knowledge goal =
              && (Proof.assumptions blockB |> List.map .formula) == [Just rhs])
      |> Maybe.map (\((disjunction, _, _), blockA, blockB) -> "|E:" ++ rangeOf disjunction ++ "," ++ rangeOf blockA ++ "," ++ rangeOf blockB)
 
-justifyIfIntro : Strategy
-justifyIfIntro knowledge goal =
+justifyImplicationIntro : Strategy
+justifyImplicationIntro knowledge goal =
   case goal of
-    If lhs rhs ->
+    Implication lhs rhs ->
       knowledge
       |> List.filter (\known ->
         (Proof.assumptions known |> List.map .formula) == [Just lhs]
@@ -143,11 +143,11 @@ justifyIfIntro knowledge goal =
       |> Maybe.map (\block -> "->I:" ++ rangeOf block)
     _ -> Nothing
 
-justifyIfElim : Strategy
-justifyIfElim knowledge goal =
+justifyImplicationElim : Strategy
+justifyImplicationElim knowledge goal =
   let implications = knowledge |> List.filterMap (\known -> case known of
         ProofLine line -> case line.formula of
-          Just (If lhs rhs) -> Just (known, lhs, rhs)
+          Just (Implication lhs rhs) -> Just (known, lhs, rhs)
           _ -> Nothing
         _ -> Nothing)
       statements = knowledge |> List.filterMap (\known -> case known of

@@ -165,10 +165,10 @@ type Formula
   -- vv (Propositions are treated as arity-0 predicates)
   | Application Char (List Char)
   | Negation Formula
-  | And Formula Formula
-  | Or Formula Formula
-  | If Formula Formula
-  | Iff Formula Formula
+  | Conjunction Formula Formula
+  | Disjunction Formula Formula
+  | Implication Formula Formula
+  | Biconditional Formula Formula
   | Forall Char Formula
   | Exists Char Formula
   | Equality Char Char
@@ -235,18 +235,18 @@ parseBinOpWithFallthrough opToken innerParser makeResult =
        |> kThen (with innerParser <| \rhs ->
        return (makeResult lhs rhs))))
 
-parseAnd = parseBinOpWithFallthrough TokAnd parseSimple And
-parseOr = parseBinOpWithFallthrough TokOr parseAnd Or
-parseIf = parseBinOpWithFallthrough TokIf parseOr If
-parseIff = parseBinOpWithFallthrough TokIff parseIf Iff
-parseForall = parseBinOp TokForall parseNameRaw parseIff Forall
+parseConjunction = parseBinOpWithFallthrough TokAnd parseSimple Conjunction
+parseDisjunction = parseBinOpWithFallthrough TokOr parseConjunction Disjunction
+parseImplication = parseBinOpWithFallthrough TokIf parseDisjunction Implication
+parseBiconditional = parseBinOpWithFallthrough TokIff parseImplication Biconditional
+parseForall = parseBinOp TokForall parseNameRaw parseBiconditional Forall
 parseExists = parseBinOp TokExists parseNameRaw parseForall Exists
 
 parseEmpty = eof |> kThen (return Empty)
 
 parseTop =
   parseEmpty
-  |> or parseIff
+  |> or parseBiconditional
   |> or parseExists
   |> or parseForall
 
