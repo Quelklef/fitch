@@ -36,8 +36,9 @@ main = Browser.document
 init : () -> (RawProof, Cmd m)
 init =
   let proof = ProofBlock
-        [ "a|b" ]
-        [ ProofBlock ["a"] [ProofLine "x"], ProofBlock ["b"] [ProofLine "x"], ProofLine "x" ]
+        [ "ExPx" ]
+        [ ProofBlock ["[y]", "Py"] [ProofLine "Py|Qy", ProofLine "EyPy|Qy"]
+        , ProofLine "EyPy|Qy" ]
   in always (proof, Cmd.none)
 
 type Message =

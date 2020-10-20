@@ -41,8 +41,8 @@ justify knowledge goal =
         , justifyNegationElim
         , justifyForallIntro
         , justifyForallElim
-        -- , justifyExistsIntro
-        -- , justifyExistsElim
+        , justifyExistsIntro
+        , justifyExistsElim
         -- , justifyDomainNonEmpty
         -- , justifyEqualityIntro
         -- , justifyEqualityElim
@@ -84,6 +84,8 @@ blocks : Knowledge -> List (Proofy DecoratedLine)
 blocks = List.filter (\known -> case known of
   ProofBlock _ _ -> True
   _ -> False)
+
+-- --
 
 justifyReiteration : Strategy
 justifyReiteration knowledge goal =
@@ -249,4 +251,28 @@ justifyForallElim knowledge goal =
   |> (\x -> Iter.product x (Iter.fromSet <| Formula.freeObjectVars goal))
   |> Iter.findMapM (\((forall, forallName, forallClaim), freeVar) ->
       goal == (forallClaim |> Formula.substitute forallName freeVar)
-      |> MaybeUtil.fromBool ("VE:" ++ rangeOf forall ++ "[" ++ (String.fromChar forallName) ++ "->" ++ (String.fromChar freeVar) ++ "]"))
+      |> MaybeUtil.fromBool ("VE:" ++ rangeOf forall ++ "[" ++ String.fromChar forallName ++ "->" ++ String.fromChar freeVar ++ "]"))
+
+justifyExistsIntro : Strategy
+justifyExistsIntro knowledge goal =
+  case goal of
+    Exists existsName existsClaim ->
+      Iter.product (Iter.fromList <| statements knowledge) (Iter.fromSet <| Formula.freeObjectVars existsClaim)
+      |> Iter.findMapM (\(statement, freeVar) ->
+         statement.formula == Just (existsClaim |> Formula.substitute existsName freeVar)
+         |> MaybeUtil.fromBool ("EI:" ++ rangeOf (ProofLine statement) ++ "[" ++ String.fromChar existsName ++ "->" ++ String.fromChar freeVar ++ "]" ))
+    _ -> Nothing
+
+justifyExistsElim : Strategy
+justifyExistsElim knowledge goal =
+  Iter.product (Iter.fromList <| statements knowledge) (Iter.fromList <| blocks knowledge)
+  |> Iter.findMapM (\(statement, block) ->
+    case statement.formula of
+      Just (Exists existsName existsClaim) ->
+        case Proof.assumptions block |> List.map .formula of
+          [Just (Declaration blockDeclaringName), Just blockAssumption] ->
+            (existsClaim |> Formula.substitute existsName blockDeclaringName) == blockAssumption
+              && (Proof.conclusion block |> Maybe.andThen .formula) == Just goal
+            |> MaybeUtil.fromBool ("EE:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block)
+          _ -> Nothing
+      _ -> Nothing)
