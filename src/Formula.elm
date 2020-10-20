@@ -91,9 +91,11 @@ symbolMapping =
   , ( "+", TokOr )
 
   , ( uniForall, TokForall )
+  , ( "\\", TokForall )
   , ( "V", TokForall )
 
   , ( uniExists, TokExists )
+  , ( "@", TokExists )
   , ( "E", TokExists )
 
   , ( uniEqual, TokEqual )
@@ -144,6 +146,7 @@ tokenizeOne : String -> (Token, String)
 tokenizeOne code =
   tokenizeSymbol code
   |> MaybeUtil.orElseLazy (\() -> tokenizeName code)
+  |> MaybeUtil.orElseLazy (\() -> tokenizeDeclaration code)
   |> MaybeUtil.orElseLazy (\() -> tokenizeWhitespace code)
   |> Maybe.withDefault (TokInvalid <| StringUtil.take 1 code, StringUtil.drop 1 code)
 
@@ -239,16 +242,26 @@ parseConjunction = parseBinOpWithFallthrough TokAnd parseSimple Conjunction
 parseDisjunction = parseBinOpWithFallthrough TokOr parseConjunction Disjunction
 parseImplication = parseBinOpWithFallthrough TokIf parseDisjunction Implication
 parseBiconditional = parseBinOpWithFallthrough TokIff parseImplication Biconditional
-parseForall = parseBinOp TokForall parseNameRaw parseBiconditional Forall
-parseExists = parseBinOp TokExists parseNameRaw parseForall Exists
+
+parseForall =
+  literal [TokForall]
+  |> kThen (with parseNameRaw <| \name ->
+  with parseTop <| \body ->
+  return (Forall name body))
+
+parseExists =
+  literal [TokExists]
+  |> kThen (with parseNameRaw <| \name ->
+  with parseTop <| \body ->
+  return (Exists name body))
 
 parseEmpty = eof |> kThen (return Empty)
 
 parseTop =
   parseEmpty
   |> or parseBiconditional
-  |> or parseExists
   |> or parseForall
+  |> or parseExists
 
 parseTokens : List Token -> Maybe Formula
 parseTokens tokens =
