@@ -287,10 +287,15 @@ justifyExistsIntro : Strategy
 justifyExistsIntro knowledge goal =
   case goal of
     Exists existsName existsClaim ->
-      Iter.product (Iter.fromList <| statements knowledge) (Iter.fromSet <| Formula.freeObjectVars existsClaim)
-      |> Iter.findMapM (\(statement, freeVar) ->
-         statement.formula == Just (existsClaim |> Formula.substitute existsName freeVar)
-         |> MaybeUtil.fromBool ("∃I:" ++ rangeOf (ProofLine statement) ++ "[" ++ String.fromChar existsName ++ "→" ++ String.fromChar freeVar ++ "]" ))
+      statements knowledge
+      |> ListUtil.findMapM (\statement ->
+         statement.formula
+         |> Maybe.andThen (\formula ->
+         Formula.freeObjectVars formula
+         |> Iter.fromSet
+         |> Iter.findMapM (\freeVar ->
+         (existsClaim |> Formula.substitute existsName freeVar) == formula
+         |> MaybeUtil.fromBool ("∃I:" ++ rangeOf (ProofLine statement) ++ "[" ++ String.fromChar freeVar ++ "→" ++ String.fromChar existsName ++ "]" ))))
     _ -> Nothing
 
 justifyExistsElim : Strategy
