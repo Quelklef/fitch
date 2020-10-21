@@ -35,10 +35,25 @@ main = Browser.document
 
 init : () -> (RawProof, Cmd m)
 init =
-  let proof = ProofBlock
-        [ "ExPx" ]
-        [ ProofBlock ["[y]", "Py"] [ProofLine "Py|Qy", ProofLine "EyPy|Qy"]
-        , ProofLine "EyPy|Qy" ]
+  let proof = ProofBlock [ "" ]
+        [ ProofBlock ["-ExPx"]
+          [ ProofBlock ["[a]"]
+            [ ProofBlock ["Pa"]
+            [ ProofLine "ExPx"
+            , ProofLine "ExPx.-ExPx"
+            , ProofLine "#" ]
+          , ProofLine "-Pa" ]
+          , ProofLine "Vx-Px"
+          ]
+        , ProofBlock ["Vx-Px"]
+            [ ProofBlock ["ExPx"]
+            [ ProofBlock ["Pa", "[a]"]
+              [ ProofLine "-Pa"
+              , ProofLine "Pa.-Pa"
+              , ProofLine "#" ]
+            , ProofLine "#" ]
+          , ProofLine "-ExPx" ]
+        , ProofLine "(-ExPx)<->(Vx-Px)" ]
   in always (proof, Cmd.none)
 
 type Message =
