@@ -4,12 +4,13 @@ import Browser
 import Browser.Dom as Dom
 import Task
 import Maybe exposing (Maybe)
-import Html exposing (Html, Attribute, button, div, p, text, input)
-import Html.Attributes exposing (value, style, id)
+import Html exposing (Html, Attribute, button, div, span, text, input)
+import Html.Attributes exposing (value, class, id, style)
 import Html.Events exposing (onInput, keyCode, preventDefaultOn)
 import Json.Decode as Json
 
 import ListUtil
+import StringUtil
 
 import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
@@ -216,58 +217,67 @@ doBackspaceAt_ path proof = case path of
       _ -> Just newProof)
 
 view : RawProof -> Html Message
-view proof = view_ proof (Decorate.decorate proof)
+view proof = view_ 0 proof (Decorate.decorate proof)
 
-view_ : RawProof -> Proofy Semantics.DecoratedLine -> Html Message
-view_ wholeProof proof = case proof of
+view_ : Int -> RawProof -> Proofy Semantics.DecoratedLine -> Html Message
+view_ depth wholeProof proof = case proof of
   ProofLine { text, formula, path, lineno, justification } ->
-    div []
-      [ input
-        [ value text
+    let isValid = justification |> Result.map (always True) |> Result.withDefault False
+        isLastAssumption = Path.targetsLastAssumption wholeProof path
+    in div [ class <| "line" ++ StringUtil.if_ (not isValid) " --invalid" ++ StringUtil.if_ isLastAssumption " --last-assumption" ]
+      [ span [ class "line:number" ] [ Html.text <| String.fromInt lineno ]
+      , input
+        [ class "line:input"
+        , value text
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
-        , onKeydown (\{ keyCode, shiftKey } -> case (keyCode, shiftKey) of
-
-          -- (Shift+)Enter pressed
-          (13, _) ->
-            let preferAssumption = shiftKey
-            in { msg = NewLineAfter path preferAssumption, preventDefault = True }
-
-          -- Tab pressed
-          (9, False) -> { msg = IndentAt path, preventDefault = True }
-
-          -- Shift+Tab pressed
-          (9, True) -> { msg = DedentAt path, preventDefault = True }
-
-          -- Up arrow key pressed
-          (38, False) ->
-            let msg = Path.linearPred wholeProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
-            in { msg = msg, preventDefault = True }
-
-          -- Down arrow key pressed
-          (40, False) ->
-            let msg = Path.linearSucc wholeProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
-            in { msg = msg, preventDefault = True }
-
-          -- Backspace key pressed
-          (8, False) -> { msg = BackspaceAt path, preventDefault = False }
-
-          -- Any other key pressed
-          _ -> { msg = Noop, preventDefault = False }
-
-        )
+        , onKeydown (lineOnKeydown wholeProof path)
         ] []
-      , let tokens = Formula.tokenize text
-            parsed = Formula.parse text
-        in Html.pre [] [ Html.text <|
-          "line #" ++ Debug.toString lineno ++ " | path: " ++ Debug.toString path ++ "\n" ++
-          "parsed as: " ++ Debug.toString parsed ++ "\n" ++
-          "just'n: " ++ Debug.toString justification
-        ]
+      , span [ class "line:justification" ] [ Html.text <| case justification of
+          Ok justn -> justn
+          Err err -> err ]
       ]
 
   ProofBlock head body ->
-    div [ style "margin-left" "20px" ] <|
+    let blockStyle =
+          ListUtil.modGet depth blockColors
+          |> Maybe.map (\{ backgroundColor, borderColor } -> [ style "background-color" backgroundColor, style "border-color" borderColor ])
+          |> Maybe.withDefault []
+
+    in div ([ class "block" ] ++ blockStyle) <|
       List.append
-        (List.reverse (head |> List.map (ProofLine >> view_ wholeProof)))
-        (body |> List.map (view_ wholeProof))
+        (List.reverse (head |> List.map (ProofLine >> view_ (depth + 1) wholeProof)))
+        (body |> List.map (view_ (depth + 1) wholeProof))
+
+blockColors : List { borderColor: String, backgroundColor : String }
+blockColors =
+  [ { borderColor = "rgb(100, 100, 100)", backgroundColor = "rgb(243, 243, 243)" }
+  , { borderColor = "rgb(000, 000, 200)", backgroundColor = "rgb(236, 236, 251)" }
+  , { borderColor = "rgb(255, 100, 100)", backgroundColor = "rgb(255, 243, 243)" }
+  , { borderColor = "rgb(120, 255, 120)", backgroundColor = "rgb(245, 255, 245)" }
+  , { borderColor = "rgb(120, 050, 120)", backgroundColor = "rgb(245, 240, 245)" }
+  ]
+
+lineOnKeydown : Proofy String -> Path -> { keyCode : Int, shiftKey : Bool } -> { msg : Message, preventDefault : Bool }
+lineOnKeydown wholeProof path { keyCode, shiftKey } =
+  case (keyCode, shiftKey) of
+    -- vv (Shift+)Enter pressed
+    (13, _) ->
+      let preferAssumption = shiftKey
+      in { msg = NewLineAfter path preferAssumption, preventDefault = True }
+    -- vv Tab pressed
+    (9, False) -> { msg = IndentAt path, preventDefault = True }
+    -- vv Shift+Tab pressed
+    (9, True) -> { msg = DedentAt path, preventDefault = True }
+    -- vv Up arrow key pressed
+    (38, False) ->
+      let msg = Path.linearPred wholeProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+      in { msg = msg, preventDefault = True }
+    -- vv Down arrow key pressed
+    (40, False) ->
+      let msg = Path.linearSucc wholeProof path |> Maybe.map (\newPath -> SetFocusTo newPath) |> Maybe.withDefault Noop
+      in { msg = msg, preventDefault = True }
+    -- vv Backspace key pressed
+    (8, False) -> { msg = BackspaceAt path, preventDefault = False }
+    -- vv Any other key pressed
+    _ -> { msg = Noop, preventDefault = False }

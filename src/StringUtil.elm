@@ -31,3 +31,6 @@ get : Int -> String -> Maybe Char
 get idx string = case String.uncons string of
   Just (char, rest) -> if idx == 0 then Just char else get (idx - 1) rest
   Nothing -> Nothing
+
+if_ : Bool -> String -> String
+if_ bool str = if bool then str else ""

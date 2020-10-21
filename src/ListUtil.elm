@@ -76,3 +76,10 @@ find : (a -> Bool) -> List a -> Maybe a
 find cond items = case items of
   [] -> Nothing
   head::tail -> if cond head then Just head else find cond tail
+
+modGet : Int -> List a -> Maybe a
+modGet idx list =
+  if List.length list == 0
+  then Nothing
+  else list |> get (modBy (List.length list) idx)
+
