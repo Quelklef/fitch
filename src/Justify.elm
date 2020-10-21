@@ -99,7 +99,7 @@ justifyConjunctionIntro knowledge goal =
       let lhsRange = rangeOfKnownFormula lhs knowledge
           rhsRange = rangeOfKnownFormula rhs knowledge
       in case (lhsRange, rhsRange) of
-        (Just l, Just r) -> Just <| "&I:" ++ l ++ "," ++ r
+        (Just l, Just r) -> Just <| "∧I:" ++ l ++ "," ++ r
         _ -> Nothing
     _ -> Nothing
 
@@ -113,7 +113,7 @@ justifyConjunctionElim knowledge goal =
         Just (Conjunction lhs rhs) -> lhs == goal || rhs == goal
         _ -> False)
   |> List.head
-  |> Maybe.map (\conjunction -> "&E:" ++ rangeOf conjunction)
+  |> Maybe.map (\conjunction -> "∧E:" ++ rangeOf conjunction)
 
 justifyDisjunctionIntro : Strategy
 justifyDisjunctionIntro knowledge goal =
@@ -123,7 +123,7 @@ justifyDisjunctionIntro knowledge goal =
           rhsRange = rangeOfKnownFormula rhs knowledge
       in
         lhsRange |> MaybeUtil.orElse rhsRange
-        |> Maybe.map (\range -> "|I:" ++ range)
+        |> Maybe.map (\range -> "∨I:" ++ range)
     _ -> Nothing
 
 justifyDisjunctionElim : Strategy
@@ -139,7 +139,7 @@ justifyDisjunctionElim knowledge goal =
              && (Proof.conclusion blockB |> Maybe.andThen .formula) == Just goal
              && (Proof.assumptions blockA |> List.map .formula) == [Just lhs]
              && (Proof.assumptions blockB |> List.map .formula) == [Just rhs])
-     |> Maybe.map (\((disjunction, _, _), blockA, blockB) -> "|E:" ++ rangeOf disjunction ++ "," ++ rangeOf blockA ++ "," ++ rangeOf blockB)
+     |> Maybe.map (\((disjunction, _, _), blockA, blockB) -> "∨E:" ++ rangeOf disjunction ++ "," ++ rangeOf blockA ++ "," ++ rangeOf blockB)
 
 justifyImplicationIntro : Strategy
 justifyImplicationIntro knowledge goal =
@@ -150,7 +150,7 @@ justifyImplicationIntro knowledge goal =
         (Proof.assumptions known |> List.map .formula) == [Just lhs]
         && (Proof.conclusion known |> Maybe.andThen .formula) == Just rhs)
       |> List.head
-      |> Maybe.map (\block -> "->I:" ++ rangeOf block)
+      |> Maybe.map (\block -> "→I:" ++ rangeOf block)
     _ -> Nothing
 
 justifyImplicationElim : Strategy
@@ -162,7 +162,7 @@ justifyImplicationElim knowledge goal =
         _ -> Nothing)
   in Iter.product (Iter.fromList implications) (Iter.fromList <| statements knowledge)
      |> Iter.find (\((implication, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs)
-     |> Maybe.map (\((implication, _, _), statement) -> "->E:" ++ rangeOf implication ++ "," ++ rangeOf (ProofLine statement))
+     |> Maybe.map (\((implication, _, _), statement) -> "→E:" ++ rangeOf implication ++ "," ++ rangeOf (ProofLine statement))
 
 justifyBiconditionalIntro : Strategy
 justifyBiconditionalIntro knowledge goal =
@@ -174,7 +174,7 @@ justifyBiconditionalIntro knowledge goal =
         && (Proof.conclusion blockA |> Maybe.andThen .formula) == Just rhs
         && (Proof.assumptions blockB |> List.map .formula) == [Just rhs]
         && (Proof.conclusion blockB |> Maybe.andThen .formula) == Just lhs)
-      |> Maybe.map (\(blockA, blockB) -> "<->I:" ++ rangeOf blockA ++ "," ++ rangeOf blockB)
+      |> Maybe.map (\(blockA, blockB) -> "↔I:" ++ rangeOf blockA ++ "," ++ rangeOf blockB)
     _ -> Nothing
 
 justifyBiconditionalElim : Strategy
@@ -187,7 +187,7 @@ justifyBiconditionalElim knowledge goal =
   in Iter.product (Iter.fromList biconditionals) (Iter.fromList <| statements knowledge)
      |> Iter.find (\((biconditional, lhs, rhs), statement) -> statement.formula == Just lhs && goal == rhs
                                                            || statement.formula == Just rhs && goal == lhs)
-     |> Maybe.map (\((biconditional, lhs, rhs), statement) -> "<->E:" ++ rangeOf biconditional ++ "," ++ rangeOf (ProofLine statement))
+     |> Maybe.map (\((biconditional, lhs, rhs), statement) -> "↔E:" ++ rangeOf biconditional ++ "," ++ rangeOf (ProofLine statement))
 
 justifyBottomIntro : Strategy
 justifyBottomIntro knowledge goal =
@@ -198,7 +198,7 @@ justifyBottomIntro knowledge goal =
         Just (Conjunction lhs rhs) -> lhs == Negation rhs || rhs == Negation lhs
         _ -> False
       _ -> False)
-  |> Maybe.map (\line -> "#I:" ++ rangeOf line)
+  |> Maybe.map (\line -> "⊥I:" ++ rangeOf line)
 
 justifyNegationIntro : Strategy
 justifyNegationIntro knowledge goal =
@@ -208,7 +208,7 @@ justifyNegationIntro knowledge goal =
       |> List.filter (\block -> (Proof.assumptions block |> List.map .formula) == [Just negated]
                              && (Proof.conclusion block |> Maybe.andThen .formula) == Just Bottom)
       |> List.head
-      |> Maybe.map (\block -> "~I:" ++ rangeOf block)
+      |> Maybe.map (\block -> "¬I:" ++ rangeOf block)
     _ -> Nothing
 
 justifyNegationElim : Strategy
@@ -220,7 +220,7 @@ justifyNegationElim knowledge goal =
         Just (Negation (Negation body)) -> body == goal
         _ -> False
       _ -> False)
-  |> Maybe.map (\line -> "~E:" ++ rangeOf line)
+  |> Maybe.map (\line -> "¬E:" ++ rangeOf line)
 
 justifyForallIntro : Strategy
 justifyForallIntro knowledge goal =
@@ -233,7 +233,7 @@ justifyForallIntro knowledge goal =
         in case (assumptionMaybes, maybeConclusion) of
           ( [Just (Declaration blockDeclaringName)], Just conclusion ) ->
             if Maybe.map (Formula.substitute blockDeclaringName forallName) conclusion == Just forallClaim
-            then Just ("VI:" ++ rangeOf block ++ "[" ++ String.fromChar blockDeclaringName ++ "->" ++ String.fromChar forallName ++ "]")
+            then Just ("∀I:" ++ rangeOf block ++ "[" ++ String.fromChar blockDeclaringName ++ "→" ++ String.fromChar forallName ++ "]")
             else Nothing
           _ -> Nothing)
     _ -> Nothing
@@ -251,7 +251,7 @@ justifyForallElim knowledge goal =
   |> (\x -> Iter.product x (Iter.fromSet <| Formula.freeObjectVars goal))
   |> Iter.findMapM (\((forall, forallName, forallClaim), freeVar) ->
       goal == (forallClaim |> Formula.substitute forallName freeVar)
-      |> MaybeUtil.fromBool ("VE:" ++ rangeOf forall ++ "[" ++ String.fromChar forallName ++ "->" ++ String.fromChar freeVar ++ "]"))
+      |> MaybeUtil.fromBool ("∀E:" ++ rangeOf forall ++ "[" ++ String.fromChar forallName ++ "→" ++ String.fromChar freeVar ++ "]"))
 
 justifyExistsIntro : Strategy
 justifyExistsIntro knowledge goal =
@@ -260,7 +260,7 @@ justifyExistsIntro knowledge goal =
       Iter.product (Iter.fromList <| statements knowledge) (Iter.fromSet <| Formula.freeObjectVars existsClaim)
       |> Iter.findMapM (\(statement, freeVar) ->
          statement.formula == Just (existsClaim |> Formula.substitute existsName freeVar)
-         |> MaybeUtil.fromBool ("EI:" ++ rangeOf (ProofLine statement) ++ "[" ++ String.fromChar existsName ++ "->" ++ String.fromChar freeVar ++ "]" ))
+         |> MaybeUtil.fromBool ("∃I:" ++ rangeOf (ProofLine statement) ++ "[" ++ String.fromChar existsName ++ "→" ++ String.fromChar freeVar ++ "]" ))
     _ -> Nothing
 
 justifyExistsElim : Strategy
@@ -273,7 +273,7 @@ justifyExistsElim knowledge goal =
           [Just (Declaration blockDeclaringName), Just blockAssumption] ->
             (existsClaim |> Formula.substitute existsName blockDeclaringName) == blockAssumption
               && (Proof.conclusion block |> Maybe.andThen .formula) == Just goal
-            |> MaybeUtil.fromBool ("EE:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block)
+            |> MaybeUtil.fromBool ("∃E:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block)
           _ -> Nothing
       _ -> Nothing)
 
@@ -307,5 +307,5 @@ justifyEqualityElim knowledge goal =
           (statement.formula |> Maybe.map (Formula.substitute fromName toName)) == Just goal
           |> MaybeUtil.fromBool (
                 "=E:" ++ rangeOf equality ++ "," ++ rangeOf (ProofLine statement)
-                ++ "[" ++ String.fromChar fromName ++ "->" ++ String.fromChar toName ++ "]")
+                ++ "[" ++ String.fromChar fromName ++ "→" ++ String.fromChar toName ++ "]")
     in tryReplacement lhs rhs |> MaybeUtil.orElseLazy (\() -> tryReplacement rhs lhs))

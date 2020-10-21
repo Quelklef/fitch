@@ -26,81 +26,66 @@ type Token
   | TokEqual           -- equality
   | TokInequal         -- inequality
 
-uniBottom = "⊥"
-uniNot = "¬"
-uniAnd = "∧"
-uniOr = "∨"
-uniIf = "→"
-uniIff = "↔"
-uniForall = "∀"
-uniExists = "∃"
-uniEqual = "="
-uniInequal = "≠"
-
--- vv Normalize some code to a single syntax
-normalize : Bool -> String -> String
-normalize useUnicode code =
-  tokenize code
-  |> List.map (\token -> case token of
+render : List Token -> String
+render = String.join "" << List.map (\token -> case token of
     TokInvalid text -> text
     TokIgnored text -> text
-    TokOpen -> "("
-    TokClose -> ")"
-    TokBottom -> if useUnicode then uniBottom else "#"
-    TokName name -> String.fromChar name
-    TokDeclare name -> "[" ++ (String.fromChar name) ++ "]"
-    TokNot -> if useUnicode then uniNot else "~"
-    TokAnd -> if useUnicode then uniAnd else "&"
-    TokOr -> if useUnicode then uniOr else "|"
-    TokIf -> if useUnicode then uniIf else "->"
-    TokIff -> if useUnicode then uniIff else "<->"
-    TokForall -> if useUnicode then uniForall else "V"
-    TokExists -> if useUnicode then uniExists else "E"
-    TokEqual -> "="
-    TokInequal -> if useUnicode then uniInequal else "/="
-  )
-  |> String.join ""
+    TokOpen         -> "("
+    TokClose        -> ")"
+    TokBottom       -> "⊥"
+    TokName name    -> String.fromChar name
+    TokDeclare name -> "[" ++ String.fromChar name ++ "]"
+    TokNot          -> "¬"
+    TokAnd          -> "∧"
+    TokOr           -> "∨"
+    TokIf           -> "→"
+    TokIff          -> "↔"
+    TokForall       -> "∀"
+    TokExists       -> "∃"
+    TokEqual        -> "="
+    TokInequal      -> "≠")
 
 -- vv Tokens that map 1:1 to symbols
+-- vv (in order of precedence)
 symbolMapping =
   [ ( "(", TokOpen )
   , ( ")", TokClose )
 
-  , ( uniIf, TokIf )
+  , ( "→", TokIf )
   , ( "->", TokIf )
 
-  , ( uniIff, TokIff )
+  , ( "↔", TokIff )
   , ( "<->", TokIff )
 
-  , ( uniBottom, TokBottom )
+  , ( "⊥", TokBottom )
   , ( "_", TokBottom )
   , ( "#", TokBottom )
 
-  , ( uniNot, TokNot )
+  , ( "¬", TokNot )
   , ( "-", TokNot )
   , ( "~", TokNot )
 
-  , ( uniAnd, TokAnd )
+  , ( "∧", TokAnd )
   , ( "&", TokAnd )
   , ( ".", TokAnd )
   , ( ".", TokAnd )
 
-  , ( uniOr, TokOr )
+  , ( "∨", TokOr )
   , ( "|", TokOr )
   , ( "v", TokOr )
   , ( "+", TokOr )
 
-  , ( uniForall, TokForall )
+  , ( "∀", TokForall )
   , ( "\\", TokForall )
   , ( "V", TokForall )
 
-  , ( uniExists, TokExists )
+  , ( "∃", TokExists )
   , ( "@", TokExists )
   , ( "E", TokExists )
 
-  , ( uniEqual, TokEqual )
+  , ( "=", TokEqual )
 
-  , ( uniInequal, TokInequal )
+  , ( "≠", TokInequal )
   , ( "!=", TokInequal )
   , ( "/=", TokInequal )
   ]
