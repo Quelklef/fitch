@@ -40,7 +40,7 @@ init =
           [ ProofBlock ["[a]"]
             [ ProofBlock ["Pa"]
             [ ProofLine "ExPx"
-            , ProofLine "ExPx.-ExPx"
+            , ProofLine "(ExPx).(-ExPx)"
             , ProofLine "#" ]
           , ProofLine "-Pa" ]
           , ProofLine "Vx-Px"

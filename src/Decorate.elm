@@ -31,36 +31,33 @@ decorate_ (lineno, path, knowledge) proof = case proof of
     in (ProofLine decorated, (lineno + 1))
 
   ProofBlock head body ->
-    let decoratedHead = head |> List.indexedMap (\idx text ->
-          let formula = Formula.parse text
-          in { text = text
-             , formula = Formula.parse text
-             , path = path ++ [-idx-1]
-             , lineno = lineno + (List.length head - idx - 1)
-             , justification =
-                 formula
-                 |> Result.fromMaybe "malformed"
-                 |> Result.andThen (Semantics.verifySemantics knowledge)
-                 |> Result.map (always "assumed")
-             })
+    let (decoratedHead, lineno2, knowledge2) = decorateHead (0, lineno, (path, knowledge)) (List.reverse head)  -- << FIXME: reversed head
+        (decoratedBody, lineno3) = decorateBody (0, lineno2, (path, knowledge2)) body
+    in (ProofBlock (List.reverse decoratedHead) decoratedBody, lineno3)  -- << FIXME: reversed head
 
-        newKnowledge = knowledge ++ List.map ProofLine decoratedHead
-        newLineno = lineno + List.length head
-        (decoratedBody, lineno2) = decorateList_ (newLineno, path ++ [0], newKnowledge) body
+decorateHead : (Int, Lineno, (Path, Knowledge)) -> List String -> (List DecoratedLine, Lineno, Knowledge)
+decorateHead (idx, lineno, (pathStub, knowledge)) lines = case lines of
+  [] -> ([], lineno, knowledge)
+  lineText::restLines ->
+    let formula = Formula.parse lineText
+        decoratedLine =
+          { text = lineText
+          , formula = formula
+          , path = pathStub ++ [-idx-1]
+          , lineno = lineno
+          , justification =
+              formula
+              |> Result.fromMaybe "malformed"
+              |> Result.andThen (Semantics.verifySemantics knowledge)
+              |> Result.map (always "assumed")
+          }
+        (decoratedRest, lineno2, knowledge2) = restLines |> decorateHead (idx + 1, lineno + 1, (pathStub, knowledge ++ [ProofLine decoratedLine]))
+    in (decoratedLine :: decoratedRest, lineno2, knowledge2)
 
-    in (ProofBlock decoratedHead decoratedBody, lineno2)
-
-decorateList_ : (Lineno, Path, Knowledge) -> List (Proofy String) -> (List (Proofy DecoratedLine), Lineno)
-decorateList_ (lineno, path, knowledge) proofs = case proofs of
+decorateBody : (Int, Lineno, (Path, Knowledge)) -> List (Proofy String) -> (List (Proofy DecoratedLine), Lineno)
+decorateBody (idx, lineno, (pathStub, knowledge)) proofs = case proofs of
   [] -> ([], lineno)
-  head::rest ->
-    let (decoratedHead, lineno2) = decorate_ (lineno, path, knowledge) head
-        newKnowledge = knowledge ++ [decoratedHead]
-        (decoratedRest, lineno3) = decorateList_ (lineno2, naiveLinearSucc path, newKnowledge) rest
-    in (decoratedHead :: decoratedRest, lineno3)
-
-naiveLinearSucc : Path -> Path
-naiveLinearSucc path = case path of
-  [] -> []  -- GIGO, sorry
-  [idx] -> [idx + 1]
-  idx::idxs -> idx :: naiveLinearSucc idxs
+  first::rest ->
+    let (decoratedFirst, lineno2) = decorate_ (lineno, pathStub ++ [idx], knowledge) first
+        (decoratedRest, lineno3) = decorateBody (idx + 1, lineno2, (pathStub, knowledge ++ [decoratedFirst])) rest
+    in (decoratedFirst :: decoratedRest, lineno3)
