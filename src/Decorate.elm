@@ -5,7 +5,7 @@ import ListUtil
 import Path exposing (Path)
 import Proof exposing (Proofy(..))
 import Formula exposing (Formula)
-import Justify exposing (Lineno, Knowledge, DecoratedLine)
+import Semantics exposing (Lineno, Knowledge, DecoratedLine)
 
 decorate : Proofy String -> Proofy DecoratedLine
 decorate = decorate_ (1, [], []) >> Tuple.first
@@ -19,18 +19,30 @@ decorate_ (lineno, path, knowledge) proof = case proof of
           , formula = formula
           , path = path
           , lineno = lineno
-          , justification = formula |> Maybe.andThen (Justify.justify knowledge)
+          , justification =
+              formula
+              |> Result.fromMaybe "malformed"
+              |> Result.andThen (\justFormula ->
+              Semantics.verifySemantics knowledge justFormula
+              |> Result.andThen (\() ->
+              Semantics.justify knowledge justFormula
+              |> Result.fromMaybe "invalid"))
           }
     in (ProofLine decorated, (lineno + 1))
 
   ProofBlock head body ->
     let decoratedHead = head |> List.indexedMap (\idx text ->
-            { text = text
-            , formula = Formula.parse text
-            , path = path ++ [-idx-1]
-            , lineno = lineno + (List.length head - idx - 1)
-            , justification = Just "as"
-            })
+          let formula = Formula.parse text
+          in { text = text
+             , formula = Formula.parse text
+             , path = path ++ [-idx-1]
+             , lineno = lineno + (List.length head - idx - 1)
+             , justification =
+                 formula
+                 |> Result.fromMaybe "malformed"
+                 |> Result.andThen (Semantics.verifySemantics knowledge)
+                 |> Result.map (always "assumed")
+             })
 
         newKnowledge = knowledge ++ List.map ProofLine decoratedHead
         newLineno = lineno + List.length head

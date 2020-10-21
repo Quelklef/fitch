@@ -15,7 +15,7 @@ import Path exposing (Path)
 import Proof exposing (Proofy(..), RawProof)
 import Formula exposing (Formula)
 import Decorate
-import Justify
+import Semantics
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
 onKeydown : ({ keyCode : Int, shiftKey : Bool } ->  { msg : Message, preventDefault : Bool }) -> Attribute Message
@@ -208,7 +208,7 @@ view proof =
     , body = [html]
     }
 
-view_ : RawProof -> Proofy Justify.DecoratedLine -> Html Message
+view_ : RawProof -> Proofy Semantics.DecoratedLine -> Html Message
 view_ wholeProof proof = case proof of
   ProofLine { text, formula, path, lineno, justification } ->
     div []

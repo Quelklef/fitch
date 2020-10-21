@@ -1,5 +1,6 @@
-module Justify exposing (..)
+module Semantics exposing (..)
 
+import Set
 import List
 import Tuple
 
@@ -21,12 +22,41 @@ type alias DecoratedLine =
   , formula : Maybe Formula
   , path : Path
   , lineno : Lineno
-  , justification : Maybe String
+  , justification : Result String String
   }
+
+verifySemantics : Knowledge -> Formula -> Result String ()
+verifySemantics knowledge formula =
+  let semanticChecks =
+        [ checkNoUndeclaredFreeVars
+        , checkNotQuantifyingOverPropositions
+        ]
+  in case ListUtil.findMapM (\check -> check knowledge formula) semanticChecks of
+    Just err -> Err err
+    Nothing -> Ok ()
+
+-- vv Checks that all free variabless are declared
+checkNoUndeclaredFreeVars : Knowledge -> Formula -> Maybe String
+checkNoUndeclaredFreeVars knowledge formula =
+  Formula.freeObjectVars formula |> Set.toList |> ListUtil.findMapM (\varName ->
+    let isDeclared = knowledge |> List.any (\known -> case known of
+          ProofLine line -> case line.formula of
+            Just (Declaration declaredName) -> declaredName == varName
+            _ -> False
+          _ -> False)
+    in if isDeclared
+       then Nothing
+       else Just <| "'" ++ String.fromChar varName ++ "' is free")
+
+checkNotQuantifyingOverPropositions : Knowledge -> Formula -> Maybe String
+checkNotQuantifyingOverPropositions knowledge formula =
+  Nothing
+
+-- --
 
 justify : Knowledge -> Formula -> Maybe String
 justify knowledge goal =
-  let strategies =
+  let justificationStrategies =
         [ justifyReiteration
         , justifyConjunctionIntro
         , justifyConjunctionElim
@@ -47,7 +77,7 @@ justify knowledge goal =
         , justifyEqualityIntro
         , justifyEqualityElim
         ]
-  in strategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
+  in justificationStrategies |> ListUtil.findMapM (\strategy -> strategy knowledge goal)
 
 -- vv Gives a string representation of the range that a proof spans
 rangeOf : Proofy DecoratedLine -> String
