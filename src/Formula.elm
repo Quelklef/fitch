@@ -179,9 +179,16 @@ parseName = parseNameRaw >> Maybe.map (\(name, rest) -> (Name name, rest))
 
 parseApplication : Parser Token Formula
 parseApplication =
-  with parseNameRaw <| \predName ->
-  with (zeroPlus parseNameRaw) <| \varNames ->
-  return <| Application predName varNames
+  with parseNameRaw <| \head ->
+  with (zeroPlus parseNameRaw) <| \tail ->
+    return <| case head :: tail of
+      -- vv As a special rule, allow aRb to mean Rab
+      -- vv Works only on exactly 3 names in a row following pattern lowercase-uppercase-lowercase
+      [a, r, b] ->
+        if Char.isLower a && Char.isUpper r && Char.isLower b
+        then Application r [a, b]
+        else Application a [r, b]
+      _ -> Application head tail
 
 parseNegation : Parser Token Formula
 parseNegation = literal [TokNot] |> kThen (with (lazy (\() -> parseTop)) (return << Negation))

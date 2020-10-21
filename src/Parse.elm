@@ -20,7 +20,7 @@ withM valParser getParser =
       |> Maybe.andThen (\gotParser -> gotParser rest))
 
 with : Parser tok a -> (a -> Parser tok b) -> Parser tok b
-with valParser getLastParser = withM valParser (getLastParser >> Just)
+with valParser getParser = withM valParser (getParser >> Just)
 
 lazy : (() -> Parser tok a) -> Parser tok a
 lazy getParser tokens = (getParser ()) tokens
