@@ -26,7 +26,7 @@ onKeydown respond =
         tupleRespond = respond >> (\{ msg, preventDefault } -> (msg, preventDefault))
     in preventDefaultOn "keydown" (getInfo |> Json.andThen (\info -> Json.succeed <| tupleRespond info))
 
-main = Browser.document
+main = Browser.element
   { init = init
   , subscriptions = always Sub.none
   , update = update
@@ -215,13 +215,8 @@ doBackspaceAt_ path proof = case path of
         else Just newProof
       _ -> Just newProof)
 
-view : RawProof -> Browser.Document Message
-view proof =
-  let html = view_ proof (Decorate.decorate proof)
-  in
-    { title = "Fitch-Stlye Proof Helper"
-    , body = [html]
-    }
+view : RawProof -> Html Message
+view proof = view_ proof (Decorate.decorate proof)
 
 view_ : RawProof -> Proofy Semantics.DecoratedLine -> Html Message
 view_ wholeProof proof = case proof of
