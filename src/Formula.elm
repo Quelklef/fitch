@@ -274,8 +274,24 @@ parse = tokenize >> parseTokens
 
 -- --
 
-prettify : Bool -> String -> String
-prettify useUnicode = tokenize >> renderTokens >> TextStyle.map useUnicode
+prettifyText : Bool -> String -> String
+prettifyText useUnicode = tokenize >> renderTokens >> TextStyle.map useUnicode
+
+pretty : Formula -> String
+pretty formula = case formula of
+  Empty -> ""
+  Bottom -> "⊥"
+  Name name -> String.fromChar name
+  Declaration name -> "[" ++ String.fromChar name ++ "]"
+  Application name args -> String.fromChar name ++ String.join "" (List.map String.fromChar args)
+  Negation body -> "¬" ++ pretty body
+  Conjunction lhs rhs -> "(" ++ pretty lhs ++ ")∧(" ++ pretty rhs ++ ")"
+  Disjunction lhs rhs -> "(" ++ pretty lhs ++ ")∨(" ++ pretty rhs ++ ")"
+  Implication lhs rhs -> "(" ++ pretty lhs ++ ")→(" ++ pretty rhs ++ ")"
+  Biconditional lhs rhs -> "(" ++ pretty lhs ++ ")↔(" ++ pretty rhs ++ ")"
+  Forall name body -> "∀" ++ String.fromChar name ++ "(" ++ pretty body ++ ")"
+  Exists name body -> "∃" ++ String.fromChar name ++ "(" ++ pretty body ++ ")"
+  Equality lhs rhs -> String.fromChar lhs ++ "=" ++ String.fromChar rhs
 
 substitute : Char -> Char -> Formula -> Formula
 substitute from to formula =

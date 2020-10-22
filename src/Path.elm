@@ -8,6 +8,9 @@ import ListUtil
 import Types exposing (Proofy(..), Path)
 import Proof
 
+pretty : Path -> String
+pretty = List.map String.fromInt >> String.join " → "
+
 pathToLastLine : Proofy a -> Maybe Path
 pathToLastLine proof = case proof of
   ProofLine _ -> Just []

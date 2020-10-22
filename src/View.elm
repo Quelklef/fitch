@@ -94,7 +94,7 @@ viewProof depth model proof = case proof of
       [ span [ class "line:number" ] [ Html.text <| String.fromInt lineno ]
       , input
         [ class "line:input"
-        , value (Formula.prettify model.useUnicode text)
+        , value (Formula.prettifyText model.useUnicode text)
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)
@@ -104,8 +104,8 @@ viewProof depth model proof = case proof of
           Err err -> err ]
       , if model.showDebugInfo
         then let info =
-                   "path: " ++ Debug.toString path ++ "\n" ++
-                   "tree: " ++ Debug.toString formula
+                   "path: " ++ Path.pretty path ++ "\n" ++
+                   "formula: " ++ (formula |> Maybe.map Formula.pretty |> Maybe.withDefault "(invalid)")
              in pre [ class "line:debug-info" ] [ Html.text info ]
         else Html.text ""
       ]

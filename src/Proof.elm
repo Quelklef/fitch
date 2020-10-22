@@ -5,7 +5,7 @@ import Maybe exposing (Maybe)
 import ListUtil
 import MaybeUtil
 
-import Types exposing (Formula, Proofy(..))
+import Types exposing (Proofy(..))
 
 get : Int -> Proofy a -> Maybe (Proofy a)
 get idx proof =
