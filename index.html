@@ -6,13 +6,13 @@
 </head>
 <body>
 
-<div id="elm">
-</div>
+<div id="elm"><span></span></div>
 
 <script src="./main.js" charset="utf-8"></script>
+<script src="./input-fix.js"></script>
 <script>
 Elm.Main.init({
-  node: document.getElementById('elm')
+  node: document.getElementById('elm').firstChild
 });
 </script>
 

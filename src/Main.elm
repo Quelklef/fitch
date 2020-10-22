@@ -260,7 +260,7 @@ view_ depth model proof = case proof of
       [ span [ class "line:number" ] [ Html.text <| String.fromInt lineno ]
       , input
         [ class "line:input"
-        , value text
+        , value (Formula.prettify model.useUnicode text)
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)

@@ -7,6 +7,7 @@ import MaybeUtil
 import ListUtil
 
 import Parse exposing (..)
+import Symbols
 
 type Token
   = TokInvalid String  -- invalid syntax
@@ -26,8 +27,8 @@ type Token
   | TokEqual           -- equality
   | TokInequal         -- inequality
 
-render : List Token -> String
-render = String.join "" << List.map (\token -> case token of
+renderTokens : List Token -> String
+renderTokens = String.join "" << List.map (\token -> case token of
     TokInvalid text -> text
     TokIgnored text -> text
     TokOpen         -> "("
@@ -53,8 +54,19 @@ symbolMapping =
 
   , ( "→", TokIf )
   , ( "->", TokIf )
+  -- vv These two strange rule is required because, as the user types, we replace
+  -- vv what they're typing with a normalized unicode/ascii version. For instance, if
+  -- vv the user has typed "P-", intending to type "P->Q", it will be eagerly
+  -- vv replaced with "P¬" (if unicode is enabled) or "P~" (if it is not), since the
+  -- vv program tokenizes it as P NOT.
+  -- vv To Account for this, we need simply to include the following two rule.
+  , ( "¬>", TokIf )
+  , ( "~>", TokIf )
 
   , ( "↔", TokIff )
+  -- vv Similar deal here as with the "¬>" rule
+  , ( "<¬>", TokIff )
+  , ( "<~>", TokIff )
   , ( "<->", TokIff )
 
   , ( "⊥", TokBottom )
@@ -276,6 +288,9 @@ parse : String -> Maybe Formula
 parse = tokenize >> parseTokens
 
 -- --
+
+prettify : Bool -> String -> String
+prettify useUnicode = tokenize >> renderTokens >> Symbols.map useUnicode
 
 substitute : Char -> Char -> Formula -> Formula
 substitute from to formula =
