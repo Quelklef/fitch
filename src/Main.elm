@@ -4,9 +4,9 @@ import Browser
 import Browser.Dom as Dom
 import Task
 import Maybe exposing (Maybe)
-import Html exposing (Html, Attribute, button, div, span, text, input)
-import Html.Attributes exposing (value, class, id, style)
-import Html.Events exposing (onInput, keyCode, preventDefaultOn)
+import Html exposing (Html, Attribute, button, div, span, text, input, label, p, pre)
+import Html.Attributes exposing (value, class, id, style, type_, checked)
+import Html.Events exposing (onInput, keyCode, preventDefaultOn, onClick)
 import Json.Decode as Json
 
 import ListUtil
@@ -27,6 +27,20 @@ onKeydown respond =
         tupleRespond = respond >> (\{ msg, preventDefault } -> (msg, preventDefault))
     in preventDefaultOn "keydown" (getInfo |> Json.andThen (\info -> Json.succeed <| tupleRespond info))
 
+-- vv Modified from https://github.com/dwyl/learn-elm/blob/master/examples/checkboxes.elm
+checkbox : Bool -> msg -> String -> Html msg
+checkbox isChecked msg name =
+  label
+    [ ]
+    [ input [ type_ "checkbox", checked isChecked, onClick msg ] []
+    , text <| " " ++ name
+    ]
+
+type alias Model =
+  { proof : RawProof
+  , showDebugInfo : Bool
+  }
+
 main = Browser.element
   { init = init
   , subscriptions = always Sub.none
@@ -34,7 +48,7 @@ main = Browser.element
   , view = view
   }
 
-init : () -> (RawProof, Cmd m)
+init : () -> (Model, Cmd m)
 init =
   let proof = ProofBlock [ "" ]
         [ ProofBlock ["-ExPx"]
@@ -55,10 +69,11 @@ init =
             , ProofLine "#" ]
           , ProofLine "-ExPx" ]
         , ProofLine "(-ExPx)<->(Vx-Px)" ]
-  in always (proof, Cmd.none)
+  in always ({ proof = proof, showDebugInfo = False }, Cmd.none)
 
-type Message =
-  Noop
+type Message
+  = ToggleDebugMode
+  | Noop
   | SetFocusTo Path
   | SetFormulaAt Path String
   | NewLineAfter Path Bool
@@ -69,17 +84,20 @@ type Message =
 setFocusTo : Path -> Cmd Message
 setFocusTo path = Task.attempt (always Noop) (Dom.focus <| Path.toId path)
 
-update : Message -> RawProof -> (RawProof, Cmd Message)
-update msg proof =
-  let result = case msg of
-        Noop -> Nothing
-        SetFocusTo path -> Just (proof, setFocusTo path)
-        SetFormulaAt path newFormula -> doSetFormulaAt path newFormula proof
-        NewLineAfter path preferAssumption -> doNewLineAfter path preferAssumption proof
-        IndentAt path -> doIndentAt path proof
-        DedentAt path -> doDedentAt path proof
-        BackspaceAt path -> doBackspaceAt path proof
-  in result |> Maybe.withDefault (proof, Cmd.none)
+update : Message -> Model -> (Model, Cmd Message)
+update msg model =
+  let fromDo maybeResult = case maybeResult of
+        Just (newProof, cmd) -> ({ model | proof = newProof }, cmd)
+        Nothing -> (model, Cmd.none)
+  in case msg of
+    ToggleDebugMode -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
+    Noop -> (model, Cmd.none)
+    SetFocusTo path -> (model, setFocusTo path)
+    SetFormulaAt path newFormula       -> fromDo <| doSetFormulaAt path newFormula model.proof
+    NewLineAfter path preferAssumption -> fromDo <| doNewLineAfter path preferAssumption model.proof
+    IndentAt path                      -> fromDo <| doIndentAt path model.proof
+    DedentAt path                      -> fromDo <| doDedentAt path model.proof
+    BackspaceAt path                   -> fromDo <| doBackspaceAt path model.proof
 
 doSetFormulaAt : Path -> String -> RawProof -> Maybe (RawProof, Cmd Message)
 doSetFormulaAt path newFormula proof =
@@ -216,11 +234,17 @@ doBackspaceAt_ path proof = case path of
         else Just newProof
       _ -> Just newProof)
 
-view : RawProof -> Html Message
-view proof = view_ 0 proof (Decorate.decorate proof)
+view : Model -> Html Message
+view model =
+  let proof = view_ model.showDebugInfo 0 model.proof (Decorate.decorate model.proof)
+  in
+    div []
+    [ p [] [ checkbox model.showDebugInfo ToggleDebugMode "show debug info" ]
+    , proof
+    ]
 
-view_ : Int -> RawProof -> Proofy Semantics.DecoratedLine -> Html Message
-view_ depth wholeProof proof = case proof of
+view_ : Bool -> Int -> RawProof -> Proofy Semantics.DecoratedLine -> Html Message
+view_ showDebugInfo depth wholeProof proof = case proof of
   ProofLine { text, formula, path, lineno, justification } ->
     let isValid = justification |> Result.map (always True) |> Result.withDefault False
         isLastAssumption = Path.targetsLastAssumption wholeProof path
@@ -236,6 +260,12 @@ view_ depth wholeProof proof = case proof of
       , span [ class "line:justification" ] [ Html.text <| case justification of
           Ok justn -> justn
           Err err -> err ]
+      , if showDebugInfo
+        then let info =
+                   "path: " ++ Debug.toString path ++ "\n" ++
+                   "tree: " ++ Debug.toString formula
+             in pre [ class "line:debug-info" ] [ Html.text info ]
+        else Html.text ""
       ]
 
   ProofBlock head body ->
@@ -246,8 +276,8 @@ view_ depth wholeProof proof = case proof of
 
     in div ([ class "block" ] ++ blockStyle) <|
       List.append
-        (List.reverse (head |> List.map (ProofLine >> view_ (depth + 1) wholeProof)))
-        (body |> List.map (view_ (depth + 1) wholeProof))
+        (List.reverse (head |> List.map (ProofLine >> view_ showDebugInfo (depth + 1) wholeProof)))
+        (body |> List.map (view_ showDebugInfo (depth + 1) wholeProof))
 
 blockColors : List { borderColor: String, backgroundColor : String }
 blockColors =
