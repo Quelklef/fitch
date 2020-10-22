@@ -1,4 +1,4 @@
-module Symbols exposing (..)
+module TextStyle exposing (..)
 
 import String
 

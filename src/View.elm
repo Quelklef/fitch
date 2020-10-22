@@ -14,7 +14,7 @@ import Types exposing (Proofy(..), Path, Model, Message(..), DecoratedLine)
 import Proof
 import Path
 import Semantics
-import Symbols
+import TextStyle
 import Formula
 import Decorate
 
@@ -82,7 +82,7 @@ keyboardControlsHtml useUnicode =
   ]
   |> List.map (\{ keys, label } ->
     let keysHtml = keys |> ListUtil.flatMap (\key -> [ span [ class "key" ] [ text key ], text " " ])
-    in p [] ( keysHtml ++ [ text <| Symbols.map useUnicode label ] ))
+    in p [] ( keysHtml ++ [ text <| TextStyle.map useUnicode label ] ))
   |> div []
 
 viewProof : Int -> Model -> Proofy DecoratedLine -> Html Message
@@ -99,7 +99,7 @@ viewProof depth model proof = case proof of
         , onInput (SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)
         ] []
-      , span [ class "line:justification" ] [ (Html.text << Symbols.map model.useUnicode) <| case justification of
+      , span [ class "line:justification" ] [ (Html.text << TextStyle.map model.useUnicode) <| case justification of
           Ok justn -> justn
           Err err -> err ]
       , if model.showDebugInfo
@@ -360,8 +360,8 @@ rulesHtml useUnicode =
   , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["Pa", "[a]"] [ProofBlock ["a=b", "[b]"] [ProofLine "Pb"]] }
   ]
   |> makeExamples useUnicode
-  |> ListUtil.push (p [] [ text <| Symbols.map useUnicode "a≠b is treated as ¬(a=b)" ])
+  |> ListUtil.push (p [] [ text <| TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ])
   |> div []
 
 makeExamples useUnicode =
-  List.map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text <| Symbols.map useUnicode label ] ])
+  List.map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text <| TextStyle.map useUnicode label ] ])

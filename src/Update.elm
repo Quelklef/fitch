@@ -13,7 +13,7 @@ import Proof
 import Formula
 import Decorate
 import Semantics
-import Symbols
+import TextStyle
 
 setFocusTo : Path -> Cmd Message
 setFocusTo path = Task.attempt (always Noop) (Dom.focus <| Path.toId path)

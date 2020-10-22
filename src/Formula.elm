@@ -8,7 +8,7 @@ import ListUtil
 
 import Types exposing (Formula(..))
 import Parse exposing (..)
-import Symbols
+import TextStyle
 
 type Token
   = TokInvalid String  -- invalid syntax
@@ -275,7 +275,7 @@ parse = tokenize >> parseTokens
 -- --
 
 prettify : Bool -> String -> String
-prettify useUnicode = tokenize >> renderTokens >> Symbols.map useUnicode
+prettify useUnicode = tokenize >> renderTokens >> TextStyle.map useUnicode
 
 substitute : Char -> Char -> Formula -> Formula
 substitute from to formula =
