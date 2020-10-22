@@ -44,7 +44,8 @@ checkNotQuantifyingOverPropositions knowledge formula =
 justify : Knowledge -> Formula -> Maybe String
 justify knowledge goal =
   let justificationStrategies =
-        [ justifyReiteration
+        [ justifyEmpty
+        , justifyReiteration
         , justifyConjunctionIntro
         , justifyConjunctionElim
         , justifyDisjunctionIntro
@@ -103,6 +104,11 @@ blocks = List.filter (\known -> case known of
   _ -> False)
 
 -- --
+
+justifyEmpty : Strategy
+justifyEmpty knowledge goal = case goal of
+  Empty -> Just ""
+  _ -> Nothing
 
 justifyReiteration : Strategy
 justifyReiteration knowledge goal =
