@@ -76,6 +76,7 @@ symbolMapping =
   , ( "¬", TokNot )
   , ( "-", TokNot )
   , ( "~", TokNot )
+  , ( "!", TokNot )
 
   , ( "∧", TokAnd )
   , ( "&", TokAnd )

@@ -240,19 +240,49 @@ doBackspaceAt_ path proof = case path of
 
 view : Model -> Html Message
 view model =
-  let proof = view_ 0 model (Decorate.decorate model.proof)
+  let proof = viewProof 0 model (Decorate.decorate model.proof)
   in
-    div []
-    [ p [ class "options" ]
-      [ checkbox (not model.useUnicode) ToggleUseUnicode "force plain symbols"
-      , text " | "
-      , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
+    div [ id "wrap" ]
+    [ div [ id "left" ]
+      [ Html.h1 [] [ text "Fitch-Style Proof Helper" ]
+      , p [ class "options" ]
+        [ checkbox (not model.useUnicode) ToggleUseUnicode "force plain symbols"
+        , text " | "
+        , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
+        ]
+      , proof
       ]
-    , proof
+    , div [ id "right" ]
+      [ Html.h3 [] [ text "Usage" ]
+      , div [] [ keyboardControls model.useUnicode ]
+      ]
     ]
 
-view_ : Int -> Model -> Proofy Semantics.DecoratedLine -> Html Message
-view_ depth model proof = case proof of
+keyboardControls : Bool -> Html a
+keyboardControls useUnicode =
+  [ { keys = [".", "&", "*"], name = "conjunction (∧)" }
+  , { keys = ["|",  "v", "+"], name = "disjunction (∨)" }
+  , { keys = ["->"], name = "implication (→)" }
+  , { keys = ["-", "~", "!"], name = "negation (¬)" }
+  , { keys = ["_", "#"], name = "bottom (⊥)" }
+  , { keys = ["<->"], name = "biconditional (↔)" }
+  , { keys = ["\\", "V"], name = "forall (∀)" }
+  , { keys = ["E", "@"], name = "exists (∃)" }
+  , { keys = ["="], name = "equals (=)" }
+  , { keys = ["/="], name = "does not equal (≠)" }
+  , { keys = ["enter"], name = "new line" }
+  , { keys = ["shift+enter"], name = "additional assumption" }
+  , { keys = ["tab"], name = "up a block" }
+  , { keys = ["shift+tab"], name = "down a block" }
+  , { keys = ["alt+backspace"], name = "reset proof" }
+  ]
+  |> List.map (\{ keys, name } ->
+    let keysHtml = keys |> ListUtil.flatMap (\key -> [ span [ class "key" ] [ text key ], text " " ])
+    in p [] ( keysHtml ++ [ text <| Symbols.map useUnicode name ] ))
+  |> div []
+
+viewProof : Int -> Model -> Proofy Semantics.DecoratedLine -> Html Message
+viewProof depth model proof = case proof of
   ProofLine { text, formula, path, lineno, justification } ->
     let isValid = justification |> Result.map (always True) |> Result.withDefault False
         isLastAssumption = Path.targetsLastAssumption model.proof path
@@ -284,8 +314,8 @@ view_ depth model proof = case proof of
 
     in div ([ class "block" ] ++ blockStyle) <|
       List.append
-        (List.reverse (head |> List.map (ProofLine >> view_ (depth + 1) model)))
-        (body |> List.map (view_ (depth + 1) model))
+        (List.reverse (head |> List.map (ProofLine >> viewProof (depth + 1) model)))
+        (body |> List.map (viewProof (depth + 1) model))
 
 blockColors : List { borderColor: String, backgroundColor : String }
 blockColors =

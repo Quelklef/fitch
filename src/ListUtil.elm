@@ -83,3 +83,7 @@ modGet idx list =
   then Nothing
   else list |> get (modBy (List.length list) idx)
 
+flatMap : (a -> List b) -> List a -> List b
+flatMap mapper list = case list of
+  [] -> []
+  head::tail -> mapper head ++ flatMap mapper tail
