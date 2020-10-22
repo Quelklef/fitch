@@ -243,7 +243,7 @@ view model =
   let proof = view_ 0 model (Decorate.decorate model.proof)
   in
     div []
-    [ p []
+    [ p [ class "options" ]
       [ checkbox model.useUnicode ToggleUseUnicode "use unicode"
       , text " | "
       , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
