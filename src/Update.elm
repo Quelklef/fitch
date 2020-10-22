@@ -113,7 +113,7 @@ doDedentAt path proof =
   |> Maybe.andThen (\newProof ->
     let targetHasOnlyOneLine =
           ListUtil.init path
-          |> Path.into proof
+          |> (\thePath -> Proof.get thePath proof)
           |> Maybe.map (\block -> Proof.length block == 1)
           |> Maybe.withDefault False
         maybeNewPath =
@@ -133,7 +133,7 @@ doDedentAt_ path proof =
       ProofLine _ -> Nothing
       ProofBlock parentHead parentBody ->
         let parent = proof
-            maybeChild = Proof.get parentIdx parent
+            maybeChild = Proof.get [parentIdx] parent
             maybeChildLastLine = maybeChild |> Maybe.andThen Proof.lastLine
         in case (maybeChild, maybeChildLastLine) of
           (Just (ProofBlock childHead childBody), Just childLastLine) ->
@@ -179,7 +179,7 @@ doBackspaceAt_ path proof = case path of
     proof
     |> Proof.replaceM idx (\subproof -> doBackspaceAt_ idxs subproof)
     -- vv Don't leave behind an empty block
-    |> Maybe.andThen (\newProof -> case Proof.get idx newProof of
+    |> Maybe.andThen (\newProof -> case Proof.get [idx] newProof of
       Just (ProofBlock head body) ->
         if List.length head == 0 && List.length body == 0
         then Proof.remove idx newProof

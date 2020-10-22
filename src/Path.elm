@@ -20,7 +20,7 @@ pathToLastLine proof = case proof of
           else if List.length head > 0 then Just <| -(List.length head)
           else Nothing
     in maybeIdx
-      |> Maybe.andThen (\idx -> Proof.get idx proof
+      |> Maybe.andThen (\idx -> Proof.get [idx] proof
       |> Maybe.andThen (\subproof -> pathToLastLine subproof)
       |> Maybe.map (\pathTail -> idx :: pathTail))
 
@@ -33,7 +33,7 @@ pathToFirstLine proof = case proof of
           else if List.length body > 0 then Just 0
           else Nothing
     in maybeIdx
-      |> Maybe.andThen (\idx -> Proof.get idx proof
+      |> Maybe.andThen (\idx -> Proof.get [idx] proof
       |> Maybe.andThen (\subproof -> pathToFirstLine subproof)
       |> Maybe.map (\pathTail -> idx :: pathTail))
 
@@ -44,7 +44,7 @@ indexOfLastAssumption proof = case proof of
 
 targetsLine : Proofy a -> Int -> Bool
 targetsLine proof idx =
-  case Proof.get idx proof of
+  case Proof.get [idx] proof of
     Just (ProofLine _) -> True
     _ -> False
 
@@ -72,7 +72,7 @@ linearSucc proof path = case path of
     let
         -- vv Attempt to look for the result at the current idx
         hereAttempt =
-          Proof.get idx proof
+          Proof.get [idx] proof
           |> Maybe.andThen (\subproof -> linearSucc subproof idxs)
           |> Maybe.map (\pathTail -> idx :: pathTail)
 
@@ -82,7 +82,7 @@ linearSucc proof path = case path of
                 if targetsLastAssumption proof [idx] then 0
                 else if idx < 0 then idx - 1
                 else idx + 1
-          in Proof.get succIdx proof
+          in Proof.get [succIdx] proof
              |> Maybe.andThen (\subproof -> case subproof of
                ProofLine _ -> Just [succIdx]
                ProofBlock _ _ -> pathToFirstLine subproof |> Maybe.map (\pathTail -> succIdx :: pathTail))
@@ -98,7 +98,7 @@ linearPred proof path = case path of
   idx::idxs ->
     let
         hereAttempt =
-          Proof.get idx proof
+          Proof.get [idx] proof
           |> Maybe.andThen (\subproof -> linearPred subproof idxs)
           |> Maybe.map (\pathTail -> idx :: pathTail)
 
@@ -109,7 +109,7 @@ linearPred proof path = case path of
                 else if idx < 0 then Just <| idx + 1
                 else Just <| idx - 1
           in maybePredIdx
-             |> Maybe.andThen (\predIdx -> Proof.get predIdx proof
+             |> Maybe.andThen (\predIdx -> Proof.get [predIdx] proof
              |> Maybe.andThen (\subproof -> case subproof of
                ProofLine _ -> Just [predIdx]
                ProofBlock _ _ -> pathToLastLine subproof |> Maybe.map (\pathTail -> predIdx :: pathTail)))
@@ -128,7 +128,7 @@ targetsFirstAssumption proof path = case path of
     ProofLine _ -> False
     ProofBlock head body -> idx == -(List.length head)
   idx::idxs ->
-    Proof.get idx proof
+    Proof.get [idx] proof
     |> Maybe.map (\subproof -> targetsFirstAssumption subproof idxs)
     |> Maybe.withDefault False
 
@@ -139,7 +139,7 @@ targetsLastAssumption proof path = case path of
     ProofLine _ -> False
     ProofBlock head _ -> idx == -(List.length head)
   idx::idxs ->
-    Proof.get idx proof
+    Proof.get [idx] proof
     |> Maybe.map (\subproof -> targetsLastAssumption subproof idxs)
     |> Maybe.withDefault False
 
@@ -152,17 +152,12 @@ targetsLastLine proof path = case path of
       List.length body == 0 && idx == -(List.length head)
       || idx == List.length body - 1
   idx::idxs ->
-    Proof.get idx proof
+    Proof.get [idx] proof
     |> Maybe.map (\subproof -> targetsLastLine subproof idxs)
     |> Maybe.withDefault False
 
-into : Proofy a -> Path -> Maybe (Proofy a)
-into proof path = case path of
-  [] -> Just proof
-  idx::idxs -> Proof.get idx proof |> Maybe.andThen (\subproof -> into subproof idxs)
-
 targetsEmptyLine : Proofy String -> Path -> Bool
-targetsEmptyLine proof path = case into proof path of
+targetsEmptyLine proof path = case Proof.get path proof of
   Just (ProofLine "") -> True
   _ -> False
 

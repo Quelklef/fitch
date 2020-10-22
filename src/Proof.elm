@@ -7,14 +7,19 @@ import MaybeUtil
 
 import Types exposing (Proofy(..), Path)
 
-get : Int -> Proofy a -> Maybe (Proofy a)
-get idx proof =
-  case proof of
-    ProofLine _ -> Nothing
-    ProofBlock head body ->
-      if idx >= 0 then ListUtil.get idx body
-      else ListUtil.get (-idx-1) head
-        |> Maybe.map (\formula -> ProofLine formula)
+get : Path -> Proofy a -> Maybe (Proofy a)
+get path proof = case path of
+  [] -> Just proof
+  idx::idxs ->
+    case proof of
+      ProofLine _ -> Nothing
+      ProofBlock head body ->
+        if idx >= 0
+        then ListUtil.get idx body
+             |> Maybe.andThen (get idxs)
+        else ListUtil.get (-idx-1) head
+             |> Maybe.map (\formula -> ProofLine formula)
+             |> Maybe.andThen (\subproof -> get idxs subproof)
 
 set : Int -> Proofy a -> Proofy a -> Maybe (Proofy a)
 set idx subproof proof =
