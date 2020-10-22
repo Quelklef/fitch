@@ -17,6 +17,7 @@ import Proof exposing (Proofy(..), RawProof)
 import Formula exposing (Formula)
 import Decorate
 import Semantics
+import Symbols
 
 -- vv Modified from https://stackoverflow.com/a/41072936/4608364 and https://stackoverflow.com/a/61734163/4608364
 onKeydown : ({ keyCode : Int, shiftKey : Bool } ->  { msg : Message, preventDefault : Bool }) -> Attribute Message
@@ -39,6 +40,7 @@ checkbox isChecked msg name =
 type alias Model =
   { proof : RawProof
   , showDebugInfo : Bool
+  , useUnicode : Bool
   }
 
 main = Browser.element
@@ -69,10 +71,11 @@ init =
             , ProofLine "#" ]
           , ProofLine "-ExPx" ]
         , ProofLine "(-ExPx)<->(Vx-Px)" ]
-  in always ({ proof = proof, showDebugInfo = False }, Cmd.none)
+  in always ({ proof = proof, showDebugInfo = False, useUnicode = True }, Cmd.none)
 
 type Message
   = ToggleDebugMode
+  | ToggleUseUnicode
   | Noop
   | SetFocusTo Path
   | SetFormulaAt Path String
@@ -91,6 +94,7 @@ update msg model =
         Nothing -> (model, Cmd.none)
   in case msg of
     ToggleDebugMode -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
+    ToggleUseUnicode -> ({ model | useUnicode = not model.useUnicode }, Cmd.none)
     Noop -> (model, Cmd.none)
     SetFocusTo path -> (model, setFocusTo path)
     SetFormulaAt path newFormula       -> fromDo <| doSetFormulaAt path newFormula model.proof
@@ -236,18 +240,22 @@ doBackspaceAt_ path proof = case path of
 
 view : Model -> Html Message
 view model =
-  let proof = view_ model.showDebugInfo 0 model.proof (Decorate.decorate model.proof)
+  let proof = view_ 0 model (Decorate.decorate model.proof)
   in
     div []
-    [ p [] [ checkbox model.showDebugInfo ToggleDebugMode "show debug info" ]
+    [ p []
+      [ checkbox model.useUnicode ToggleUseUnicode "use unicode"
+      , text " | "
+      , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
+      ]
     , proof
     ]
 
-view_ : Bool -> Int -> RawProof -> Proofy Semantics.DecoratedLine -> Html Message
-view_ showDebugInfo depth wholeProof proof = case proof of
+view_ : Int -> Model -> Proofy Semantics.DecoratedLine -> Html Message
+view_ depth model proof = case proof of
   ProofLine { text, formula, path, lineno, justification } ->
     let isValid = justification |> Result.map (always True) |> Result.withDefault False
-        isLastAssumption = Path.targetsLastAssumption wholeProof path
+        isLastAssumption = Path.targetsLastAssumption model.proof path
     in div [ class <| "line" ++ StringUtil.if_ (not isValid) " --invalid" ++ StringUtil.if_ isLastAssumption " --last-assumption" ]
       [ span [ class "line:number" ] [ Html.text <| String.fromInt lineno ]
       , input
@@ -255,12 +263,12 @@ view_ showDebugInfo depth wholeProof proof = case proof of
         , value text
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
-        , onKeydown (lineOnKeydown wholeProof path)
+        , onKeydown (lineOnKeydown model.proof path)
         ] []
-      , span [ class "line:justification" ] [ Html.text <| case justification of
+      , span [ class "line:justification" ] [ (Html.text << Symbols.map model.useUnicode) <| case justification of
           Ok justn -> justn
           Err err -> err ]
-      , if showDebugInfo
+      , if model.showDebugInfo
         then let info =
                    "path: " ++ Debug.toString path ++ "\n" ++
                    "tree: " ++ Debug.toString formula
@@ -276,8 +284,8 @@ view_ showDebugInfo depth wholeProof proof = case proof of
 
     in div ([ class "block" ] ++ blockStyle) <|
       List.append
-        (List.reverse (head |> List.map (ProofLine >> view_ showDebugInfo (depth + 1) wholeProof)))
-        (body |> List.map (view_ showDebugInfo (depth + 1) wholeProof))
+        (List.reverse (head |> List.map (ProofLine >> view_ (depth + 1) model)))
+        (body |> List.map (view_ (depth + 1) model))
 
 blockColors : List { borderColor: String, backgroundColor : String }
 blockColors =
