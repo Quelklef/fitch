@@ -59,11 +59,15 @@ type alias Lineno = Int
 -- vv A 'context' or 'scope' of all the proofs available for a particular line to use in justification
 type alias Knowledge = List (Proofy DecoratedLine)
 
+-- vv To fix a circular type aliasing issue
+type KnowledgeBox = KnowledgeBox Knowledge
+
 -- vv A proof line, decorated with a bunch of extra info
 type alias DecoratedLine =
   { text : String
   , formula : Maybe Formula
   , path : Path
   , lineno : Lineno
+  , knowledge : KnowledgeBox
   , justification : Result String String
   }

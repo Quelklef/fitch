@@ -2,7 +2,7 @@ module Decorate exposing (..)
 
 import ListUtil
 
-import Types exposing (Proofy(..), Path, Formula, Lineno, Knowledge, DecoratedLine)
+import Types exposing (Proofy(..), Path, Formula, Lineno, Knowledge, KnowledgeBox(..), DecoratedLine)
 import Path
 import Proof
 import Formula
@@ -20,6 +20,7 @@ decorate_ (lineno, path, knowledge) proof = case proof of
           , formula = formula
           , path = path
           , lineno = lineno
+          , knowledge = KnowledgeBox knowledge
           , justification =
               formula
               |> Result.fromMaybe "malformed"
@@ -46,6 +47,7 @@ decorateHead (idx, lineno, (pathStub, knowledge)) lines = case lines of
           , formula = formula
           , path = pathStub ++ [-idx-1]
           , lineno = lineno
+          , knowledge = KnowledgeBox knowledge
           , justification =
               formula
               |> Result.fromMaybe "malformed"

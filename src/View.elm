@@ -10,7 +10,7 @@ import Json.Decode as Json
 import ListUtil
 import StringUtil
 
-import Types exposing (Proofy(..), Path, Model, Message(..), DecoratedLine)
+import Types exposing (Proofy(..), Path, Model, Message(..), DecoratedLine, KnowledgeBox(..))
 import Proof
 import Path
 import Semantics
@@ -87,7 +87,7 @@ keyboardControlsHtml useUnicode =
 
 viewProof : Int -> Model -> Proofy DecoratedLine -> Html Message
 viewProof depth model proof = case proof of
-  ProofLine { text, formula, path, lineno, justification } ->
+  ProofLine { text, formula, path, lineno, knowledge, justification } ->
     let isValid = justification |> Result.map (always True) |> Result.withDefault False
         isLastAssumption = Path.targetsLastAssumption model.proof path
     in div [ class <| "line" ++ StringUtil.if_ (not isValid) " --invalid" ++ StringUtil.if_ isLastAssumption " --last-assumption" ]
@@ -105,7 +105,8 @@ viewProof depth model proof = case proof of
       , if model.showDebugInfo
         then let info =
                    "path: " ++ Path.pretty path ++ "\n" ++
-                   "formula: " ++ (formula |> Maybe.map Formula.pretty |> Maybe.withDefault "(invalid)")
+                   "formula: " ++ (formula |> Maybe.map Formula.pretty |> Maybe.withDefault "(invalid)") ++ "\n" ++
+                   "knowledge: " ++ prettifyKnowledge knowledge
              in pre [ class "line:debug-info" ] [ Html.text info ]
         else Html.text ""
       ]
@@ -120,6 +121,20 @@ viewProof depth model proof = case proof of
       List.append
         (List.reverse (head |> List.map (ProofLine >> viewProof (depth + 1) model)))
         (body |> List.map (viewProof (depth + 1) model))
+
+prettifyKnowledge : KnowledgeBox -> String
+prettifyKnowledge (KnowledgeBox knowledge) =
+  knowledge
+  |> List.map (\known -> case known of
+    ProofLine line ->
+      String.fromInt line.lineno ++ "."
+      ++ (line.formula
+      |> Maybe.map Formula.pretty
+      |> Maybe.withDefault "??")
+    ProofBlock _ _ ->
+      let prettifyLine = Maybe.map .lineno >> Maybe.map String.fromInt >> Maybe.withDefault "??"
+      in (Proof.firstLine known |> prettifyLine) ++ ".." ++ (Proof.lastLine known |> prettifyLine))
+  |> String.join " and "
 
 blockColors : List { borderColor: String, backgroundColor : String }
 blockColors =
