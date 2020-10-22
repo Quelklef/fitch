@@ -188,7 +188,7 @@ parseApplication =
       _ -> Application head tail
 
 parseNegation : Parser Token Formula
-parseNegation = literal [TokNot] |> kThen (with (lazy (\() -> parseTop)) (return << Negation))
+parseNegation = literal [TokNot] |> kThen (with (lazy (\() -> parseNonBinOp)) (return << Negation))
 
 parseParenthesized : Parser Token Formula
 parseParenthesized =
@@ -207,31 +207,6 @@ parseBinOp opToken lhsParser rhsParser makeResult =
 parseEquality = parseBinOp TokEqual parseNameRaw parseNameRaw Equality
 parseInequality = parseBinOp TokInequal parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
 
-parseSimple : Parser Token Formula
-parseSimple =
-  parseBottom
-  |> or parseNegation
-  |> or parseEquality
-  |> or parseInequality
-  |> or parseParenthesized
-  |> or parseApplication
-  |> or parseDeclaration
-
-parseBinOpWithFallthrough : tok -> Parser tok res -> (res -> res -> res) -> Parser tok res
-parseBinOpWithFallthrough opToken innerParser makeResult =
-  with innerParser (\lhs ->
-  with peekOne (\operator ->
-  if operator /= Just opToken
-  then return lhs
-  else takeOne
-       |> kThen (with innerParser <| \rhs ->
-       return (makeResult lhs rhs))))
-
-parseConjunction = parseBinOpWithFallthrough TokAnd parseSimple Conjunction
-parseDisjunction = parseBinOpWithFallthrough TokOr parseConjunction Disjunction
-parseImplication = parseBinOpWithFallthrough TokIf parseDisjunction Implication
-parseBiconditional = parseBinOpWithFallthrough TokIff parseImplication Biconditional
-
 parseForall =
   literal [TokForall]
   |> kThen (with parseNameRaw <| \name ->
@@ -244,13 +219,38 @@ parseExists =
   with parseTop <| \body ->
   return (Exists name body))
 
+parseNonBinOp : Parser Token Formula
+parseNonBinOp =
+  parseBottom
+  |> or parseNegation
+  |> or parseEquality
+  |> or parseInequality
+  |> or parseParenthesized
+  |> or parseApplication
+  |> or parseDeclaration
+  |> or parseForall
+  |> or parseExists
+
+parseBinOpWithFallthrough : tok -> Parser tok res -> (res -> res -> res) -> Parser tok res
+parseBinOpWithFallthrough opToken innerParser makeResult =
+  with innerParser (\lhs ->
+  with peekOne (\operator ->
+  if operator /= Just opToken
+  then return lhs
+  else takeOne
+       |> kThen (with innerParser <| \rhs ->
+       return (makeResult lhs rhs))))
+
+parseConjunction = parseBinOpWithFallthrough TokAnd parseNonBinOp Conjunction
+parseDisjunction = parseBinOpWithFallthrough TokOr parseConjunction Disjunction
+parseImplication = parseBinOpWithFallthrough TokIf parseDisjunction Implication
+parseBiconditional = parseBinOpWithFallthrough TokIff parseImplication Biconditional
+
 parseEmpty = eof |> kThen (return Empty)
 
 parseTop =
   parseEmpty
   |> or parseBiconditional
-  |> or parseForall
-  |> or parseExists
 
 parseTokens : List Token -> Maybe Formula
 parseTokens tokens =
@@ -284,7 +284,7 @@ pretty formula = case formula of
   Name name -> String.fromChar name
   Declaration name -> "[" ++ String.fromChar name ++ "]"
   Application name args -> String.fromChar name ++ String.join "" (List.map String.fromChar args)
-  Negation body -> "¬" ++ pretty body
+  Negation body -> "¬(" ++ pretty body ++ ")"
   Conjunction lhs rhs -> "(" ++ pretty lhs ++ ")∧(" ++ pretty rhs ++ ")"
   Disjunction lhs rhs -> "(" ++ pretty lhs ++ ")∨(" ++ pretty rhs ++ ")"
   Implication lhs rhs -> "(" ++ pretty lhs ++ ")→(" ++ pretty rhs ++ ")"
