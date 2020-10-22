@@ -105,8 +105,8 @@ viewProof depth model proof = case proof of
       , if model.showDebugInfo
         then let info =
                    "path: " ++ Path.pretty path ++ "\n" ++
-                   "formula: " ++ (formula |> Maybe.map Formula.pretty |> Maybe.withDefault "(invalid)") ++ "\n" ++
-                   "knowledge: " ++ prettifyKnowledge knowledge
+                   "formula: " ++ (formula |> Maybe.map (Formula.pretty >> TextStyle.map model.useUnicode) |> Maybe.withDefault "(invalid)") ++ "\n" ++
+                   "knowledge: " ++ prettifyKnowledge knowledge |> TextStyle.map model.useUnicode
              in pre [ class "line:debug-info" ] [ Html.text info ]
         else Html.text ""
       ]
@@ -132,8 +132,8 @@ prettifyKnowledge (KnowledgeBox knowledge) =
       |> Maybe.map Formula.pretty
       |> Maybe.withDefault "??")
     ProofBlock _ _ ->
-      let prettifyLine = Maybe.map .lineno >> Maybe.map String.fromInt >> Maybe.withDefault "??"
-      in (Proof.firstLine known |> prettifyLine) ++ ".." ++ (Proof.lastLine known |> prettifyLine))
+      let getLineNo = Maybe.map .lineno >> Maybe.map String.fromInt >> Maybe.withDefault "??"
+      in (Proof.firstLine known |> getLineNo) ++ ".." ++ (Proof.lastLine known |> getLineNo))
   |> String.join " and "
 
 blockColors : List { borderColor: String, backgroundColor : String }
