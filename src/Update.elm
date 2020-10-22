@@ -48,6 +48,16 @@ doSetFormulaAt_ path newFormula proof =
       ProofLine  oldFormula -> Just (ProofLine newFormula)
     idx::idxs -> Proof.replaceM idx (\subproof -> doSetFormulaAt_ idxs newFormula subproof) proof
 
+doNewLineAfter : Path -> Bool -> Proofy String -> Maybe (Proofy String, Cmd Message)
+doNewLineAfter path preferAssumption proof =
+  doNewLineAfter_ path preferAssumption proof
+  |> Maybe.andThen (\newProof ->
+    Path.linearSucc newProof path
+    |> Maybe.map (\newPath -> (newProof, setFocusTo newPath)))
+
+doNewLineAfter_ : Path -> Bool -> Proofy String -> Maybe (Proofy String)
+doNewLineAfter_ path preferAssumption proof = proof_insertAfter preferAssumption path "" proof
+
 -- vv If the given path targets a ProofLine, rather than a ProofBlock, then
 -- vv inserts a new line after that targeted line.
 -- vv If the targeted line is in the proof body, the inserted line will also
@@ -59,40 +69,30 @@ doSetFormulaAt_ path newFormula proof =
 -- vv assumption (ie it's the last assumption), then the inserted line will
 -- vv be an assumption if and only if `preferAssumption` is true; otherwise,
 -- vv it will be a body line.
-doNewLineAfter : Path -> Bool -> Proofy String -> Maybe (Proofy String, Cmd Message)
-doNewLineAfter path preferAssumption proof =
-  doNewLineAfter_ path preferAssumption proof
-  |> Maybe.andThen (\newProof ->
-    Path.linearSucc newProof path
-    |> Maybe.map (\newPath -> (newProof, setFocusTo newPath)))
-
-doNewLineAfter_ : Path -> Bool -> Proofy String -> Maybe (Proofy String)
-doNewLineAfter_ path preferAssumption proof =
+proof_insertAfter : Bool -> Path -> a -> Proofy a -> Maybe (Proofy a)
+proof_insertAfter preferAssumption path line host =
   case path of
     [] -> Nothing
 
     [idx] ->
-      case proof of
+      case host of
         ProofLine _ -> Nothing
         ProofBlock head body ->
-
           -- vv Index targets last assumption
-          if Path.targetsLastAssumption proof [idx] then
+          if Path.targetsLastAssumption host [idx] then
             if preferAssumption
-            then Just <| ProofBlock ("" :: head) body
-            else Just <| ProofBlock head (ProofLine "" :: body)
-
+            then Just <| ProofBlock (line :: head) body
+            else Just <| ProofBlock head (ProofLine line :: body)
           -- vv Index targets an assumption that is not the last one
           else if idx < 0 then
-            ListUtil.insert (-idx-1) "" head
+            ListUtil.insert (-idx-1) line head
             |> Maybe.map (\newHead -> ProofBlock newHead body)
-
           -- vv Index targets a body line
           else
-            ListUtil.insert (idx + 1) (ProofLine "") body
+            ListUtil.insert (idx + 1) (ProofLine line) body
             |> Maybe.map (\newBody -> ProofBlock head newBody)
 
-    idx::idxs -> Proof.replaceM idx (\subproof -> doNewLineAfter_ idxs preferAssumption subproof) proof
+    idx::idxs -> Proof.replaceM idx (proof_insertAfter preferAssumption idxs line) host
 
 doIndentAt : Path -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doIndentAt path proof =
@@ -110,27 +110,47 @@ doIndentAt_ path proof =
 doDedentAt : Path -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doDedentAt path proof =
   doDedentAt_ path proof
-  |> Maybe.map (\newProof -> (newProof, setFocusTo <| ListUtil.dropLast path))
+  |> Maybe.andThen (\newProof ->
+    let targetHasOnlyOneLine =
+          ListUtil.init path
+          |> Path.into proof
+          |> Maybe.map (\block -> Proof.length block == 1)
+          |> Maybe.withDefault False
+        maybeNewPath =
+          if targetHasOnlyOneLine
+          then ListUtil.dropLast path |> Just
+          else path |> Path.linearPred proof |> Maybe.andThen (Path.linearSucc newProof)
+    in maybeNewPath
+       |> Maybe.map (\newPath -> (newProof, setFocusTo <| newPath)))
 
 doDedentAt_ : Path -> Proofy String -> Maybe (Proofy String)
 doDedentAt_ path proof =
   case path of
     [] -> Nothing
+    [idx] -> Nothing
 
-    [idx] -> case proof of
+    [parentIdx, childIdx] -> case proof of
       ProofLine _ -> Nothing
-      ProofBlock head body ->
-        -- We allow dedenting a block back to a line only if:
-        let dedentOk =
-              -- vv The block has only one assumption
-              List.length head == 1
-              -- vv The dedent is targeting the assumption
-              && idx == -0-1
-              -- vv The block body is empty
-              && List.length body == 0
-        in
-          if dedentOk then ListUtil.get 0 head |> Maybe.map ProofLine
-          else Nothing
+      ProofBlock parentHead parentBody ->
+        let parent = proof
+            maybeChild = Proof.get parentIdx parent
+            maybeChildLastLine = maybeChild |> Maybe.andThen Proof.lastLine
+        in case (maybeChild, maybeChildLastLine) of
+          (Just (ProofBlock childHead childBody), Just childLastLine) ->
+             let child = ProofBlock childHead childBody
+                 childHasOnlyOneLine = List.length childHead + List.length childBody == 1
+                 targetsLastLine = Path.targetsLastLine child [childIdx]
+             -- vv Allow dedenting a line only if it targets the last line of the proof
+             in if not targetsLastLine then Nothing
+                -- vv If only one line, collapse it down into parent proof
+                else if childHasOnlyOneLine then Proof.replace parentIdx (always (ProofLine childLastLine)) parent
+                -- vv If more than one line, need to collapse the last line
+                -- vv down but leave the rest of the block intact
+                else let newChild = Proof.remove childIdx child
+                     in parent
+                        |> Proof.replaceM parentIdx (always newChild)
+                        |> Maybe.andThen (proof_insertAfter False [parentIdx] childLastLine)
+          _ -> Nothing
 
     idx::idxs -> Proof.replaceM idx (\subproof -> doDedentAt_ idxs subproof) proof
 

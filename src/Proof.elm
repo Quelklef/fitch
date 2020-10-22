@@ -5,7 +5,7 @@ import Maybe exposing (Maybe)
 import ListUtil
 import MaybeUtil
 
-import Types exposing (Proofy(..))
+import Types exposing (Proofy(..), Path)
 
 get : Int -> Proofy a -> Maybe (Proofy a)
 get idx proof =
@@ -84,3 +84,11 @@ replaceM idx mapper proof =
           ProofLine newLine -> ListUtil.set (-idx-1) newLine head
           ProofBlock _ _ -> Nothing)
         |> Maybe.map (\newHead -> ProofBlock newHead body)
+
+replace : Int -> (Proofy a -> Proofy a) -> Proofy a -> Maybe (Proofy a)
+replace idx mapper = replaceM idx (mapper >> Just)
+
+length : Proofy a -> Int
+length proof = case proof of
+  ProofLine _ -> 1
+  ProofBlock head body -> List.length head + List.length body

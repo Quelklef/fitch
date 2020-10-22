@@ -90,3 +90,9 @@ flatMap mapper list = case list of
 
 push : a -> List a -> List a
 push x xs = xs ++ [x]
+
+init : List a -> List a
+init list = case list of
+  [] -> []
+  [a, b] -> [a]
+  x::xs -> x :: init xs

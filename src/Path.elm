@@ -143,6 +143,19 @@ targetsLastAssumption proof path = case path of
     |> Maybe.map (\subproof -> targetsLastAssumption subproof idxs)
     |> Maybe.withDefault False
 
+targetsLastLine : Proofy a -> Path -> Bool
+targetsLastLine proof path = case path of
+  [] -> False
+  [idx] -> case proof of
+    ProofLine _ -> False
+    ProofBlock head body ->
+      List.length body == 0 && idx == -(List.length head)
+      || idx == List.length body - 1
+  idx::idxs ->
+    Proof.get idx proof
+    |> Maybe.map (\subproof -> targetsLastLine subproof idxs)
+    |> Maybe.withDefault False
+
 into : Proofy a -> Path -> Maybe (Proofy a)
 into proof path = case path of
   [] -> Just proof
