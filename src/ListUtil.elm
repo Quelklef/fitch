@@ -87,3 +87,6 @@ flatMap : (a -> List b) -> List a -> List b
 flatMap mapper list = case list of
   [] -> []
   head::tail -> mapper head ++ flatMap mapper tail
+
+push : a -> List a -> List a
+push x xs = xs ++ [x]

@@ -4,8 +4,8 @@ import Browser
 import Browser.Dom as Dom
 import Task
 import Maybe exposing (Maybe)
-import Html exposing (Html, Attribute, button, div, span, text, input, label, p, pre)
-import Html.Attributes exposing (value, class, id, style, type_, checked)
+import Html exposing (Html, Attribute, button, div, span, text, input, label, p, pre, a)
+import Html.Attributes exposing (value, class, id, style, type_, checked, href, target)
 import Html.Events exposing (onInput, keyCode, preventDefaultOn, onClick)
 import Json.Decode as Json
 
@@ -76,6 +76,7 @@ init =
 type Message
   = ToggleDebugMode
   | ToggleUseUnicode
+  | SetProofTo RawProof
   | Noop
   | SetFocusTo Path
   | SetFormulaAt Path String
@@ -95,6 +96,7 @@ update msg model =
   in case msg of
     ToggleDebugMode -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
     ToggleUseUnicode -> ({ model | useUnicode = not model.useUnicode }, Cmd.none)
+    SetProofTo newProof -> ({ model | proof = newProof }, Cmd.none)
     Noop -> (model, Cmd.none)
     SetFocusTo path -> (model, setFocusTo path)
     SetFormulaAt path newFormula       -> fromDo <| doSetFormulaAt path newFormula model.proof
@@ -254,32 +256,248 @@ view model =
       ]
     , div [ id "right" ]
       [ Html.h3 [] [ text "Usage" ]
-      , div [] [ keyboardControls model.useUnicode ]
+      , keyboardControlsHtml model.useUnicode
+      , Html.h3 [] [ text "Examples" ]
+      , examplesHtml model.useUnicode
+      , Html.h3 [] [ text "Rules (click for example)" ]
+      , rulesHtml model.useUnicode
+      , Html.h3 [] [ text "Github" ]
+      , p [] [ a [ target "_blank", href "https://github.com/quelklef/fitch" ] [ text "Github" ] ]
       ]
     ]
 
-keyboardControls : Bool -> Html a
-keyboardControls useUnicode =
-  [ { keys = [".", "&", "*"], name = "conjunction (∧)" }
-  , { keys = ["|",  "v", "+"], name = "disjunction (∨)" }
-  , { keys = ["->"], name = "implication (→)" }
-  , { keys = ["-", "~", "!"], name = "negation (¬)" }
-  , { keys = ["_", "#"], name = "bottom (⊥)" }
-  , { keys = ["<->"], name = "biconditional (↔)" }
-  , { keys = ["\\", "V"], name = "forall (∀)" }
-  , { keys = ["E", "@"], name = "exists (∃)" }
-  , { keys = ["="], name = "equals (=)" }
-  , { keys = ["/="], name = "does not equal (≠)" }
-  , { keys = ["enter"], name = "new line" }
-  , { keys = ["shift+enter"], name = "additional assumption" }
-  , { keys = ["tab"], name = "up a block" }
-  , { keys = ["shift+tab"], name = "down a block" }
-  , { keys = ["alt+backspace"], name = "reset proof" }
+keyboardControlsHtml : Bool -> Html a
+keyboardControlsHtml useUnicode =
+  [ { keys = [".", "&", "*"], label = "conjunction (∧)" }
+  , { keys = ["|",  "v", "+"], label = "disjunction (∨)" }
+  , { keys = ["->"], label = "implication (→)" }
+  , { keys = ["-", "~", "!"], label = "negation (¬)" }
+  , { keys = ["_", "#"], label = "bottom (⊥)" }
+  , { keys = ["<->"], label = "biconditional (↔)" }
+  , { keys = ["\\", "V"], label = "forall (∀)" }
+  , { keys = ["E", "@"], label = "exists (∃)" }
+  , { keys = ["="], label = "equals (=)" }
+  , { keys = ["/="], label = "does not equal (≠)" }
+  , { keys = ["enter"], label = "new line" }
+  , { keys = ["shift+enter"], label = "additional assumption" }
+  , { keys = ["tab"], label = "up a block" }
+  , { keys = ["shift+tab"], label = "down a block" }
+  , { keys = ["alt+backspace"], label = "reset proof" }
   ]
-  |> List.map (\{ keys, name } ->
+  |> List.map (\{ keys, label } ->
     let keysHtml = keys |> ListUtil.flatMap (\key -> [ span [ class "key" ] [ text key ], text " " ])
-    in p [] ( keysHtml ++ [ text <| Symbols.map useUnicode name ] ))
+    in p [] ( keysHtml ++ [ text <| Symbols.map useUnicode label ] ))
   |> div []
+
+examplesHtml : Bool -> Html Message
+examplesHtml useUnicode =
+  [ { label = "DeMorgan's Law (∨)", proof =
+        ProofBlock
+        [ "" ]
+        [ ProofBlock
+          [ "-(P|Q)" ]
+          [ ProofBlock
+            [ "P" ]
+            [ ProofLine "P|Q"
+            , ProofLine "(P|Q).-(P|Q)"
+            , ProofLine "#"
+            ]
+          , ProofLine "-P"
+          , ProofBlock
+            [ "Q" ]
+            [ ProofLine "P|Q"
+            , ProofLine "(P|Q).-(P|Q)"
+            , ProofLine "#"
+            ]
+          , ProofLine "-Q"
+          , ProofLine "-P.-Q"
+          ]
+        , ProofBlock
+          [ "-P.-Q" ]
+          [ ProofBlock
+            [ "P|Q" ]
+            [ ProofBlock
+              [ "P" ]
+              [ ProofLine "-P"
+              , ProofLine "P.-P"
+              , ProofLine "#"
+              ]
+            , ProofBlock
+              [ "Q" ]
+              [ ProofLine "-Q"
+              , ProofLine "Q.-Q"
+              , ProofLine "#"
+              ]
+            , ProofLine "#"
+            ]
+          , ProofLine "-(P|Q)"
+          ]
+        , ProofLine "-(P|Q)<->(-P.-Q)"
+        ]
+  }
+  , { label = "DeMorgan's Law (∧)", proof =
+        ProofBlock
+        [ ]
+        [ ProofBlock
+          [ "-(P.Q)" ]
+          [ ProofBlock
+            [ "-(-P|-Q)" ]
+            [ ProofBlock
+              [ "-P" ]
+              [ ProofLine "-P|-Q"
+              , ProofLine "(-P|-Q).-(-P|-Q)"
+              , ProofLine "#"
+              ]
+            , ProofLine "--P"
+            , ProofLine "P"
+            , ProofBlock
+              [ "-Q" ]
+              [ ProofLine "-P|-Q"
+              , ProofLine "(-P|-Q).-(-P|-Q)"
+              , ProofLine "#"
+              ]
+            , ProofLine "--Q"
+            , ProofLine "Q"
+            , ProofLine "P.Q"
+            , ProofLine "(P.Q).-(P.Q)"
+            , ProofLine "#"
+            ]
+          , ProofLine "--(-P|-Q)"
+          , ProofLine "-P|-Q"
+          ]
+        , ProofBlock
+          [ "-P|-Q" ]
+          [ ProofBlock
+            [ "P.Q" ]
+            [ ProofBlock
+              [ "-P" ]
+              [ ProofLine "P"
+              , ProofLine "P.-P"
+              , ProofLine "#"
+              ]
+            , ProofBlock
+              [ "-Q" ]
+              [ ProofLine "Q"
+              , ProofLine "Q.-Q"
+              , ProofLine "#"
+              ]
+            , ProofLine "#"
+            ]
+          , ProofLine "-(P.Q)"
+          ]
+        , ProofLine "-(P.Q)<->(-P|-Q)"
+        ]
+  }
+  , { label = "DeMorgan's Law (∃)", proof =
+        ProofBlock
+        [ "" ]
+        [ ProofBlock
+          [ "-ExPx" ]
+          [ ProofBlock
+            [ "[a]" ]
+            [ ProofBlock
+              [ "Pa" ]
+              [ ProofLine "ExPx"
+              , ProofLine "(ExPx).-(ExPx)"
+              , ProofLine "#"
+              ]
+            , ProofLine "-Pa"
+            ]
+          , ProofLine "Vx-Px"
+          ]
+        , ProofBlock
+          [ "Vx-Px" ]
+          [ ProofBlock
+            [ "ExPx" ]
+            [ ProofBlock
+              [ "Pa", "[a]" ]
+              [ ProofLine "-Pa"
+              , ProofLine "Pa.-Pa"
+              , ProofLine "#"
+              ]
+            , ProofLine "#"
+            ]
+          , ProofLine "-ExPx"
+          ]
+        , ProofLine "(-ExPx)<->(Vx-Px)"
+        ]
+  }
+  , { label = "DeMorgan's Law (∀)", proof =
+        ProofBlock
+        [ "" ]
+        [ ProofBlock
+          [ "-VxPx" ]
+          [ ProofBlock
+            [ "-Ex-Px" ]
+            [ ProofBlock
+              [ "[a]" ]
+              [ ProofBlock
+                [ "-Pa" ]
+                [ ProofLine "Ex-Px"
+                , ProofLine "(Ex-Px).-(Ex-Px)"
+                , ProofLine "#"
+                ]
+              , ProofLine "--Pa"
+              , ProofLine "Pa"
+              ]
+            , ProofLine "VxPx"
+            , ProofLine "(VxPx).-(VxPx)"
+            , ProofLine "#"
+            ]
+          , ProofLine "--Ex-Px"
+          , ProofLine "Ex-Px"
+          ]
+        , ProofBlock
+          [ "Ex-Px" ]
+          [ ProofBlock
+            [ "VxPx" ]
+            [ ProofBlock
+              [ "-Pa", "[a]" ]
+              [ ProofLine "Pa"
+              , ProofLine "Pa.-Pa"
+              , ProofLine "#"
+              ]
+            , ProofLine "#"
+            ]
+          , ProofLine "-VxPx"
+          ]
+        , ProofLine "(-VxPx)<->(Ex-Px)"
+        ]
+  }
+  ]
+  |> makeExamples useUnicode
+  |> div []
+
+rulesHtml : Bool -> Html Message
+rulesHtml useUnicode =
+  [ { label = "RI (reiteration): P ∴ P", proof = ProofBlock ["P"] [ProofLine "P"] }
+  , { label = "∧I: P , Q ∴ P∧Q", proof = ProofBlock ["P", "Q"] [ProofLine "P.Q"] }
+  , { label = "∧E: P∧Q ∴ P", proof = ProofBlock ["P.Q"] [ProofLine "P"] }
+  , { label = "∧E: P∧Q ∴ Q", proof = ProofBlock ["P.Q"] [ProofLine "Q"] }
+  , { label = "∨I: P ∴ P∨Q", proof = ProofBlock ["P"] [ProofLine "P|Q"] }
+  , { label = "∨E: P∨Q , P⊢R , Q⊢R ∴ R", proof = ProofBlock ["P|(P.Q)"] [ProofBlock ["P"] [ProofLine "P"], ProofBlock ["P.Q"] [ProofLine "P"], ProofLine "P"] }
+  , { label = "→I: P⊢Q ∴ P→Q", proof = ProofBlock ["Q"] [ProofBlock ["P"] [ProofLine "Q"], ProofLine "P->Q"] }
+  , { label = "→E: P→Q , P ∴ Q", proof = ProofBlock ["P->Q", "P"] [ProofLine "Q"] }
+  , { label = "↔I: P⊢Q , Q⊢P ∴ P↔Q", proof = ProofBlock ["P.Q"] [ProofBlock ["P"] [ProofLine "Q"], ProofBlock ["Q"] [ProofLine "P"], ProofLine "P<->Q"] }
+  , { label = "↔E: P↔Q , P ∴ Q", proof = ProofBlock ["P<->Q", "P"] [ProofLine "Q"] }
+  , { label = "↔E: P↔Q , Q ∴ P", proof = ProofBlock ["P<->Q", "Q"] [ProofLine "P"] }
+  , { label = "⊥I: P∧¬P ∴ ⊥", proof = ProofBlock ["P.-P"] [ProofLine "#"] }
+  , { label = "¬I: P⊢⊥ ∴ ¬P", proof = ProofBlock ["-(P|Q)"] [ProofBlock ["P"] [ProofLine "P|Q", ProofLine "(P|Q).-(P|Q)", ProofLine "#"], ProofLine "-P"] }
+  , { label = "¬E: ¬¬P ∴ P", proof = ProofBlock ["--P"] [ProofLine "P"] }
+  , { label = "∀I: [x]⊢Px ∴ ∀xPx", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a"], ProofLine "Vx x=x"] }
+  , { label = "∀E: ∀xPx ∴ Py", proof = ProofBlock ["VxPx"] [ProofBlock ["[a]"] [ProofLine "Pa"]] }
+  , { label = "∃I: Px ∴ ∃yPy", proof = ProofBlock [""] [ProofBlock ["Pa", "[a]"] [ProofLine "ExPx"]] }
+  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "VxPx->Qx"] [ProofBlock ["Pa", "[a]"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
+  , { label = "NE (domain nonempty): [x]⊢P ∴ P", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a", ProofLine "Ex x=x"], ProofLine "Ex x=x"] }
+  , { label = "=I: x=x", proof = ProofBlock ["[a]"] [ProofLine "a=a"] }
+  , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["Pa", "[a]"] [ProofBlock ["a=b", "[b]"] [ProofLine "Pb"]] }
+  ]
+  |> makeExamples useUnicode
+  |> ListUtil.push (p [] [ text <| Symbols.map useUnicode "a≠b is treated as ¬(a=b)" ])
+  |> div []
+
+makeExamples useUnicode =
+  List.map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text <| Symbols.map useUnicode label ] ])
 
 viewProof : Int -> Model -> Proofy Semantics.DecoratedLine -> Html Message
 viewProof depth model proof = case proof of
