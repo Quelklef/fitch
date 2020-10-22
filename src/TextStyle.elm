@@ -15,8 +15,8 @@ toAscii =
     '∀' -> "V"
     '∃' -> "E"
     '≠' -> "/="
-    '⊢' -> "|-"
-    '∴' -> "therefore"
+    '⊢' -> " entails "
+    '∴' -> "thus"
     c -> String.fromChar c)
   >> String.join ""
 
