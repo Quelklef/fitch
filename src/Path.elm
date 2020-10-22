@@ -166,3 +166,39 @@ targetsBody path =
   ListUtil.last path
   |> Maybe.map (\lastIdx -> lastIdx >= 0)
   |> Maybe.withDefault False
+
+-- vv If the given path targets a ProofLine, rather than a ProofBlock, then
+-- vv inserts a new line after that targeted line.
+-- vv If the targeted line is in the proof body, the inserted line will also
+-- vv be a body line.
+-- vv If the targeted line is an assumption (ie in the proof head) and is
+-- vv followed by another assumption, then the inserted line will also
+-- vv be an assumption.
+-- vv If the targeted line is an assumption and is *not* followed by another
+-- vv assumption (ie it's the last assumption), then the inserted line will
+-- vv be an assumption if and only if `preferAssumption` is true; otherwise,
+-- vv it will be a body line.
+insertAfter : Bool -> Path -> a -> Proofy a -> Maybe (Proofy a)
+insertAfter preferAssumption path line host =
+  case path of
+    [] -> Nothing
+
+    [idx] ->
+      case host of
+        ProofLine _ -> Nothing
+        ProofBlock head body ->
+          -- vv Index targets last assumption
+          if targetsLastAssumption host [idx] then
+            if preferAssumption
+            then Just <| ProofBlock (line :: head) body
+            else Just <| ProofBlock head (ProofLine line :: body)
+          -- vv Index targets an assumption that is not the last one
+          else if idx < 0 then
+            ListUtil.insert (-idx-1) line head
+            |> Maybe.map (\newHead -> ProofBlock newHead body)
+          -- vv Index targets a body line
+          else
+            ListUtil.insert (idx + 1) (ProofLine line) body
+            |> Maybe.map (\newBody -> ProofBlock head newBody)
+
+    idx::idxs -> Proof.replaceM idx (insertAfter preferAssumption idxs line) host
