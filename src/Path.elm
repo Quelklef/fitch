@@ -42,12 +42,6 @@ indexOfLastAssumption proof = case proof of
   ProofLine _ -> Nothing
   ProofBlock head _ -> if List.length head == 0 then Nothing else Just -(List.length head)
 
-targetsLine : Proofy a -> Int -> Bool
-targetsLine proof idx =
-  case Proof.get [idx] proof of
-    Just (ProofLine _) -> True
-    _ -> False
-
 -- vv Given an index targeting a line, does the following:
 -- vv Given a path in a proof that targets a line, evaluates the
 -- vv path which targets the "linearly next" line, ignoring nesting.
