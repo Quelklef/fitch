@@ -33,9 +33,9 @@ decorate_ (lineno, path, knowledge) proof = case proof of
     in (ProofLine decorated, (lineno + 1))
 
   ProofBlock head body ->
-    let (decoratedHead, lineno2, knowledge2) = decorateHead (0, lineno, (path, knowledge)) (List.reverse head)  -- << FIXME: reversed head
+    let (decoratedHead, lineno2, knowledge2) = decorateHead (0, lineno, (path, knowledge)) head
         (decoratedBody, lineno3) = decorateBody (0, lineno2, (path, knowledge2)) body
-    in (ProofBlock (List.reverse decoratedHead) decoratedBody, lineno3)  -- << FIXME: reversed head
+    in (ProofBlock decoratedHead decoratedBody, lineno3)
 
 decorateHead : (Int, Lineno, (Path, Knowledge)) -> List String -> (List DecoratedLine, Lineno, Knowledge)
 decorateHead (idx, lineno, (pathStub, knowledge)) lines = case lines of

@@ -298,8 +298,7 @@ justifyExistsElim knowledge goal =
     case statement.formula of
       Just (Exists existsName existsClaim) ->
         case Proof.assumptions block |> List.map .formula of
-          -- vv TODO: this is reversed because Proofy heads are stored in reverse order in memory :/
-          [Just blockAssumption, Just (Declaration blockDeclaringName)] ->
+          [Just (Declaration blockDeclaringName), Just blockAssumption] ->
             (existsClaim |> Formula.substitute existsName blockDeclaringName) == blockAssumption
               && (Proof.conclusion block |> Maybe.andThen .formula) == Just goal
             |> MaybeUtil.fromBool ("∃E:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block)

@@ -63,11 +63,7 @@ doNewLineAfter : Path -> Bool -> Proofy String -> Maybe (Proofy String, Cmd Mess
 doNewLineAfter path preferAssumption proof =
   doNewLineAfter_ path preferAssumption proof
   |> Maybe.andThen (\newProof ->
-    path |> ListUtil.mapLast (\idx ->
-        if Path.targetsLastAssumption newProof path then
-          if preferAssumption then -1 else 0
-        else if idx < 0 then idx
-        else idx + 1)
+    Path.linearSucc newProof path
     |> Maybe.map (\newPath -> (newProof, setFocusTo newPath)))
 
 doNewLineAfter_ : Path -> Bool -> Proofy String -> Maybe (Proofy String)
@@ -81,7 +77,7 @@ doNewLineAfter_ path preferAssumption proof =
         ProofBlock head body ->
 
           -- vv Index targets last assumption
-          if idx == -1 then
+          if Path.targetsLastAssumption proof [idx] then
             if preferAssumption
             then Just <| ProofBlock ("" :: head) body
             else Just <| ProofBlock head (ProofLine "" :: body)

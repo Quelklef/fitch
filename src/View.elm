@@ -119,7 +119,7 @@ viewProof depth model proof = case proof of
 
     in div ([ class "block" ] ++ blockStyle) <|
       List.append
-        (List.reverse (head |> List.map (ProofLine >> viewProof (depth + 1) model)))
+        (head |> List.map (ProofLine >> viewProof (depth + 1) model))
         (body |> List.map (viewProof (depth + 1) model))
 
 prettifyKnowledge : KnowledgeBox -> String
@@ -368,11 +368,11 @@ rulesHtml useUnicode =
   , { label = "¬E: ¬¬P ∴ P", proof = ProofBlock ["--P"] [ProofLine "P"] }
   , { label = "∀I: [x]⊢Px ∴ ∀xPx", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a"], ProofLine "Vx x=x"] }
   , { label = "∀E: ∀xPx ∴ Py", proof = ProofBlock ["VxPx"] [ProofBlock ["[a]"] [ProofLine "Pa"]] }
-  , { label = "∃I: Px ∴ ∃yPy", proof = ProofBlock [""] [ProofBlock ["Pa", "[a]"] [ProofLine "ExPx"]] }
-  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "VxPx->Qx"] [ProofBlock ["Pa", "[a]"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
+  , { label = "∃I: Px ∴ ∃yPy", proof = ProofBlock [""] [ProofBlock ["[a]", "Pa"] [ProofLine "ExPx"]] }
+  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "VxPx->Qx"] [ProofBlock ["[a]", "Pa"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
   , { label = "NE (domain nonempty): [x]⊢P ∴ P", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a", ProofLine "Ex x=x"], ProofLine "Ex x=x"] }
   , { label = "=I: x=x", proof = ProofBlock ["[a]"] [ProofLine "a=a"] }
-  , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["Pa", "[a]"] [ProofBlock ["a=b", "[b]"] [ProofLine "Pb"]] }
+  , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["[a]", "Pa"] [ProofBlock ["a=b", "[b]"] [ProofLine "Pb"]] }
   ]
   |> makeExamples useUnicode
   |> ListUtil.push (p [] [ text <| TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ])
