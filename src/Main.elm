@@ -244,7 +244,7 @@ view model =
   in
     div []
     [ p [ class "options" ]
-      [ checkbox model.useUnicode ToggleUseUnicode "use unicode"
+      [ checkbox (not model.useUnicode) ToggleUseUnicode "force plain symbols"
       , text " | "
       , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
       ]
