@@ -7,10 +7,10 @@ import Maybe exposing (Maybe)
 import ListUtil
 import StringUtil
 
-import Types exposing (Model, Message(..))
-import Path exposing (Path)
-import Proof exposing (Proofy(..), RawProof)
-import Formula exposing (Formula)
+import Types exposing (Model, Message(..), Path, Proofy(..), Formula)
+import Path
+import Proof
+import Formula
 import Decorate
 import Semantics
 import Symbols
@@ -35,12 +35,12 @@ update msg model =
     DedentAt path                      -> fromDo <| doDedentAt path model.proof
     BackspaceAt path                   -> fromDo <| doBackspaceAt path model.proof
 
-doSetFormulaAt : Path -> String -> RawProof -> Maybe (RawProof, Cmd Message)
+doSetFormulaAt : Path -> String -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doSetFormulaAt path newFormula proof =
   doSetFormulaAt_ path newFormula proof
   |> Maybe.map (\newProof -> (newProof, Cmd.none))
 
-doSetFormulaAt_ : Path -> String -> RawProof -> Maybe RawProof
+doSetFormulaAt_ : Path -> String -> Proofy String -> Maybe (Proofy String)
 doSetFormulaAt_ path newFormula proof =
   case path of
     [] -> case proof of
@@ -59,7 +59,7 @@ doSetFormulaAt_ path newFormula proof =
 -- vv assumption (ie it's the last assumption), then the inserted line will
 -- vv be an assumption if and only if `preferAssumption` is true; otherwise,
 -- vv it will be a body line.
-doNewLineAfter : Path -> Bool -> RawProof -> Maybe (RawProof, Cmd Message)
+doNewLineAfter : Path -> Bool -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doNewLineAfter path preferAssumption proof =
   doNewLineAfter_ path preferAssumption proof
   |> Maybe.andThen (\newProof ->
@@ -70,7 +70,7 @@ doNewLineAfter path preferAssumption proof =
         else idx + 1)
     |> Maybe.map (\newPath -> (newProof, setFocusTo newPath)))
 
-doNewLineAfter_ : Path -> Bool -> RawProof -> Maybe RawProof
+doNewLineAfter_ : Path -> Bool -> Proofy String -> Maybe (Proofy String)
 doNewLineAfter_ path preferAssumption proof =
   case path of
     [] -> Nothing
@@ -98,12 +98,12 @@ doNewLineAfter_ path preferAssumption proof =
 
     idx::idxs -> Proof.replaceM idx (\subproof -> doNewLineAfter_ idxs preferAssumption subproof) proof
 
-doIndentAt : Path -> RawProof -> Maybe (RawProof, Cmd Message)
+doIndentAt : Path -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doIndentAt path proof =
   doIndentAt_ path proof
   |> Maybe.map (\newProof -> (newProof, setFocusTo <| path ++ [-0-1]))
 
-doIndentAt_ : Path -> RawProof -> Maybe RawProof
+doIndentAt_ : Path -> Proofy String -> Maybe (Proofy String)
 doIndentAt_ path proof =
   case path of
     [] -> case proof of
@@ -111,12 +111,12 @@ doIndentAt_ path proof =
       ProofBlock _ _ -> Nothing
     idx::idxs -> Proof.replaceM idx (\subproof -> doIndentAt_ idxs subproof) proof
 
-doDedentAt : Path -> RawProof -> Maybe (RawProof, Cmd Message)
+doDedentAt : Path -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doDedentAt path proof =
   doDedentAt_ path proof
   |> Maybe.map (\newProof -> (newProof, setFocusTo <| ListUtil.dropLast path))
 
-doDedentAt_ : Path -> RawProof -> Maybe RawProof
+doDedentAt_ : Path -> Proofy String -> Maybe (Proofy String)
 doDedentAt_ path proof =
   case path of
     [] -> Nothing
@@ -138,7 +138,7 @@ doDedentAt_ path proof =
 
     idx::idxs -> Proof.replaceM idx (\subproof -> doDedentAt_ idxs subproof) proof
 
-doBackspaceAt : Path -> RawProof -> Maybe (RawProof, Cmd Message)
+doBackspaceAt : Path -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doBackspaceAt path proof =
   if not <| Path.targetsEmptyLine proof path
     then Nothing
@@ -151,7 +151,7 @@ doBackspaceAt path proof =
       in
         Maybe.map2 (\newProof newPath -> (newProof, setFocusTo newPath)) maybeNewProof maybeNewPath
 
-doBackspaceAt_ : Path -> RawProof -> Maybe RawProof
+doBackspaceAt_ : Path -> Proofy String -> Maybe (Proofy String)
 doBackspaceAt_ path proof = case path of
   [] -> Nothing
   [idx] -> case proof of

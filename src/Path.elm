@@ -5,11 +5,8 @@ import Maybe exposing (Maybe)
 
 import ListUtil
 
-import Proof exposing (Proofy(..))
-
--- vv Path to a formula in a proof, as a list of indicies
--- vv A negative index is an index into a block head; positive into the body
-type alias Path = List Int
+import Types exposing (Proofy(..), Path)
+import Proof
 
 pathToLastLine : Proofy a -> Maybe Path
 pathToLastLine proof = case proof of

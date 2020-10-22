@@ -10,9 +10,9 @@ import Json.Decode as Json
 import ListUtil
 import StringUtil
 
-import Proof exposing (Proofy(..))
-import Path exposing (Path)
-import Types exposing (Model, Message(..))
+import Types exposing (Proofy(..), Path, Model, Message(..), DecoratedLine)
+import Proof
+import Path
 import Semantics
 import Symbols
 import Formula
@@ -85,7 +85,7 @@ keyboardControlsHtml useUnicode =
     in p [] ( keysHtml ++ [ text <| Symbols.map useUnicode label ] ))
   |> div []
 
-viewProof : Int -> Model -> Proofy Semantics.DecoratedLine -> Html Message
+viewProof : Int -> Model -> Proofy DecoratedLine -> Html Message
 viewProof depth model proof = case proof of
   ProofLine { text, formula, path, lineno, justification } ->
     let isValid = justification |> Result.map (always True) |> Result.withDefault False

@@ -3,8 +3,7 @@ module Main exposing (..)
 import Browser
 import Browser.Dom as Dom
 
-import Types exposing (Model)
-import Proof exposing (Proofy(..))
+import Types exposing (Model, Proofy(..))
 import Update exposing (update)
 import View exposing (view)
 

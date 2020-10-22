@@ -5,20 +5,7 @@ import Maybe exposing (Maybe)
 import ListUtil
 import MaybeUtil
 
-import Formula exposing (Formula)
-
--- vv Something in the shape of a proof,
--- vv but containing an unknown type representing proof lines
-type Proofy lineT =
-  -- vv A line
-  ProofLine lineT
-  -- vv Assumptions and body
-  | ProofBlock (List lineT) (List (Proofy lineT))
-
--- vv A logical proof
-type alias Proof = Proofy Formula
--- vv Same structure, contains raw user strings
-type alias RawProof = Proofy String
+import Types exposing (Formula, Proofy(..))
 
 get : Int -> Proofy a -> Maybe (Proofy a)
 get idx proof =

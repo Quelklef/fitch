@@ -2,10 +2,11 @@ module Decorate exposing (..)
 
 import ListUtil
 
-import Path exposing (Path)
-import Proof exposing (Proofy(..))
-import Formula exposing (Formula)
-import Semantics exposing (Lineno, Knowledge, DecoratedLine)
+import Types exposing (Proofy(..), Path, Formula, Lineno, Knowledge, DecoratedLine)
+import Path
+import Proof
+import Formula
+import Semantics
 
 decorate : Proofy String -> Proofy DecoratedLine
 decorate = decorate_ (1, [], []) >> Tuple.first

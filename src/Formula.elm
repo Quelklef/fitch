@@ -6,6 +6,7 @@ import StringUtil
 import MaybeUtil
 import ListUtil
 
+import Types exposing (Formula(..))
 import Parse exposing (..)
 import Symbols
 
@@ -155,24 +156,7 @@ tokenize code =
   else let (token, rest) = tokenizeOne code
        in token :: tokenize rest
 
-type Formula
-  = Empty
-  | Bottom
-  -- vv Reference to a variable or proposition
-  | Name Char
-  -- vv Introduces a new variable
-  | Declaration Char
-  -- vv Application of a predicate to 0 or more arguments
-  -- vv (Propositions are treated as arity-0 predicates)
-  | Application Char (List Char)
-  | Negation Formula
-  | Conjunction Formula Formula
-  | Disjunction Formula Formula
-  | Implication Formula Formula
-  | Biconditional Formula Formula
-  | Forall Char Formula
-  | Exists Char Formula
-  | Equality Char Char
+-- --
 
 parseBottom : Parser Token Formula
 parseBottom = literal [TokBottom] |> kThen (return Bottom)

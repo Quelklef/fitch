@@ -4,26 +4,13 @@ import Set
 import List
 import Tuple
 
-import Path exposing (Path)
-import Proof exposing (Proofy(..))
-import Formula exposing (Formula(..))
+import Types exposing (Path, Proofy(..), Formula(..), Knowledge, DecoratedLine)
+import Proof
+import Formula
 import Iter
 
 import ListUtil
 import MaybeUtil
-
-type alias Lineno = Int
-
--- vv A 'context' or 'scope' of all the proofs available for a particular line to use in justification
-type alias Knowledge = List (Proofy DecoratedLine)
-
-type alias DecoratedLine =
-  { text : String
-  , formula : Maybe Formula
-  , path : Path
-  , lineno : Lineno
-  , justification : Result String String
-  }
 
 verifySemantics : Knowledge -> Formula -> Result String ()
 verifySemantics knowledge formula =
