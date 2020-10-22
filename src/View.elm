@@ -292,7 +292,7 @@ examplesHtml useUnicode =
           [ ProofBlock
             [ "ExPx" ]
             [ ProofBlock
-              [ "Pa", "[a]" ]
+              [ "[a]", "Pa" ]
               [ ProofLine "-Pa"
               , ProofLine "Pa.-Pa"
               , ProofLine "#"
@@ -334,7 +334,7 @@ examplesHtml useUnicode =
           [ ProofBlock
             [ "VxPx" ]
             [ ProofBlock
-              [ "-Pa", "[a]" ]
+              [ "[a]", "-Pa" ]
               [ ProofLine "Pa"
               , ProofLine "Pa.-Pa"
               , ProofLine "#"
