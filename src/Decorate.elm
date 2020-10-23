@@ -1,6 +1,7 @@
 module Decorate exposing (..)
 
 import ListUtil
+import StringUtil
 
 import Types exposing (Proofy(..), Path, Formula, Lineno, Knowledge, KnowledgeBox(..), DecoratedLine)
 import Path
@@ -64,3 +65,52 @@ decorateBody (idx, lineno, (pathStub, knowledge)) proofs = case proofs of
     let (decoratedFirst, lineno2) = decorate_ (lineno, pathStub ++ [idx], knowledge) first
         (decoratedRest, lineno3) = decorateBody (idx + 1, lineno2, (pathStub, knowledge ++ [decoratedFirst])) rest
     in (decoratedFirst :: decoratedRest, lineno3)
+
+toText : Bool -> Proofy DecoratedLine -> String
+toText useUnicode proof = toText_ useUnicode (maxLineLength useUnicode proof + 5) 0 proof
+
+maxLineLength : Bool -> Proofy DecoratedLine -> Int
+maxLineLength useUnicode proof =
+  case proof of
+    ProofLine line ->
+      String.length " "
+      + String.length (String.fromInt line.lineno)
+      + String.length ". "
+      + String.length (Formula.prettifyText useUnicode line.text)
+
+    ProofBlock head body ->
+      let headMaxs = List.map (maxLineLength useUnicode << ProofLine) head
+          bodyMaxs = List.map (maxLineLength useUnicode) body
+          max = List.append headMaxs bodyMaxs |> List.maximum |> Maybe.withDefault 0
+      in max + 1
+
+toText_ : Bool -> Int -> Int -> Proofy DecoratedLine -> String
+toText_ useUnicode assumptionsColumn depth proof =
+  case proof of
+    ProofLine line ->
+      let justnText = case line.justification of
+            Ok text -> text
+            Err text -> text
+      in
+        (String.repeat depth "│" ++ " " ++ String.fromInt line.lineno ++ ". " ++ Formula.prettifyText useUnicode line.text
+        |> StringUtil.padTo ' ' assumptionsColumn)
+        ++ Formula.prettifyText useUnicode justnText
+
+    ProofBlock head body ->
+      let headTexts = head |> List.map ProofLine |> List.map (toText_ useUnicode assumptionsColumn (depth + 1))
+          bar = String.repeat depth "│" ++ "├──────────"
+          bodyTexts =
+            ListUtil.zip body ((List.drop 1 body |> List.map Just) ++ [Nothing])
+            |> ListUtil.flatMap (\(thisBodyProof, nextBodyProof) ->
+              let thisBodyProofIsBlock = case thisBodyProof of
+                    ProofBlock _ _ -> True
+                    _ -> False
+                  nextBodyProofIsBlock = case nextBodyProof of
+                    Just (ProofBlock _ _) -> True
+                    _ -> False
+              in [toText_ useUnicode assumptionsColumn (depth + 1) thisBodyProof]
+                -- vv Include a separator between adjacent proofs
+                 ++ ListUtil.if_ (thisBodyProofIsBlock && nextBodyProofIsBlock) (String.repeat (depth + 1) "│"))
+
+      in String.join "\n" <| headTexts ++ [bar] ++ bodyTexts
+

@@ -30,6 +30,8 @@ view model =
       , p [ class "options" ]
         [ checkbox (not model.useUnicode) ToggleUseUnicode "force plain symbols"
         , text " | "
+        , button [ onClick CopyProofToClipboard ] [ text "copy proof to clipboard" ]
+        , text " | "
         , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
         ]
       , if model.showDebugInfo then pre [ class "debug-info" ] [ text ("serialized: " ++ Serialize.serialize model.proof) ] else text ""

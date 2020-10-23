@@ -34,6 +34,10 @@ app.ports.setUrlArg.subscribe(arg => {
   window.history.replaceState(null, '', window.location.pathname + "?proof=" + encodeURI(arg));
 });
 
+app.ports.copyToClipboard.subscribe(text => {
+  navigator.clipboard.writeText(text);
+});
+
 </script>
 
 </body>

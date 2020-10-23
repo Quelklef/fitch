@@ -34,3 +34,6 @@ get idx string = case String.uncons string of
 
 if_ : Bool -> String -> String
 if_ bool str = if bool then str else ""
+
+padTo : Char -> Int -> String -> String
+padTo padding length str = str ++ String.repeat (length - String.length str) (String.fromChar padding)

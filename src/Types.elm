@@ -11,6 +11,7 @@ type alias Model =
 type Message
   = ToggleDebugMode
   | ToggleUseUnicode
+  | CopyProofToClipboard
   | SetProofTo (Proofy String)
   | Noop
   | SetFocusTo Path

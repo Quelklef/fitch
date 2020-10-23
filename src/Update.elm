@@ -19,6 +19,8 @@ import Serialize
 -- vv Replaces the url of the page without reloading
 port setUrlArg : String -> Cmd msg
 
+port copyToClipboard : String -> Cmd msg
+
 setFocusTo : Path -> Cmd Message
 setFocusTo path = Task.attempt (always Noop) (Dom.focus <| Path.toId path)
 
@@ -28,9 +30,10 @@ update msg model =
         Just (newProof, cmd) -> ({ model | proof = newProof }, Cmd.batch [cmd, setUrlArg <| Serialize.serialize newProof])
         Nothing -> (model, Cmd.none)
   in case msg of
-    ToggleDebugMode  -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
-    ToggleUseUnicode -> ({ model | useUnicode = not model.useUnicode }, Cmd.none)
-    Noop             -> (model, Cmd.none)
+    ToggleDebugMode      -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
+    ToggleUseUnicode     -> ({ model | useUnicode = not model.useUnicode }, Cmd.none)
+    CopyProofToClipboard -> (model, model.proof |> Decorate.decorate |> Decorate.toText model.useUnicode |> copyToClipboard)
+    Noop                 -> (model, Cmd.none)
     SetFocusTo path  -> (model, setFocusTo path)
     SetProofTo newProof                -> fromNewProofAndCommand <| Just (newProof, Cmd.none)
     SetFormulaAt path newFormula       -> fromNewProofAndCommand <| doSetFormulaAt path newFormula model.proof

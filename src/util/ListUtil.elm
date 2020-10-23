@@ -96,3 +96,11 @@ init list = case list of
   [] -> []
   [a, b] -> [a]
   x::xs -> x :: init xs
+
+zip : List a -> List b -> List (a, b)
+zip xs ys = case (xs, ys) of
+  (x::xtail, y::ytail) -> (x, y) :: zip xtail ytail
+  _ -> []
+
+if_ : Bool -> a -> List a
+if_ cond val = if cond then [val] else []
