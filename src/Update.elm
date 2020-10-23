@@ -129,14 +129,9 @@ doBackspaceAt : Path -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doBackspaceAt path proof =
   if not <| Path.targetsEmptyLine proof path
     then Nothing
-    else
-      let maybeNewProof = doBackspaceAt_ path proof
-          maybeNewPath =
-            if Path.targetsBody path || Path.targetsFirstAssumption proof path
-            then Path.linearPred proof path
-            else Just path
-      in
-        Maybe.map2 (\newProof newPath -> (newProof, setFocusTo newPath)) maybeNewProof maybeNewPath
+    else let maybeNewProof = doBackspaceAt_ path proof
+             maybeNewPath = Path.linearPred proof path
+         in Maybe.map2 (\newProof newPath -> (newProof, setFocusTo newPath)) maybeNewProof maybeNewPath
 
 doBackspaceAt_ : Path -> Proofy String -> Maybe (Proofy String)
 doBackspaceAt_ path proof = case path of

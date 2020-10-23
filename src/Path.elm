@@ -184,11 +184,11 @@ insertAfter preferAssumption path line host =
           -- vv Index targets last assumption
           if targetsLastAssumption host [idx] then
             if preferAssumption
-            then Just <| ProofBlock (line :: head) body
+            then Just <| ProofBlock (head ++ [line]) body
             else Just <| ProofBlock head (ProofLine line :: body)
           -- vv Index targets an assumption that is not the last one
           else if idx < 0 then
-            ListUtil.insert (-idx-1) line head
+            ListUtil.insert (-idx-1 + 1) line head
             |> Maybe.map (\newHead -> ProofBlock newHead body)
           -- vv Index targets a body line
           else
