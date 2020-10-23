@@ -30,9 +30,11 @@ view model =
       , p [ class "options" ]
         [ checkbox (not model.useUnicode) ToggleUseUnicode "force plain symbols"
         , text " | "
+        , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
+        , text " | "
         , button [ onClick CopyProofToClipboard ] [ text "copy proof to clipboard" ]
         , text " | "
-        , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
+        , button [ onClick (SetProofTo <| ProofBlock [""] []) ] [ text "reset proof" ]
         ]
       , if model.showDebugInfo then pre [ class "debug-info" ] [ text ("serialized: " ++ Serialize.serialize model.proof) ] else text ""
       , proof
@@ -83,7 +85,6 @@ keyboardControlsHtml useUnicode =
   , { keys = ["shift+enter"], label = "additional assumption" }
   , { keys = ["tab"], label = "up a block" }
   , { keys = ["shift+tab"], label = "down a block" }
-  , { keys = ["alt+backspace"], label = "reset proof" }
   ]
   |> List.map (\{ keys, label } ->
     let keysHtml = keys |> ListUtil.flatMap (\key -> [ span [ class "key" ] [ text key ], text " " ])
