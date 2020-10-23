@@ -1,4 +1,4 @@
-module Update exposing (..)
+port module Update exposing (..)
 
 import Browser.Dom as Dom
 import Task
@@ -14,26 +14,30 @@ import Formula
 import Decorate
 import Semantics
 import TextStyle
+import Serialize
+
+-- vv Replaces the url of the page without reloading
+port setUrlArg : String -> Cmd msg
 
 setFocusTo : Path -> Cmd Message
 setFocusTo path = Task.attempt (always Noop) (Dom.focus <| Path.toId path)
 
 update : Message -> Model -> (Model, Cmd Message)
 update msg model =
-  let fromDo maybeResult = case maybeResult of
-        Just (newProof, cmd) -> ({ model | proof = newProof }, cmd)
+  let fromNewProofAndCommand maybeProofAndCommand = case maybeProofAndCommand of
+        Just (newProof, cmd) -> ({ model | proof = newProof }, Cmd.batch [cmd, setUrlArg <| Serialize.serialize newProof])
         Nothing -> (model, Cmd.none)
   in case msg of
-    ToggleDebugMode -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
+    ToggleDebugMode  -> ({ model | showDebugInfo = not model.showDebugInfo }, Cmd.none)
     ToggleUseUnicode -> ({ model | useUnicode = not model.useUnicode }, Cmd.none)
-    SetProofTo newProof -> ({ model | proof = newProof }, Cmd.none)
-    Noop -> (model, Cmd.none)
-    SetFocusTo path -> (model, setFocusTo path)
-    SetFormulaAt path newFormula       -> fromDo <| doSetFormulaAt path newFormula model.proof
-    NewLineAfter path preferAssumption -> fromDo <| doNewLineAfter path preferAssumption model.proof
-    IndentAt path                      -> fromDo <| doIndentAt path model.proof
-    DedentAt path                      -> fromDo <| doDedentAt path model.proof
-    BackspaceAt path                   -> fromDo <| doBackspaceAt path model.proof
+    Noop             -> (model, Cmd.none)
+    SetFocusTo path  -> (model, setFocusTo path)
+    SetProofTo newProof                -> fromNewProofAndCommand <| Just (newProof, Cmd.none)
+    SetFormulaAt path newFormula       -> fromNewProofAndCommand <| doSetFormulaAt path newFormula model.proof
+    NewLineAfter path preferAssumption -> fromNewProofAndCommand <| doNewLineAfter path preferAssumption model.proof
+    IndentAt path                      -> fromNewProofAndCommand <| doIndentAt path model.proof
+    DedentAt path                      -> fromNewProofAndCommand <| doDedentAt path model.proof
+    BackspaceAt path                   -> fromNewProofAndCommand <| doBackspaceAt path model.proof
 
 doSetFormulaAt : Path -> String -> Proofy String -> Maybe (Proofy String, Cmd Message)
 doSetFormulaAt path newFormula proof =

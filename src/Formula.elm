@@ -234,8 +234,8 @@ parseNonBinOp =
 parseBinOpWithFallthrough : tok -> Parser tok res -> (res -> res -> res) -> Parser tok res
 parseBinOpWithFallthrough opToken innerParser makeResult =
   with innerParser (\lhs ->
-  with peekOne (\operator ->
-  if operator /= Just opToken
+  with (peek 1) (\operator ->
+  if operator /= [opToken]
   then return lhs
   else takeOne
        |> kThen (with innerParser <| \rhs ->

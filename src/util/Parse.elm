@@ -54,12 +54,11 @@ takeOne tokens = case tokens of
   [] -> Nothing
   tok::rest -> Just (tok, rest)
 
-peekOne : Parser tok (Maybe tok)
-peekOne tokens =
-  let seen = case tokens of
-        [] -> Nothing
-        tok::rest -> Just tok
-  in Just (seen, tokens)
+drop : Int -> Parser tok ()
+drop n tokens = Just ((), List.drop n tokens)
+
+peek : Int -> Parser tok (List tok)
+peek n tokens = Just (List.take n tokens, tokens)
 
 eof : Parser tok ()
 eof tokens = case tokens of

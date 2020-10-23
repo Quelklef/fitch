@@ -6,6 +6,7 @@ import Html exposing (Html, Attribute, button, div, span, text, input, label, p,
 import Html.Attributes exposing (value, class, id, style, type_, checked, href, target)
 import Html.Events exposing (onInput, keyCode, preventDefaultOn, onClick)
 import Json.Decode as Json
+import Url
 
 import ListUtil
 import StringUtil
@@ -17,6 +18,7 @@ import Semantics
 import TextStyle
 import Formula
 import Decorate
+import Serialize
 
 view : Model -> Html Message
 view model =
@@ -30,6 +32,7 @@ view model =
         , text " | "
         , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
         ]
+      , if model.showDebugInfo then p [ ] [ text ("serialized: " ++ Serialize.serialize model.proof) ] else text ""
       , proof
       ]
     , div [ id "right" ]
