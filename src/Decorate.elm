@@ -8,6 +8,7 @@ import Path
 import Proof
 import Formula
 import Semantics
+import TextStyle
 
 decorate : Proofy String -> Proofy DecoratedLine
 decorate = decorate_ (1, [], []) >> Tuple.first
@@ -66,8 +67,12 @@ decorateBody (idx, lineno, (pathStub, knowledge)) proofs = case proofs of
         (decoratedRest, lineno3) = decorateBody (idx + 1, lineno2, (pathStub, knowledge ++ [decoratedFirst])) rest
     in (decoratedFirst :: decoratedRest, lineno3)
 
+--
+
 toText : Bool -> Proofy DecoratedLine -> String
-toText useUnicode proof = toText_ useUnicode (maxLineLength useUnicode proof + 5) 0 proof
+toText useUnicode proof =
+  toText_ useUnicode (maxLineLength useUnicode proof + 5) 0 proof
+  |> TextStyle.map useUnicode
 
 maxLineLength : Bool -> Proofy DecoratedLine -> Int
 maxLineLength useUnicode proof =

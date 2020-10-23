@@ -17,6 +17,9 @@ toAscii =
     '≠' -> "/="
     '⊢' -> " entails "
     '∴' -> "thus"
+    '│' -> "|"
+    '├' -> "+"
+    '─' -> "-"
     c -> String.fromChar c)
   >> String.join ""
 
