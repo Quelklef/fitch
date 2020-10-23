@@ -81,7 +81,7 @@ symbolMapping =
 
   , ( "∧", TokAnd )
   , ( "&", TokAnd )
-  , ( ".", TokAnd )
+  , ( "*", TokAnd )
   , ( ".", TokAnd )
 
   , ( "∨", TokOr )
