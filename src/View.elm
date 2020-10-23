@@ -32,7 +32,7 @@ view model =
         , text " | "
         , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
         ]
-      , if model.showDebugInfo then p [ ] [ text ("serialized: " ++ Serialize.serialize model.proof) ] else text ""
+      , if model.showDebugInfo then pre [ class "debug-info" ] [ text ("serialized: " ++ Serialize.serialize model.proof) ] else text ""
       , proof
       ]
     , div [ id "right" ]
@@ -110,7 +110,7 @@ viewProof depth model proof = case proof of
                    "path: " ++ Path.pretty path ++ "\n" ++
                    "formula: " ++ (formula |> Maybe.map (Formula.pretty >> TextStyle.map model.useUnicode) |> Maybe.withDefault "(invalid)") ++ "\n" ++
                    "knowledge: " ++ prettifyKnowledge knowledge |> TextStyle.map model.useUnicode
-             in pre [ class "line:debug-info" ] [ Html.text info ]
+             in pre [ class "debug-info" ] [ Html.text info ]
         else Html.text ""
       ]
 
