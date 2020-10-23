@@ -139,7 +139,11 @@ doBackspaceAt_ path proof = case path of
   [idx] -> case proof of
     ProofLine _ -> Nothing
     ProofBlock head body ->
-            if idx < 0 then ListUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
+            if idx < 0 then
+                -- vv Disallow backspacing a lonely assumption on a nonempty body
+                if List.length head == 1 && List.length body > 0
+                then Nothing
+                else ListUtil.remove (-idx-1) head |> Maybe.map (\newHead -> ProofBlock newHead body)
             else (ListUtil.remove idx body) |> Maybe.map (\newBody -> ProofBlock head newBody)
   idx::idxs ->
     proof
