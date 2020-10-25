@@ -225,7 +225,7 @@ examplesHtml useUnicode =
   }
   , { label = "DeMorgan's Law (∧)", proof =
         ProofBlock
-        [ ]
+        [ "" ]
         [ ProofBlock
           [ "-(P.Q)" ]
           [ ProofBlock
