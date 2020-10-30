@@ -378,7 +378,7 @@ rulesHtml useUnicode =
   , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "VxPx->Qx"] [ProofBlock ["[a]", "Pa"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
   , { label = "NE (domain nonempty): [x]⊢P ∴ P", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a", ProofLine "Ex x=x"], ProofLine "Ex x=x"] }
   , { label = "=I: x=x", proof = ProofBlock ["[a]"] [ProofLine "a=a"] }
-  , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["[a]", "Pa"] [ProofBlock ["a=b", "[b]"] [ProofLine "Pb"]] }
+  , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["[a]", "Pa"] [ProofBlock ["[b]", "a=b"] [ProofLine "Pb"]] }
   ]
   |> makeExamples useUnicode
   |> ListUtil.push (p [] [ text <| TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ])
