@@ -12,7 +12,7 @@ import TextStyle
 
 type Token
   = TokInvalid String  -- invalid syntax
-  | TokIgnored String  -- valid but ignored syntax
+  | TokIgnored String  -- valid but meaningless syntax, such as whitespace
   | TokOpen            -- open parens
   | TokClose           -- close parens
   | TokBottom          -- bottom
@@ -107,54 +107,58 @@ symbolMapping =
 chompChar : String -> Maybe (Char, String)
 chompChar = String.uncons
 
-tokenizeName : String -> Maybe (Token, String)
+tokenizeName : String -> Maybe (List Token, String)
 tokenizeName code =
   chompChar code
   |> Maybe.andThen (\(name, rest) ->
-    if Char.isAlpha name then Just (TokName name, rest) else Nothing)
+    if Char.isAlpha name then Just ([TokName name], rest) else Nothing)
 
-tokenizeDeclaration : String -> Maybe (Token, String)
+-- vv Tokenize a declaration.
+-- vv Note that, as a special case, all code following a valid declaration
+-- vv will be turned into an 'ignored' token.
+-- vv This is to allow users to write comments on their declarations!
+tokenizeDeclaration : String -> Maybe (List Token, String)
 tokenizeDeclaration code =
   let prefix = StringUtil.get 0 code
       char = StringUtil.get 1 code
       suffix = StringUtil.get 2 code
       rest = StringUtil.drop 3 code
   in case (prefix, char, suffix) of
-    (Just '[', Just name, Just ']') -> Just (TokDeclare name, rest)
+    (Just '[', Just name, Just ']') -> Just ([TokDeclare name, TokIgnored rest], "")
     _ -> Nothing
 
-tokenizeSymbol : String -> Maybe (Token, String)
+tokenizeSymbol : String -> Maybe (List Token, String)
 tokenizeSymbol code =
   symbolMapping
   |> List.filterMap (\(string, token) ->
     if String.startsWith string code
-    then Just (token, StringUtil.drop (String.length string) code)
+    then Just ([token], StringUtil.drop (String.length string) code)
     else Nothing
   )
   |> List.head
 
-tokenizeWhitespace : String -> Maybe (Token, String)
+tokenizeWhitespace : String -> Maybe (List Token, String)
 tokenizeWhitespace code =
   let whitespace = code |> StringUtil.takeWhile (\char -> char == ' ')
       rest = StringUtil.drop (String.length whitespace) code
   in if whitespace /= ""
-     then Just (TokIgnored whitespace, rest)
+     then Just ([TokIgnored whitespace], rest)
      else Nothing
 
-tokenizeOne : String -> (Token, String)
+tokenizeOne : String -> (List Token, String)
 tokenizeOne code =
   tokenizeSymbol code
   |> MaybeUtil.orElseLazy (\() -> tokenizeName code)
   |> MaybeUtil.orElseLazy (\() -> tokenizeDeclaration code)
   |> MaybeUtil.orElseLazy (\() -> tokenizeWhitespace code)
-  |> Maybe.withDefault (TokInvalid <| StringUtil.take 1 code, StringUtil.drop 1 code)
+  |> Maybe.withDefault ([TokInvalid <| StringUtil.take 1 code], StringUtil.drop 1 code)
 
 tokenize : String -> List Token
 tokenize code =
   if String.length code == 0
   then []
-  else let (token, rest) = tokenizeOne code
-       in token :: tokenize rest
+  else let (tokens, rest) = tokenizeOne code
+       in tokens ++ tokenize rest
 
 -- --
 
