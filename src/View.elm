@@ -375,7 +375,7 @@ rulesHtml useUnicode =
   , { label = "∀I: [x]⊢Px ∴ ∀xPx", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a"], ProofLine "Vx x=x"] }
   , { label = "∀E: ∀xPx ∴ Py", proof = ProofBlock ["VxPx"] [ProofBlock ["[a]"] [ProofLine "Pa"]] }
   , { label = "∃I: Px ∴ ∃yPy", proof = ProofBlock [""] [ProofBlock ["[a]", "Pa"] [ProofLine "ExPx"]] }
-  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "VxPx->Qx"] [ProofBlock ["[a]", "Pa"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
+  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "Vx(Px->Qx)"] [ProofBlock ["[a]", "Pa"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
   , { label = "NE (domain nonempty): [x]⊢P ∴ P", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a", ProofLine "Ex x=x"], ProofLine "Ex x=x"] }
   , { label = "=I: x=x", proof = ProofBlock ["[a]"] [ProofLine "a=a"] }
   , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["[a]", "Pa"] [ProofBlock ["[b]", "a=b"] [ProofLine "Pb"]] }

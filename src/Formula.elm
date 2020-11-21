@@ -214,18 +214,21 @@ parseInequality = parseBinOp TokInequal parseNameRaw parseNameRaw (\lhs rhs -> N
 parseForall =
   literal [TokForall]
   |> kThen (with parseNameRaw <| \name ->
-  with parseTop <| \body ->
+  with parseNonBinOp <| \body ->
   return (Forall name body))
 
 parseExists =
   literal [TokExists]
   |> kThen (with parseNameRaw <| \name ->
-  with parseTop <| \body ->
+  with parseNonBinOp <| \body ->
   return (Exists name body))
+
+parseEmpty = eof |> kThen (return Empty)
 
 parseNonBinOp : Parser Token Formula
 parseNonBinOp =
-  parseBottom
+  parseEmpty
+  |> or parseBottom
   |> or parseNegation
   |> or parseEquality
   |> or parseInequality
@@ -250,11 +253,7 @@ parseDisjunction = parseBinOpWithFallthrough TokOr parseConjunction Disjunction
 parseImplication = parseBinOpWithFallthrough TokIf parseDisjunction Implication
 parseBiconditional = parseBinOpWithFallthrough TokIff parseImplication Biconditional
 
-parseEmpty = eof |> kThen (return Empty)
-
-parseTop =
-  parseEmpty
-  |> or parseBiconditional
+parseTop = parseBiconditional
 
 parseTokens : List Token -> Maybe Formula
 parseTokens tokens =
