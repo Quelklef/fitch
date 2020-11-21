@@ -54,21 +54,10 @@ symbolMapping =
   , ( ")", TokClose )
 
   , ( "→", TokIf )
-  , ( "->", TokIf )
-  -- vv These two strange rule is required because, as the user types, we replace
-  -- vv what they're typing with a normalized unicode/ascii version. For instance, if
-  -- vv the user has typed "P-", intending to type "P->Q", it will be eagerly
-  -- vv replaced with "P¬" (if unicode is enabled) or "P~" (if it is not), since the
-  -- vv program tokenizes it as P NOT.
-  -- vv To Account for this, we need simply to include the following two rule.
-  , ( "¬>", TokIf )
-  , ( "~>", TokIf )
+  , ( ">", TokIf )
 
   , ( "↔", TokIff )
-  -- vv Similar deal here as with the "¬>" rule
-  , ( "<¬>", TokIff )
-  , ( "<~>", TokIff )
-  , ( "<->", TokIff )
+  , ( "<>", TokIff )
 
   , ( "⊥", TokBottom )
   , ( "_", TokBottom )

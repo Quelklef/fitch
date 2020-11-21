@@ -73,10 +73,10 @@ keyboardControlsHtml : Bool -> Html a
 keyboardControlsHtml useUnicode =
   [ { keys = [".", "&", "*"], label = "conjunction (∧)" }
   , { keys = ["|",  "v", "+"], label = "disjunction (∨)" }
-  , { keys = ["->"], label = "implication (→)" }
+  , { keys = [">"], label = "implication (→)" }
   , { keys = ["-", "~", "!"], label = "negation (¬)" }
   , { keys = ["_", "#"], label = "bottom (⊥)" }
-  , { keys = ["<->"], label = "biconditional (↔)" }
+  , { keys = ["<>"], label = "biconditional (↔)" }
   , { keys = ["\\", "V"], label = "forall (∀)" }
   , { keys = ["E", "@"], label = "exists (∃)" }
   , { keys = ["="], label = "equals (=)" }
@@ -220,7 +220,7 @@ examplesHtml useUnicode =
             ]
           , ProofLine "-(P|Q)"
           ]
-        , ProofLine "-(P|Q)<->(-P.-Q)"
+        , ProofLine "-(P|Q)<>(-P.-Q)"
         ]
   }
   , { label = "DeMorgan's Law (∧)", proof =
@@ -273,7 +273,7 @@ examplesHtml useUnicode =
             ]
           , ProofLine "-(P.Q)"
           ]
-        , ProofLine "-(P.Q)<->(-P|-Q)"
+        , ProofLine "-(P.Q)<>(-P|-Q)"
         ]
   }
   , { label = "DeMorgan's Law (∃)", proof =
@@ -307,7 +307,7 @@ examplesHtml useUnicode =
             ]
           , ProofLine "-ExPx"
           ]
-        , ProofLine "(-ExPx)<->(Vx-Px)"
+        , ProofLine "(-ExPx)<>(Vx-Px)"
         ]
   }
   , { label = "DeMorgan's Law (∀)", proof =
@@ -349,7 +349,7 @@ examplesHtml useUnicode =
             ]
           , ProofLine "-VxPx"
           ]
-        , ProofLine "(-VxPx)<->(Ex-Px)"
+        , ProofLine "(-VxPx)<>(Ex-Px)"
         ]
   }
   ]
@@ -364,18 +364,18 @@ rulesHtml useUnicode =
   , { label = "∧E: P∧Q ∴ Q", proof = ProofBlock ["P.Q"] [ProofLine "Q"] }
   , { label = "∨I: P ∴ P∨Q", proof = ProofBlock ["P"] [ProofLine "P|Q"] }
   , { label = "∨E: P∨Q , P⊢R , Q⊢R ∴ R", proof = ProofBlock ["P|(P.Q)"] [ProofBlock ["P"] [ProofLine "P"], ProofBlock ["P.Q"] [ProofLine "P"], ProofLine "P"] }
-  , { label = "→I: P⊢Q ∴ P→Q", proof = ProofBlock ["Q"] [ProofBlock ["P"] [ProofLine "Q"], ProofLine "P->Q"] }
-  , { label = "→E: P→Q , P ∴ Q", proof = ProofBlock ["P->Q", "P"] [ProofLine "Q"] }
-  , { label = "↔I: P⊢Q , Q⊢P ∴ P↔Q", proof = ProofBlock ["P.Q"] [ProofBlock ["P"] [ProofLine "Q"], ProofBlock ["Q"] [ProofLine "P"], ProofLine "P<->Q"] }
-  , { label = "↔E: P↔Q , P ∴ Q", proof = ProofBlock ["P<->Q", "P"] [ProofLine "Q"] }
-  , { label = "↔E: P↔Q , Q ∴ P", proof = ProofBlock ["P<->Q", "Q"] [ProofLine "P"] }
+  , { label = "→I: P⊢Q ∴ P→Q", proof = ProofBlock ["Q"] [ProofBlock ["P"] [ProofLine "Q"], ProofLine "P>Q"] }
+  , { label = "→E: P→Q , P ∴ Q", proof = ProofBlock ["P>Q", "P"] [ProofLine "Q"] }
+  , { label = "↔I: P⊢Q , Q⊢P ∴ P↔Q", proof = ProofBlock ["P.Q"] [ProofBlock ["P"] [ProofLine "Q"], ProofBlock ["Q"] [ProofLine "P"], ProofLine "P<>Q"] }
+  , { label = "↔E: P↔Q , P ∴ Q", proof = ProofBlock ["P<>Q", "P"] [ProofLine "Q"] }
+  , { label = "↔E: P↔Q , Q ∴ P", proof = ProofBlock ["P<>Q", "Q"] [ProofLine "P"] }
   , { label = "⊥I: P∧¬P ∴ ⊥", proof = ProofBlock ["P.-P"] [ProofLine "#"] }
   , { label = "¬I: P⊢⊥ ∴ ¬P", proof = ProofBlock ["-(P|Q)"] [ProofBlock ["P"] [ProofLine "P|Q", ProofLine "(P|Q).-(P|Q)", ProofLine "#"], ProofLine "-P"] }
   , { label = "¬E: ¬¬P ∴ P", proof = ProofBlock ["--P"] [ProofLine "P"] }
   , { label = "∀I: [x]⊢Px ∴ ∀xPx", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a"], ProofLine "Vx x=x"] }
   , { label = "∀E: ∀xPx ∴ Py", proof = ProofBlock ["VxPx"] [ProofBlock ["[a]"] [ProofLine "Pa"]] }
   , { label = "∃I: Px ∴ ∃yPy", proof = ProofBlock [""] [ProofBlock ["[a]", "Pa"] [ProofLine "ExPx"]] }
-  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "Vx(Px->Qx)"] [ProofBlock ["[a]", "Pa"] [ProofLine "Pa->Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
+  , { label = "∃E: ∃xPx , [y]Py⊢R ∴ R", proof = ProofBlock ["ExPx", "Vx(Px>Qx)"] [ProofBlock ["[a]", "Pa"] [ProofLine "Pa>Qa", ProofLine "Qa", ProofLine "ExQx"], ProofLine "ExQx"] }
   , { label = "NE (domain nonempty): [x]⊢P ∴ P", proof = ProofBlock [""] [ProofBlock ["[a]"] [ProofLine "a=a", ProofLine "Ex x=x"], ProofLine "Ex x=x"] }
   , { label = "=I: x=x", proof = ProofBlock ["[a]"] [ProofLine "a=a"] }
   , { label = "=E: Px , x=y ∴ Py", proof = ProofBlock ["[a]", "Pa"] [ProofBlock ["[b]", "a=b"] [ProofLine "Pb"]] }
