@@ -297,13 +297,22 @@ justifyExistsElim knowledge goal =
   |> Iter.findMapM (\(statement, block) ->
     case statement.formula of
       Just (Exists existsName existsClaim) ->
-        case Proof.assumptions block |> List.map .formula of
-          [Just (Declaration blockDeclaringName), Just blockAssumption] ->
+        blockDeclarationNameAndAssumption block |> Maybe.andThen (\(blockDeclaringName, blockAssumption) ->
             (existsClaim |> Formula.substitute existsName blockDeclaringName) == blockAssumption
               && (Proof.conclusion block |> Maybe.andThen .formula) == Just goal
-            |> MaybeUtil.fromBool ("∃E:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block)
-          _ -> Nothing
+            |> MaybeUtil.fromBool ("∃E:" ++ rangeOf (ProofLine statement) ++ "," ++ rangeOf block))
       _ -> Nothing)
+
+-- vv Given a block proof where:
+-- vv * There are exactly 1 or 2 assumptions, and
+-- vv * The first assumption is a declaration,
+-- vv evaluates to (the name declared, the second assumption or Empty if there is none)
+blockDeclarationNameAndAssumption : Proofy DecoratedLine -> Maybe (Char, Formula)
+blockDeclarationNameAndAssumption block =
+  case Proof.assumptions block |> List.map .formula of
+    [Just (Declaration name), Just assumption] -> Just (name, assumption)
+    [Just (Declaration name)] -> Just (name, Empty)
+    _ -> Nothing
 
 justifyDomainNonempty : Strategy
 justifyDomainNonempty knowledge goal =
