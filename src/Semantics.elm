@@ -307,12 +307,9 @@ justifyExistsElim knowledge goal =
 
 justifyDomainNonempty : Strategy
 justifyDomainNonempty knowledge goal =
-  blocks knowledge
-  |> ListUtil.find (\block ->
-      case Proof.assumptions block |> List.map .formula of
-        [Just (Declaration _)] -> (Proof.conclusion block |> Maybe.andThen .formula) == Just goal
-        _ -> False)
-  |> Maybe.map (\block -> "NE:" ++ rangeOf block)
+  case goal of
+    Exists _ Empty -> Just "NE"
+    _ -> Nothing
 
 justifyEqualityIntro : Strategy
 justifyEqualityIntro knowledge goal =
