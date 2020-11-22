@@ -322,3 +322,27 @@ freeObjectVars formula = case formula of
   Forall arg body -> Set.remove arg (freeObjectVars body)
   Exists arg body -> Set.remove arg (freeObjectVars body)
   Equality lhs rhs -> Set.fromList [lhs, rhs]
+
+declaring : Formula -> Set Char
+declaring formula = case formula of
+  Declaration name -> Set.singleton name
+  Forall name _ -> Set.singleton name
+  Exists name _ -> Set.singleton name
+  _ -> Set.empty
+
+children : Formula -> List Formula
+children formula = case formula of
+  Empty -> []
+  Bottom -> []
+  Declaration _ -> []
+  Application _ _ -> []
+  Name _ -> []
+  Negation body -> [body]
+  Conjunction lhs rhs -> [lhs, rhs]
+  Disjunction lhs rhs -> [lhs, rhs]
+  Implication lhs rhs -> [lhs, rhs]
+  Biconditional lhs rhs -> [lhs, rhs]
+  Forall _ body -> [body]
+  Exists _ body -> [body]
+  Equality _ _ -> []
+

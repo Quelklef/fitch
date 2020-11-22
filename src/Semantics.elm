@@ -16,7 +16,7 @@ verifySemantics : Knowledge -> Formula -> Result String ()
 verifySemantics knowledge formula =
   let semanticChecks =
         [ checkNoUndeclaredFreeVars
-        , checkNotQuantifyingOverPropositions
+        , checkQuantifiedNamesNotUsedAsPredicatesOrPropositions
         , checkNoShadowingInFormulas
         , checkNoShadowingInNestedBlocks
         ]
@@ -37,43 +37,41 @@ checkNoUndeclaredFreeVars knowledge formula =
        then Nothing
        else Just <| "'" ++ String.fromChar varName ++ "' is free")
 
-checkNotQuantifyingOverPropositions : Knowledge -> Formula -> Maybe String
-checkNotQuantifyingOverPropositions knowledge formula =
-  Nothing
+-- vv Gives an error on e.g. '∀PPa'
+checkQuantifiedNamesNotUsedAsPredicatesOrPropositions : Knowledge -> Formula -> Maybe String
+checkQuantifiedNamesNotUsedAsPredicatesOrPropositions knowledge formula =
+  formula
+  |> scopedFirstJust (\scope subformula ->
+    case subformula of
+      Application name args ->
+        let kind = if List.length args == 0 then "proposition" else "predicate"
+        in Set.member name scope
+        |> MaybeUtil.fromBool ("can't quantify over " ++ kind ++ " '" ++ String.fromChar name ++ "'")
+      _ -> Nothing)
 
 -- vv Looks for variable shadowing within formulas
 -- vv Such as in '∀x∃xPx'
 checkNoShadowingInFormulas : Knowledge -> Formula -> Maybe String
 checkNoShadowingInFormulas knowledge formula =
-  checkNoShadowingInFormulasAux Set.empty formula
+  formula
+  |> scopedFirstJust (\scope subformula ->
+    Set.intersect scope (Formula.declaring subformula)
+    |> Set.toList
+    |> List.head
+    |> Maybe.map (\name -> "'" ++ String.fromChar name ++ "' is shadowed"))
 
-checkNoShadowingInFormulasAux : Set.Set Char -> Formula -> Maybe String
-checkNoShadowingInFormulasAux scope formula =
-  let
+-- vv Given a function and a formula, recursively call the function on all
+-- vv subformulas with the variable scope and current formula;
+-- vv Return the first Just returned.
+scopedFirstJust : (Set.Set Char -> Formula -> Maybe a) -> Formula -> Maybe a
+scopedFirstJust = scopedFirstJustAux Set.empty
 
-    (declaredVars, children) = case formula of
-        Empty -> (Set.empty, [])
-        Bottom -> (Set.empty, [])
-        Declaration name -> (Set.singleton name, [])
-        Application name args -> (Set.empty, [])
-        Name name -> (Set.empty, [])
-        Negation body -> (Set.empty, [body])
-        Conjunction lhs rhs -> (Set.empty, [lhs, rhs])
-        Disjunction lhs rhs -> (Set.empty, [lhs, rhs])
-        Implication lhs rhs -> (Set.empty, [lhs, rhs])
-        Biconditional lhs rhs -> (Set.empty, [lhs, rhs])
-        Forall arg body -> (Set.singleton arg, [body])
-        Exists arg body -> (Set.singleton arg, [body])
-        Equality lhs rhs -> (Set.empty, [])
-
-    shadowedVar = Set.intersect declaredVars scope
-                  |> Set.toList
-                  |> List.head
-
-  in case shadowedVar of
-    Just name -> Just ("'" ++ String.fromChar name ++ "' is shadowed")
-    Nothing -> children
-               |> List.map (checkNoShadowingInFormulasAux (Set.union scope declaredVars))
+scopedFirstJustAux : Set.Set Char -> (Set.Set Char -> Formula -> Maybe a) -> Formula -> Maybe a
+scopedFirstJustAux scope getMaybe formula =
+  case getMaybe scope formula of
+    Just x -> Just x
+    Nothing -> Formula.children formula
+               |> List.map (scopedFirstJustAux (Set.union scope (Formula.declaring formula)) getMaybe)
                |> ListUtil.firstJust
   
 -- vv Looks for variable shadowing within nested blocks
