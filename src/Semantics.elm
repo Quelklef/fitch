@@ -17,6 +17,8 @@ verifySemantics knowledge formula =
   let semanticChecks =
         [ checkNoUndeclaredFreeVars
         , checkNotQuantifyingOverPropositions
+        , checkNoShadowingInFormulas
+        , checkNoShadowingInNestedBlocks
         ]
   in case ListUtil.findMapM (\check -> check knowledge formula) semanticChecks of
     Just err -> Err err
@@ -38,6 +40,63 @@ checkNoUndeclaredFreeVars knowledge formula =
 checkNotQuantifyingOverPropositions : Knowledge -> Formula -> Maybe String
 checkNotQuantifyingOverPropositions knowledge formula =
   Nothing
+
+-- vv Looks for variable shadowing within formulas
+-- vv Such as in '∀x∃xPx'
+checkNoShadowingInFormulas : Knowledge -> Formula -> Maybe String
+checkNoShadowingInFormulas knowledge formula =
+  checkNoShadowingInFormulasAux Set.empty formula
+
+checkNoShadowingInFormulasAux : Set.Set Char -> Formula -> Maybe String
+checkNoShadowingInFormulasAux scope formula =
+  let
+
+    (declaredVars, children) = case formula of
+        Empty -> (Set.empty, [])
+        Bottom -> (Set.empty, [])
+        Declaration name -> (Set.singleton name, [])
+        Application name args -> (Set.empty, [])
+        Name name -> (Set.empty, [])
+        Negation body -> (Set.empty, [body])
+        Conjunction lhs rhs -> (Set.empty, [lhs, rhs])
+        Disjunction lhs rhs -> (Set.empty, [lhs, rhs])
+        Implication lhs rhs -> (Set.empty, [lhs, rhs])
+        Biconditional lhs rhs -> (Set.empty, [lhs, rhs])
+        Forall arg body -> (Set.singleton arg, [body])
+        Exists arg body -> (Set.singleton arg, [body])
+        Equality lhs rhs -> (Set.empty, [])
+
+    shadowedVar = Set.intersect declaredVars scope
+                  |> Set.toList
+                  |> List.head
+
+  in case shadowedVar of
+    Just name -> Just ("'" ++ String.fromChar name ++ "' is shadowed")
+    Nothing -> children
+               |> List.map (checkNoShadowingInFormulasAux (Set.union scope declaredVars))
+               |> ListUtil.firstJust
+  
+-- vv Looks for variable shadowing within nested blocks
+-- vv Such as in:
+-- vv │ 1. ∀x∀yPxy     assumed
+-- vv ├──────────
+-- vv ││ 2. [a]        assumed
+-- vv │├──────────
+-- vv ││ 3. ∀yPay      ∀∃:1[x→a]
+-- vv │││ 4. [a]       assumed
+-- vv ││├──────────
+-- vv │││ 5. Paa       ∀∃:3[y→a]
+checkNoShadowingInNestedBlocks : Knowledge -> Formula -> Maybe String
+checkNoShadowingInNestedBlocks knowledge formula =
+  case formula of
+    Declaration innerDeclName ->
+      knowledge
+      |> ListUtil.findMapM (\proof -> case proof |> Proof.map .formula of
+        ProofLine (Just (Declaration outerDeclName)) ->
+            outerDeclName == innerDeclName
+            |> MaybeUtil.fromBool ("'" ++ String.fromChar outerDeclName ++ "' is shadowed")
+        _ -> Nothing)
+    _ -> Nothing
 
 -- --
 

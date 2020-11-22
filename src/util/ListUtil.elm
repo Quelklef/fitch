@@ -72,6 +72,12 @@ findMapM mapper items = case items of
   [] -> Nothing
   x::xs -> mapper x |> MaybeUtil.orElseLazy (\() -> findMapM mapper xs)
 
+firstJust : List (Maybe a) -> Maybe a
+firstJust items = case items of
+  [] -> Nothing
+  (Just x)::_ -> Just x
+  Nothing::xs -> firstJust xs
+
 find : (a -> Bool) -> List a -> Maybe a
 find cond items = case items of
   [] -> Nothing
