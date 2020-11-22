@@ -133,14 +133,11 @@ prettifyKnowledge (KnowledgeBox knowledge) =
   knowledge
   |> List.map (\known -> case known of
     ProofLine line ->
-      String.fromInt line.lineno ++ "."
-      ++ (line.formula
-      |> Maybe.map Formula.pretty
-      |> Maybe.withDefault "??")
+      String.fromInt line.lineno
     ProofBlock _ _ ->
       let getLineNo = Maybe.map .lineno >> Maybe.map String.fromInt >> Maybe.withDefault "??"
       in (Proof.firstLine known |> getLineNo) ++ ".." ++ (Proof.lastLine known |> getLineNo))
-  |> String.join " and "
+  |> String.join ", "
 
 blockColors : List { borderColor: String, backgroundColor : String }
 blockColors =
