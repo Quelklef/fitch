@@ -158,7 +158,7 @@ targetsEmptyLine proof path = case Proof.get path proof of
 
 targetsBody :: Path -> Boolean
 targetsBody path =
-  ArrayUtil.last path
+  Array.last path
   # map (\lastIdx -> lastIdx >= 0)
   # fromMaybe false
 
@@ -189,11 +189,11 @@ insertAfter preferAssumption path line host =
             else Just $ ProofBlock head (Array.cons (ProofLine line) body)
           -- ↓ Index targets an assumption that is not the last one
           else if idx < 0 then
-            ArrayUtil.insert (-idx-1 + 1) line head
+            Array.insertAt (-idx-1 + 1) line head
             # map (\newHead -> ProofBlock newHead body)
           -- ↓ Index targets a body line
           else
-            ArrayUtil.insert (idx + 1) (ProofLine line) body
+            Array.insertAt (idx + 1) (ProofLine line) body
             # map (\newBody -> ProofBlock head newBody)
 
     Just { head: idx, tail: idxs } ->

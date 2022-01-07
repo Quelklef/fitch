@@ -3,7 +3,7 @@ module Fitch.Decorate where
 import Prelude
 import Data.Either (Either (..))
 import Data.Either as Either
-import Data.Monoid (power)
+import Data.Monoid (guard, power)
 import Data.Array as Array
 import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Tuple (fst)
@@ -113,8 +113,8 @@ toText_ useUnicode assumptionsColumn depth proof =
       let headTexts = head <#> ProofLine <#> toText_ useUnicode assumptionsColumn (depth + 1)
           bar = "│" `power` depth <> "├──────────"
           bodyTexts =
-            ArrayUtil.zip body ((Array.drop 1 body <#> Just) <> [Nothing])
-            # ArrayUtil.flatMap (\(thisBodyProof /\ nextBodyProof) ->
+            Array.zip body ((Array.drop 1 body <#> Just) <> [Nothing])
+            >>= (\(thisBodyProof /\ nextBodyProof) ->
               let thisBodyProofIsBlock = case thisBodyProof of
                     ProofBlock _ _ -> true
                     _ -> false
@@ -123,7 +123,7 @@ toText_ useUnicode assumptionsColumn depth proof =
                     _ -> false
               in [toText_ useUnicode assumptionsColumn (depth + 1) thisBodyProof]
                 -- ↓ Include a separator between adjacent proofs
-                 <> ArrayUtil.if_ (thisBodyProofIsBlock && nextBodyProofIsBlock) ("│" `power` (depth + 1)))
+                 <> guard (thisBodyProofIsBlock && nextBodyProofIsBlock) ["│" `power` (depth + 1)])
 
       in intercalate "\n" $ headTexts <> [bar] <> bodyTexts
 

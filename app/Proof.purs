@@ -17,9 +17,9 @@ get path proof = case Array.uncons path of
       ProofLine _ -> Nothing
       ProofBlock head body ->
         if idx >= 0
-        then ArrayUtil.get idx body
+        then Array.index body idx
              # (_ >>= get idxs)
-        else ArrayUtil.get (-idx-1) head
+        else Array.index head (-idx-1)
              # Prelude.map (\formula -> ProofLine formula)
              # (_ >>= (\subproof -> get idxs subproof))
 
@@ -29,10 +29,10 @@ set idx subproof proof =
     ProofLine _ -> Nothing
     ProofBlock head body ->
       if idx >= 0 then case subproof of
-        ProofLine line -> ArrayUtil.set idx line head
+        ProofLine line -> Array.updateAt idx line head
                           # Prelude.map (\newHead -> ProofBlock newHead body)
         ProofBlock _ _ -> Nothing
-      else ArrayUtil.set (-idx-1) subproof body
+      else Array.updateAt (-idx-1) subproof body
            # Prelude.map (\newBody -> ProofBlock head newBody)
 
 remove :: forall a. Int -> Proofy a -> Maybe (Proofy a)
@@ -40,8 +40,8 @@ remove idx proof =
   case proof of
     ProofLine _ -> Nothing
     ProofBlock head body ->
-      if idx >= 0 then ArrayUtil.remove idx body # Prelude.map (\newBody -> ProofBlock head newBody)
-      else ArrayUtil.remove (-idx-1) head # Prelude.map (\newHead -> ProofBlock newHead body)
+      if idx >= 0 then Array.deleteAt idx body # Prelude.map (\newBody -> ProofBlock head newBody)
+      else Array.deleteAt (-idx-1) head # Prelude.map (\newHead -> ProofBlock newHead body)
 
 firstLine :: forall a. Proofy a -> Maybe a
 firstLine proof = case proof of
@@ -54,9 +54,9 @@ lastLine :: forall a. Proofy a -> Maybe a
 lastLine proof = case proof of
   ProofLine line -> Just line
   ProofBlock head body ->
-    ArrayUtil.last body
+    Array.last body
     # (_ >>= lastLine)
-    # MaybeUtil.orElseLazy (\_ -> ArrayUtil.last head)
+    # MaybeUtil.orElseLazy (\_ -> Array.last head)
 
 assumptions :: forall a. Proofy a -> Array a
 assumptions proof = case proof of
@@ -79,16 +79,16 @@ replaceM idx fn proof =
     ProofLine _ -> Nothing
     ProofBlock head body ->
       if idx >= 0 then
-        ArrayUtil.get idx body
+        Array.index body idx
         # (_ >>= fn)
-        # (_ >>= (\newSubproof -> ArrayUtil.set idx newSubproof body))
+        # (_ >>= (\newSubproof -> Array.updateAt idx newSubproof body))
         # Prelude.map (\newBody -> ProofBlock head newBody)
       else
-        ArrayUtil.get (-idx-1) head
+        Array.index head (-idx-1)
         # Prelude.map ProofLine
         # (_ >>= fn)
         # (_ >>= (\newSubproof -> case newSubproof of
-          ProofLine newLine -> ArrayUtil.set (-idx-1) newLine head
+          ProofLine newLine -> Array.updateAt (-idx-1) newLine head
           ProofBlock _ _ -> Nothing))
         # Prelude.map (\newHead -> ProofBlock newHead body)
 

@@ -15,7 +15,6 @@ import Fitch.Path as Path
 import Fitch.Proof as Proof
 import Fitch.Decorate as Decorate
 import Fitch.Serialize as Serialize
-import Fitch.Util.ArrayUtil as ArrayUtil
 
 -- ↓ Replaces the url of the page without reloading
 foreign import setUrlArg :: String -> Effect Unit
@@ -93,13 +92,13 @@ doDedentAt path proof =
   doDedentAt_ path proof
   >>= (\newProof ->
     let targetHasOnlyOneLine =
-          ArrayUtil.init path
+          Array.dropEnd 1 path
           # (\thePath -> Proof.get thePath proof)
           # map (\block -> Proof.length block == 1)
           # fromMaybe false
         maybeNewPath =
           if targetHasOnlyOneLine
-          then ArrayUtil.dropLast path # Just
+          then Array.dropEnd 1 path # Just
           else path # Path.linearPred proof >>= Path.linearSucc newProof
     in maybeNewPath
        <#> (\newPath -> newProof /\ setFocusTo newPath))
@@ -153,8 +152,8 @@ doBackspaceAt_ path proof = case Array.uncons path of
                 -- ↓ Disallow backspacing a lonely assumption on a nonempty body
                 if Array.length head == 1 && Array.length body > 0
                 then Nothing
-                else ArrayUtil.remove (-idx-1) head <#> (\newHead -> ProofBlock newHead body)
-            else (ArrayUtil.remove idx body) <#> (\newBody -> ProofBlock head newBody)
+                else Array.deleteAt (-idx-1) head <#> (\newHead -> ProofBlock newHead body)
+            else (Array.deleteAt idx body) <#> (\newBody -> ProofBlock head newBody)
   Just { head: idx, tail: idxs } ->
     proof
     # Proof.replaceM idx (\subproof -> doBackspaceAt_ idxs subproof)

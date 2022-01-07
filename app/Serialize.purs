@@ -2,6 +2,7 @@ module Fitch.Serialize where
 
 import Prelude
 import Data.Map as Map
+import Data.Array as Array
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Maybe (Maybe (..))
 import Data.String.CodePoints as String
@@ -51,8 +52,8 @@ deserialize =
 parseLine :: Parser CodePoint String
 parseLine =
   withM (peek 2) $ \seen ->
-    let first = ArrayUtil.get 0 seen
-        second = ArrayUtil.get 1 seen
+    let first = Array.index seen 0
+        second = Array.index seen 1
     in case first of
       Nothing -> Nothing
       Just char ->

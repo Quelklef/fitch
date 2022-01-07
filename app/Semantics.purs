@@ -8,6 +8,8 @@ import Data.Maybe (Maybe (..))
 import Data.String.CodePoints as String
 import Data.String.CodePoints (CodePoint)
 import Data.Either (Either (..))
+import Data.Foldable (findMap)
+import Control.Alt ((<|>))
 
 import Fitch.Types (Proofy(..), Formula(..), Knowledge, DecoratedLine)
 import Fitch.Proof as Proof
@@ -24,14 +26,14 @@ verifySemantics knowledge formula =
         , checkNoShadowingInFormulas
         , checkNoShadowingInNestedBlocks
         ]
-  in case ArrayUtil.findMapM (\check -> check knowledge formula) semanticChecks of
+  in case findMap (\check -> check knowledge formula) semanticChecks of
     Just err -> Left err
     Nothing -> Right unit
 
 -- ↓ Checks that all free variabless are declared
 checkNoUndeclaredFreeVars :: Knowledge -> Formula -> Maybe String
 checkNoUndeclaredFreeVars knowledge formula =
-  Formula.freeObjectVars formula # Set.toUnfoldable # ArrayUtil.findMapM (\varName ->
+  Formula.freeObjectVars formula # findMap (\varName ->
     let isDeclared = knowledge # Array.any (\known -> case known of
           ProofLine line -> case line.formula of
             Just (Declaration declaredName) -> declaredName == varName
@@ -93,7 +95,7 @@ checkNoShadowingInNestedBlocks knowledge formula =
   case formula of
     Declaration innerDeclName ->
       knowledge
-      # ArrayUtil.findMapM (\proof -> case proof # Proof.map _.formula of
+      # findMap (\proof -> case proof # Proof.map _.formula of
         ProofLine (Just (Declaration outerDeclName)) ->
             outerDeclName == innerDeclName
             # MaybeUtil.fromBool ("'" <> String.singleton outerDeclName <> "' is shadowed")
@@ -126,7 +128,7 @@ justify knowledge goal =
         , justifyEqualityIntro
         , justifyEqualityElim
         ]
-  in justificationStrategies # ArrayUtil.findMapM (\strategy -> strategy knowledge goal)
+  in justificationStrategies # findMap (\strategy -> strategy knowledge goal)
 
 -- ↓ Gives a string representation of the range that a proof spans
 rangeOf :: Proofy DecoratedLine -> String
@@ -206,7 +208,7 @@ justifyDisjunctionIntro knowledge goal =
       let lhsRange = rangeOfKnownFormula lhs knowledge
           rhsRange = rangeOfKnownFormula rhs knowledge
       in
-        lhsRange # MaybeUtil.orElse rhsRange
+        lhsRange <|> rhsRange
         # map (\range -> "∨I:" <> range)
     _ -> Nothing
 
@@ -278,7 +280,7 @@ justifyBiconditionalElim knowledge goal =
 justifyBottomIntro :: Strategy
 justifyBottomIntro knowledge _goal =
   knowledge
-  # ArrayUtil.find (\known ->
+  # Array.find (\known ->
     case known of
       ProofLine line -> case line.formula of
         Just (Conjunction lhs rhs) -> lhs == Negation rhs || rhs == Negation lhs
@@ -300,7 +302,7 @@ justifyNegationIntro knowledge goal =
 justifyNegationElim :: Strategy
 justifyNegationElim knowledge goal =
   knowledge
-  # ArrayUtil.find (\known ->
+  # Array.find (\known ->
     case known of
       ProofLine line -> case line.formula of
         Just (Negation (Negation body)) -> body == goal
@@ -313,7 +315,7 @@ justifyForallIntro knowledge goal =
   case goal of
     Forall forallName forallClaim ->
       blocks knowledge
-      # ArrayUtil.findMapM (\block ->
+      # findMap (\block ->
         let assumptionMaybes = Proof.assumptions block # map _.formula
             maybeConclusion = Proof.conclusion block # map _.formula
         in case assumptionMaybes /\ maybeConclusion of
@@ -344,7 +346,7 @@ justifyExistsIntro knowledge goal =
   case goal of
     Exists existsName existsClaim ->
       statements knowledge
-      # ArrayUtil.findMapM (\statement ->
+      # findMap (\statement ->
          statement.formula
          >>= (\formula ->
          Formula.freeObjectVars formula

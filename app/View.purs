@@ -2,6 +2,7 @@ module Fitch.View where
 
 import Prelude
 import Effect (Effect)
+import Data.Array as Array
 import Data.Tuple.Nested ((/\))
 import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Foldable (intercalate)
@@ -20,7 +21,6 @@ import Fitch.Formula as Formula
 import Fitch.Decorate as Decorate
 import Fitch.Serialize as Serialize
 import Fitch.Util.ArrayUtil as ArrayUtil
-import Fitch.Util.StringUtil as StringUtil
 
 view :: Model -> { head :: Array (Html Message), body :: Array (Html Message) }
 view model =
@@ -100,7 +100,7 @@ keyboardControlsHtml useUnicode =
   , { keys: ["shift+tab"], label: "down a block" }
   ]
   # map (\{ keys, label } ->
-    let keysHtml = keys # ArrayUtil.flatMap (\key -> [ span [ addClass "key" ] [ text key ], text " " ])
+    let keysHtml = keys >>= (\key -> [ span [ addClass "key" ] [ text key ], text " " ])
     in p [] ( keysHtml <> [ text $ TextStyle.map useUnicode label ] ))
   # div []
 
@@ -392,7 +392,7 @@ rulesHtml useUnicode =
   , { label: "=E: Px , x=y ∴ Py", proof: ProofBlock ["[a]", "Pa"] [ProofBlock ["[b]", "a=b"] [ProofLine "Pb"]] }
   ]
   # makeExamples useUnicode
-  # ArrayUtil.push (p [] [ text $ TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ])
+  # (\ar -> Array.snoc ar (p [] [ text $ TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ]))
   # div []
 
 makeExamples useUnicode =

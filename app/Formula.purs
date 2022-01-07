@@ -121,7 +121,7 @@ tokenizeDeclaration code =
   let prefix = StringUtil.get 0 code
       char = StringUtil.get 1 code
       suffix = StringUtil.get 2 code
-      rest = StringUtil.drop 3 code
+      rest = String.drop 3 code
   in
     case char of
       Just name ->
@@ -136,15 +136,15 @@ tokenizeSymbol code =
   symbolMapping
   # Array.mapMaybe (\(string /\ token) ->
     if String.startsWith string code
-    then Just $ [token] /\ StringUtil.drop (String.length string) code
+    then Just $ [token] /\ String.drop (String.length string) code
     else Nothing
   )
   # Array.head
 
 tokenizeWhitespace :: String -> Maybe (Array Token /\ String)
 tokenizeWhitespace code =
-  let whitespace = code # StringUtil.takeWhile (\char -> char == String.codePointFromChar ' ')
-      rest = StringUtil.drop (String.length whitespace) code
+  let whitespace = code # String.takeWhile (\char -> char == String.codePointFromChar ' ')
+      rest = String.drop (String.length whitespace) code
   in if whitespace /= ""
      then Just $ [TokIgnored whitespace] /\ rest
      else Nothing
@@ -155,7 +155,7 @@ tokenizeOne code =
   # MaybeUtil.orElseLazy (\_ -> tokenizeName code)
   # MaybeUtil.orElseLazy (\_ -> tokenizeDeclaration code)
   # MaybeUtil.orElseLazy (\_ -> tokenizeWhitespace code)
-  # fromMaybe ([TokInvalid $ StringUtil.take 1 code] /\ StringUtil.drop 1 code)
+  # fromMaybe ([TokInvalid $ String.take 1 code] /\ String.drop 1 code)
 
 tokenize :: String -> Array Token
 tokenize code =
