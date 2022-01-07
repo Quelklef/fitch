@@ -45,8 +45,9 @@ function fixInput(inputNode) {
     const newValue = inputNode.value
 
     // Set the selection back to where it "should be"
-    // Accounts for the case that the elm code collapses multiple chars (e.g. /=) into one (≠)!
-    inputNode.selectionStart = inputNode.selectionEnd = prevOffset + (newValue.length - prevValue.length);
+    // Accounts for the case that multiple chars are collapsed (e.g. /=) into one (≠)!
+    const i = prevOffset + (newValue.length - prevValue.length);
+    setTimeout(() => inputNode.selectionStart = inputNode.selectionEnd = i, 0);
 
     prevValue = newValue;
     prevOffset = inputNode.selectionEnd;
@@ -62,8 +63,8 @@ function fixInput(inputNode) {
 
 }
 
-// vvvvvv
-// Watch the elm app for mutations and apply the fix to new
+// ↓↓↓↓↓↓
+// Watch the app for mutations and apply the fix to new
 // inputs as they are created
 // (Because this script is run before the app is initialized,
 //  there is no need to check for existing inputs)
@@ -80,7 +81,7 @@ const observer = new MutationObserver(mutations => {
 })
 
 observer.observe(
-  document.getElementById('elm'),
+  document.body,
   {
     subtree: true,  // recursively observe child nodes
     childList: true,  // listen for child node additions/deletions
