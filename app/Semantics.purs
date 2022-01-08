@@ -8,13 +8,13 @@ import Data.Maybe (Maybe (..))
 import Data.String.CodePoints as String
 import Data.String.CodePoints (CodePoint)
 import Data.Either (Either (..))
-import Data.Foldable (findMap)
+import Data.Foldable (findMap, find)
+import Data.List.Lazy as LList
 import Control.Alt ((<|>))
 
 import Fitch.Types (Proofy(..), Formula(..), Knowledge, DecoratedLine)
 import Fitch.Proof as Proof
 import Fitch.Formula as Formula
-import Fitch.Util.Iter as Iter
 import Fitch.Util.ArrayUtil as ArrayUtil
 import Fitch.Util.MaybeUtil as MaybeUtil
 
@@ -219,8 +219,13 @@ justifyDisjunctionElim knowledge goal =
             Just (Disjunction lhs rhs) -> Just $ known /\ lhs /\ rhs
             _ -> Nothing
           _ -> Nothing)
-  in Iter.product3 (Iter.fromArray disjunctions) (Iter.fromArray $ blocks knowledge) (Iter.fromArray $ blocks knowledge)
-     # Iter.find (\((_disjunction /\ lhs /\ rhs) /\ blockA /\ blockB) ->
+  in (do
+        disj <- LList.fromFoldable disjunctions
+        block1 <- LList.fromFoldable $ blocks knowledge
+        block2 <- LList.fromFoldable $ blocks knowledge
+        pure $ disj /\ block1 /\ block2
+     )
+     # find (\((_disjunction /\ lhs /\ rhs) /\ blockA /\ blockB) ->
              (Proof.conclusion blockA >>= _.formula) == Just goal
              && (Proof.conclusion blockB >>= _.formula) == Just goal
              && (Proof.assumptions blockA <#> _.formula) == [Just lhs]
@@ -246,16 +251,24 @@ justifyImplicationElim knowledge goal =
           Just (Implication lhs rhs) -> Just (known /\ lhs /\ rhs)
           _ -> Nothing
         _ -> Nothing)
-  in Iter.product (Iter.fromArray implications) (Iter.fromArray $ statements knowledge)
-     # Iter.find (\((_implication /\ lhs /\ rhs) /\ statement) -> statement.formula == Just lhs && goal == rhs)
+  in (do
+       im <- LList.fromFoldable implications
+       st <- LList.fromFoldable (statements knowledge)
+       pure $ im /\ st
+     )
+     # find (\((_implication /\ lhs /\ rhs) /\ statement) -> statement.formula == Just lhs && goal == rhs)
      # map (\((implication /\ _ /\ _) /\ statement) -> "→E:" <> rangeOf implication <> "," <> rangeOf (ProofLine statement))
 
 justifyBiconditionalIntro :: Strategy
 justifyBiconditionalIntro knowledge goal =
   case goal of
     Biconditional lhs rhs ->
-      Iter.product (Iter.fromArray $ blocks knowledge ) (Iter.fromArray $ blocks knowledge )
-      # Iter.find (\(blockA /\ blockB) ->
+      (do
+        block1 <- LList.fromFoldable (blocks knowledge)
+        block2 <- LList.fromFoldable (blocks knowledge)
+        pure $ block1 /\ block2
+      )
+      # find (\(blockA /\ blockB) ->
         (Proof.assumptions blockA # map _.formula) == [Just lhs]
         && (Proof.conclusion blockA >>= _.formula) == Just rhs
         && (Proof.assumptions blockB # map _.formula) == [Just rhs]
@@ -270,8 +283,12 @@ justifyBiconditionalElim knowledge goal =
           Just (Biconditional lhs rhs) -> Just (known /\ lhs /\ rhs)
           _ -> Nothing
         _ -> Nothing)
-  in Iter.product (Iter.fromArray biconditionals) (Iter.fromArray $ statements knowledge)
-     # Iter.find (\((_biconditional /\ lhs /\ rhs) /\ statement) ->
+  in (do
+       bi <- LList.fromFoldable biconditionals
+       st <- LList.fromFoldable (statements knowledge)
+       pure $ bi /\ st
+     )
+     # find (\((_biconditional /\ lhs /\ rhs) /\ statement) ->
              statement.formula == Just lhs && goal == rhs
              || statement.formula == Just rhs && goal == lhs)
      # map (\((biconditional /\ _lhs /\ _rhs) /\ statement) ->
@@ -329,15 +346,17 @@ justifyForallIntro knowledge goal =
 justifyForallElim :: Strategy
 justifyForallElim knowledge goal =
   knowledge
-  # Iter.fromArray
-  # Iter.filterMap (\known ->
+  # LList.fromFoldable
+  # LList.mapMaybe (\known ->
     case known of
       ProofLine line -> case line.formula of
         Just (Forall forallName forallClaim) -> Just $ known /\ forallName /\ forallClaim
         _ -> Nothing
       _ -> Nothing)
-  # (\x -> Iter.product x (Iter.fromSet $ Formula.freeObjectVars goal))
-  # Iter.findMapM (\((forall' /\ forallName /\ forallClaim) /\ freeVar) ->
+  # (\foralls -> do foral <- LList.fromFoldable foralls
+                    freeV <- LList.fromFoldable (Formula.freeObjectVars goal)
+                    pure $ foral /\ freeV)
+  # findMap (\((forall' /\ forallName /\ forallClaim) /\ freeVar) ->
       goal == (forallClaim # Formula.substitute forallName freeVar)
       # MaybeUtil.fromBool ("∀E:" <> rangeOf forall' <> "[" <> String.singleton forallName <> "→" <> String.singleton freeVar <> "]"))
 
@@ -350,16 +369,19 @@ justifyExistsIntro knowledge goal =
          statement.formula
          >>= (\formula ->
          Formula.freeObjectVars formula
-         # Iter.fromSet
-         # Iter.findMapM (\freeVar ->
+         # findMap (\freeVar ->
          (existsClaim # Formula.substitute existsName freeVar) == formula
          # MaybeUtil.fromBool ("∃I:" <> rangeOf (ProofLine statement) <> "[" <> String.singleton freeVar <> "→" <> String.singleton existsName <> "]" ))))
     _ -> Nothing
 
 justifyExistsElim :: Strategy
 justifyExistsElim knowledge goal =
-  Iter.product (Iter.fromArray $ statements knowledge) (Iter.fromArray $ blocks knowledge)
-  # Iter.findMapM (\(statement /\ block) ->
+  (do
+    st <- LList.fromFoldable (statements knowledge)
+    bl <- LList.fromFoldable (blocks knowledge)
+    pure $ st /\ bl
+  )
+  # findMap (\(statement /\ block) ->
     case statement.formula of
       Just (Exists existsName existsClaim) ->
         blockDeclarationNameAndAssumption block >>= (\(blockDeclaringName /\ blockAssumption) ->
@@ -394,14 +416,16 @@ justifyEqualityIntro _knowledge goal =
 justifyEqualityElim :: Strategy
 justifyEqualityElim knowledge goal =
   knowledge
-  # Iter.fromArray
-  # Iter.filterMap (\known -> case known of
+  # LList.fromFoldable
+  # LList.mapMaybe (\known -> case known of
     ProofLine line -> case line.formula of
       Just (Equality lhs rhs) -> Just $ known /\ lhs /\ rhs
       _ -> Nothing
     _ -> Nothing)
-  # (\x -> Iter.product x (Iter.fromArray $ statements knowledge))
-  # Iter.findMapM (\((equality /\ lhs /\ rhs) /\ statement) ->
+  # (\eqs -> do eq <- LList.fromFoldable eqs
+                st <- LList.fromFoldable (statements knowledge)
+                pure $ eq /\ st)
+  # findMap (\((equality /\ lhs /\ rhs) /\ statement) ->
     let tryReplacement fromName toName =
           (statement.formula <#> (Formula.substitute fromName toName)) == Just goal
           # MaybeUtil.fromBool (
