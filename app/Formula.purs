@@ -2,21 +2,33 @@ module Fitch.Formula where
 
 import Prelude
 import Data.Array as Array
+import Data.List as List
+import Data.List (List)
+import Data.Either (Either (..), hush)
 import Data.Set as Set
 import Data.Set (Set)
 import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Tuple.Nested ((/\), type (/\))
-import Data.Foldable (intercalate)
+import Data.Foldable (intercalate, any)
 import Data.String.CodePoints (CodePoint)
 import Data.String.CodePoints as String
 import Data.String.Utils (startsWith) as String
 import Data.CodePoint.Unicode as CodePoint
+import Data.Generic.Rep (class Generic)
+import Data.Show (class Show)
+import Data.Show.Generic (genericShow)
+import Control.Alt ((<|>))
+import Control.Monad.State.Trans (get, put)
+import Text.Parsing.Parser (Parser, ParseState (..), ParseError (..), fail, runParser, position, failWithPosition)
+import Text.Parsing.Parser.Pos (Position, initialPos)
+import Text.Parsing.Parser.Token (match, token) as Parser
+import Text.Parsing.Parser.Combinators (choice, try)
 
 import Fitch.Types (Formula (..))
 import Fitch.TextStyle as TextStyle
-import Fitch.Util.Parse
 import Fitch.Util.StringUtil as StringUtil
 import Fitch.Util.MaybeUtil as MaybeUtil
+import Fitch.Util.Parsing (match, token, eof, unlazy)
 
 data Token
   = TokInvalid String    -- invalid syntax
@@ -37,6 +49,8 @@ data Token
   | TokInequal           -- inequality
 
 derive instance Eq Token
+derive instance Generic Token _
+instance Show Token where show = genericShow
 
 renderTokens :: Array Token -> String
 renderTokens = intercalate "" <<< map (\token -> case token of
@@ -166,118 +180,134 @@ tokenize code =
 
 -- --
 
-parseBottom :: Parser Token Formula
-parseBottom = literal [TokBottom] # kThen (return Bottom)
+parseBottom :: Parser (List Token) Formula
+parseBottom = match TokBottom $> Bottom
 
-parseDeclaration :: Parser Token Formula
-parseDeclaration = withM takeOne (\token -> case token of
-  TokDeclare name -> Just (return $ Declaration name)
-  _ -> Nothing)
+parseDeclaration :: Parser (List Token) Formula
+parseDeclaration = do
+  token >>= case _ of
+    TokDeclare name -> pure (Declaration name)
+    _ -> fail "Expected declaration"
 
-parseNameRaw :: Parser Token CodePoint
-parseNameRaw = withM takeOne (\token -> case token of
-  TokName name -> Just (return name)
-  _ -> Nothing)
+parseNameRaw :: Parser (List Token) CodePoint
+parseNameRaw = do
+  token >>= case _ of
+    TokName name -> pure name
+    _ -> fail "Expected name"
 
-parseName :: Parser Token Formula
-parseName = parseNameRaw >>> map (\(name /\ rest) -> Name name /\ rest)
+parseName :: Parser (List Token) Formula
+parseName = Name <$> parseNameRaw
 
-parseApplication :: Parser Token Formula
-parseApplication =
-  with parseNameRaw $ \head ->
-  with (zeroPlus parseNameRaw) $ \tail ->
-    return $ case Array.cons head tail of
-      -- ↓ As a special rule, allow aRb to mean Rab
-      -- ↓ Works only on exactly 3 names in a row following pattern lowercase-uppercase-lowercase
-      [a, r, b] ->
-        if CodePoint.isLower a && CodePoint.isUpper r && CodePoint.isLower b
-        then Application r [a, b]
-        else Application a [r, b]
-      _ -> Application head tail
+parseApplication :: Parser (List Token) Formula
+parseApplication = do
+  head <- parseNameRaw
+  tail <- Array.many (try parseNameRaw)
+  pure $ case Array.cons head tail of
+    -- ↓ As a special rule, allow aRb to mean Rab
+    -- ↓ Works only on exactly 3 names in a row following pattern lowercase-uppercase-lowercase
+    [a, r, b] ->
+      if CodePoint.isLower a && CodePoint.isUpper r && CodePoint.isLower b
+      then Application r [a, b]
+      else Application a [r, b]
+    _ -> Application head tail
 
-parseNegation :: Parser Token Formula
-parseNegation = literal [TokNot] # kThen (with (lazy $ \_ -> parseNonBinOp) (return <<< Negation))
+parseNegation :: Parser (List Token) Formula
+parseNegation = unlazy \_ ->
+                match TokNot *> (Negation <$> parseNonBinOp)
 
-parseParenthesized :: Parser Token Formula
-parseParenthesized =
-  literal [TokOpen]
-  # kThen (with (lazy $ \_ -> parseTop) $ \body ->
-  literal [TokClose]
-  # kThen (return body))
+parseParenthesized :: Parser (List Token) Formula
+parseParenthesized = unlazy \_ ->
+                     match TokOpen *> parseTop <* match TokClose
 
-parseBinOp :: forall tok lhs rhs res. Eq tok => tok -> Parser tok lhs -> Parser tok rhs -> (lhs -> rhs -> res) -> Parser tok res
-parseBinOp opToken lhsParser rhsParser makeResult =
-  with lhsParser $ \lhs ->
-  literal [opToken]
-  # kThen (with rhsParser $ \rhs ->
-  return (makeResult lhs rhs))
+parseBinOp ::
+  forall tok lhs rhs res
+  .  Eq tok
+  => tok
+  -> Parser (List tok) lhs
+  -> Parser (List tok) rhs
+  -> (lhs -> rhs -> res)
+  -> Parser (List tok) res
+parseBinOp opToken lhsParser rhsParser makeResult = do
+  lhs <- lhsParser
+  void $ match opToken
+  rhs <- rhsParser
+  pure $ makeResult lhs rhs
 
 parseEquality = parseBinOp TokEqual parseNameRaw parseNameRaw Equality
 parseInequality = parseBinOp TokInequal parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
 
-parseForall =
-  literal [TokForall]
-  # kThen (with parseNameRaw $ \name ->
-  with parseNonBinOp $ \body ->
-  return (Forall name body))
+parseForall = do
+  void $ match TokForall
+  name <- parseNameRaw
+  body <- parseNonBinOp
+  pure $ Forall name body
 
-parseExists =
-  literal [TokExists]
-  # kThen (with parseNameRaw $ \name ->
-  with parseNonBinOp $ \body ->
-  return (Exists name body))
+parseExists = do
+  void $ match TokExists
+  name <- parseNameRaw
+  body <- parseNonBinOp
+  pure $ Exists name body
 
-parseEmpty = eof # kThen (return Empty)
+parseEmpty = eof $> Empty
 
-parseNonBinOp :: Parser Token Formula
-parseNonBinOp =
-  (\t -> parseEmpty t)
-  # or (\t -> parseBottom t)
-  # or (\t -> parseNegation t)
-  # or (\t -> parseEquality t)
-  # or (\t -> parseInequality t)
-  # or (\t -> parseParenthesized t)
-  # or (\t -> parseApplication t)
-  # or (\t -> parseDeclaration t)
-  # or (\t -> parseForall t)
-  # or (\t -> parseExists t)
+parseNonBinOp :: Parser (List Token) Formula
+parseNonBinOp = unlazy \_ ->
+  choice <<< map try $
+    [ parseEmpty
+    , parseBottom
+    , parseNegation
+    , parseEquality
+    , parseInequality
+    , parseParenthesized
+    , parseApplication
+    , parseDeclaration
+    , parseForall
+    , parseExists
+    ]
 
-parseBinOpWithFallthrough :: forall tok res. Eq tok => tok -> Parser tok res -> (res -> res -> res) -> Parser tok res
-parseBinOpWithFallthrough opToken innerParser makeResult =
-  with innerParser (\lhs ->
-  with (peek 1) (\operator ->
-  if operator /= [opToken]
-  then return lhs
-  else takeOne
-       # kThen (with innerParser $ \rhs ->
-       return (makeResult lhs rhs))))
+parseBinOpWithFallthrough ::
+  forall tok res
+  .  Show tok => Eq tok
+  => tok
+  -> Parser (List tok) res
+  -> (res -> res -> res)
+  -> Parser (List tok) res
+parseBinOpWithFallthrough opToken innerParser makeResult = do
+  val <- innerParser
+  choice <<< map try $
+    [ do let lhs = val
+         void $ match opToken
+         rhs <- innerParser
+         pure $ makeResult lhs rhs
+    , do pure val
+    ]
 
-parseConjunction = (\t -> parseBinOpWithFallthrough t) TokAnd (\t -> parseNonBinOp t) Conjunction
-parseDisjunction = (\t -> parseBinOpWithFallthrough t) TokOr (\t -> parseConjunction t) Disjunction
-parseImplication = (\t -> parseBinOpWithFallthrough t) TokIf (\t -> parseDisjunction t) Implication
-parseBiconditional = (\t -> parseBinOpWithFallthrough t) TokIff (\t -> parseImplication t) Biconditional
+parseConjunction = unlazy \_ -> parseBinOpWithFallthrough TokAnd parseNonBinOp Conjunction
+parseDisjunction = unlazy \_ -> parseBinOpWithFallthrough TokOr parseConjunction Disjunction
+parseImplication = unlazy \_ -> parseBinOpWithFallthrough TokIf parseDisjunction Implication
+parseBiconditional = unlazy \_ -> parseBinOpWithFallthrough TokIff parseImplication Biconditional
 
-parseTop = (\t -> parseBiconditional t)
+parseTop :: Parser (List Token) Formula
+parseTop = unlazy \_ -> parseBiconditional
 
-parseTokens :: Array Token -> Maybe Formula
+parseTokens :: List Token -> Maybe Formula
 parseTokens tokens =
-  let isMeaningful token = case token of
-        TokInvalid _ -> false
-        TokIgnored _ -> false
-        _ -> true
-      isValid token = case token of
-        TokInvalid _ -> false
-        _ -> true
-      meaningfulTokens _ = Array.filter isMeaningful tokens
-      hasInvalid = Array.any (not <<< isValid) tokens
-  in if hasInvalid
-     then Nothing
-     else meaningfulTokens unit
-          # with parseTop (\result -> eof # kThen (return result))
-          # map (\(result /\ rest) -> result)
+  if any (not <<< isValid) tokens then Nothing
+  else hush $ runParser (List.filter isMeaningful tokens) (parseTop <* eof)
+
+  where
+
+  isMeaningful = case _ of
+    TokInvalid _ -> false
+    TokIgnored _ -> false
+    _ -> true
+
+  isValid = case _ of
+    TokInvalid _ -> false
+    _ -> true
 
 parse :: String -> Maybe Formula
-parse = tokenize >>> parseTokens
+parse = tokenize >>> List.fromFoldable >>> parseTokens
 
 -- --
 

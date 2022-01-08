@@ -3,16 +3,25 @@ module Fitch.Serialize where
 import Prelude
 import Data.Map as Map
 import Data.Array as Array
+import Data.List as List
+import Data.List (List)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Maybe (Maybe (..))
 import Data.String.CodePoints as String
 import Data.String.CodePoints (CodePoint)
 import Data.Tuple (fst)
 import Data.Foldable (intercalate, elem)
+import Data.Either (Either (..), hush)
+import Control.Alternative (guard)
+import Control.Monad.State.Trans (get, put)
+import Text.Parsing.Parser (Parser, ParseState (..), ParseError (..), fail, runParser, position, failWithPosition)
+import Text.Parsing.Parser.Pos (Position, initialPos)
+import Text.Parsing.Parser.Token (match, token) as Parser
+import Text.Parsing.Parser.Combinators (choice, try, optionMaybe, lookAhead)
 
 import Fitch.Types (Proofy (..))
-import Fitch.Util.Parse
 import Fitch.Util.ArrayUtil as ArrayUtil
+import Fitch.Util.Parsing (match, token, eof, unlazy)
 
 escape :: String -> String
 escape string =
@@ -43,38 +52,42 @@ serialize proof = case proof of
 
 --
 
+match' :: Char -> Parser (List CodePoint) CodePoint
+match' = match <<< String.codePointFromChar
+
 deserialize :: String -> Maybe (Proofy String)
-deserialize =
-  String.toCodePointArray
-  >>> with parseProof (\result -> eof # kThen (return result))
-  >>> map fst
+deserialize str = hush $ runParser chars parseProof
+  where chars = List.fromFoldable <<< String.toCodePointArray $ str
 
-parseLine :: Parser CodePoint String
-parseLine =
-  withM (peek 2) $ \seen ->
-    let first = Array.index seen 0
-        second = Array.index seen 1
-    in case first of
-      Nothing -> Nothing
-      Just char ->
-        if char `elem` (String.codePointFromChar <$> ['{', '}', ':', ';'])
-          then Just (return "")
-        else if char == String.codePointFromChar '\\'
-          then second <#> (\char -> drop 2 # kThen (with parseLine $ \tail -> return (String.singleton char <> tail)))
-        else
-          Just (drop 1 # kThen (with parseLine $ \tail -> return (String.singleton char <> tail)))
+parseLine :: Parser (List CodePoint) String
+parseLine = choice <<< map try $
 
-parseProof :: Parser CodePoint (Proofy String)
-parseProof = (\t -> parseBlock t) # or (parseLine # mapResults ProofLine)
+  [ do first <- lookAhead token
+       guard $ first `elem` (String.codePointFromChar <$> ['{', '}', ':', ';'])
+       pure ""
 
-semicolonTerminated :: forall a. Parser CodePoint a -> Parser CodePoint a
-semicolonTerminated parser = with parser (\result -> literal [String.codePointFromChar ';'] # kThen (return result))
+  , do void (match' '\\')
+       second <- token
+       tail <- parseLine
+       pure $ String.singleton second <> tail
 
-parseBlock :: Parser CodePoint (Proofy String)
-parseBlock =
-  literal [String.codePointFromChar '{']
-  # kThen (with (zeroPlus $ semicolonTerminated parseLine) $ \headElements ->
-  literal [String.codePointFromChar ':']
-  # kThen (with (zeroPlus $ semicolonTerminated parseProof) $ \bodyElements ->
-  literal [String.codePointFromChar '}']
-  # kThen (return $ ProofBlock headElements bodyElements)))
+  , do first <- token
+       tail <- parseLine
+       pure $ String.singleton first <> tail
+
+  ]
+
+parseProof :: Parser (List CodePoint) (Proofy String)
+parseProof = choice <<< map try $
+  [ unlazy \_ -> parseBlock
+  , ProofLine <$> parseLine
+  ]
+
+parseBlock :: Parser (List CodePoint) (Proofy String)
+parseBlock = do
+  void $ match' '{'
+  headElems <- Array.many (try $ parseLine <* match' ';')
+  void $ match' ':'
+  bodyElems <- Array.many (try $ parseProof <* match' ';')
+  void $ match' '}'
+  pure $ ProofBlock headElems bodyElems
