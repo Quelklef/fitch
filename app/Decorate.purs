@@ -83,7 +83,7 @@ toText proof =
     case _ of
       ProofLine line ->
         sum <<< map String.length
-        $ [ " ", show line.lineno, ". ", Formula.prettifyText line.text ]
+        $ [ " ", show line.lineno, ". ", line.text ]
 
       ProofBlock head body ->
         let headMaxs = (maxLineLength <<< ProofLine) <$> head
@@ -96,9 +96,9 @@ toText proof =
     case _ of
       ProofLine line ->
         (<>)
-          ("│" `power` depth <> " " <> show line.lineno <> ". " <> Formula.prettifyText line.text
+          ("│" `power` depth <> " " <> show line.lineno <> ". " <> line.text
             # StringUtil.padTo (String.codePointFromChar ' ') assumptionsColumn)
-          (Formula.prettifyText $ getJustificationText line)
+          (getJustificationText line)
 
       ProofBlock head body ->
         let headTexts = head <#> ProofLine <#> toTextImpl assumptionsColumn (depth + 1)

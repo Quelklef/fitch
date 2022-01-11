@@ -11,7 +11,8 @@ import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (intercalate, any)
 import Data.String.CodePoints (CodePoint)
-import Data.String.CodePoints (codePointFromChar, drop, length, singleton, take, takeWhile, uncons) as String
+import Data.String.CodePoints (codePointFromChar, drop, length, singleton, take, takeWhile, uncons, stripPrefix) as String
+import Data.String.Pattern (Pattern (..)) as String
 import Data.String.Utils (startsWith) as String
 import Data.CodePoint.Unicode as CodePoint
 import Data.Generic.Rep (class Generic)
@@ -20,10 +21,50 @@ import Text.Parsing.Parser (Parser, fail, runParser)
 import Text.Parsing.Parser.Combinators (choice, try)
 
 import Fitch.Types (Formula (..))
-import Fitch.TextStyle as TextStyle
 import Fitch.Util.StringUtil as StringUtil
 import Fitch.Util.MaybeUtil as MaybeUtil
 import Fitch.Util.Parsing (match, token, eof, unlazy)
+
+
+desugar :: String -> String
+desugar = case _ of
+  "" -> ""
+  str ->
+    let pref /\ suff =
+          mapping
+          # Array.findMap (\(key /\ val) ->
+              (val /\ _) <$> String.stripPrefix (String.Pattern key) str)
+          # case _ of
+              Just x -> x
+              Nothing -> String.take 1 str /\ String.drop 1 str
+
+    in pref <> desugar suff
+
+  where
+
+  mapping =
+    [ ">"  /\ "→"
+    , "<>" /\ "↔"
+    , "_"  /\ "⊥"
+    , "#"  /\ "⊥"
+    , "-"  /\ "¬"
+    , "~"  /\ "¬"
+    , "!"  /\ "¬"
+    , "&"  /\ "∧"
+    , "*"  /\ "∧"
+    , "."  /\ "∧"
+    , "|"  /\ "∨"
+    , "v"  /\ "∨"
+    , "+"  /\ "∨"
+    , "∀"  /\ "∀"
+    , "\\" /\ "∀"
+    , "V"  /\ "∀"
+    , "@"  /\ "∃"
+    , "E"  /\ "∃"
+    , "!=" /\ "≠"
+    , "/=" /\ "≠"
+    ]
+
 
 data Token
   = TokInvalid String    -- invalid syntax
@@ -47,70 +88,22 @@ derive instance Eq Token
 derive instance Generic Token _
 instance Show Token where show = genericShow
 
-renderTokens :: Array Token -> String
-renderTokens = intercalate "" <<< map (\token -> case token of
-    TokInvalid text -> text
-    TokIgnored text -> text
-    TokOpen         -> "("
-    TokClose        -> ")"
-    TokBottom       -> "⊥"
-    TokName name    -> String.singleton name
-    TokDeclare name -> "[" <> String.singleton name <> "]"
-    TokNot          -> "¬"
-    TokAnd          -> "∧"
-    TokOr           -> "∨"
-    TokIf           -> "→"
-    TokIff          -> "↔"
-    TokForall       -> "∀"
-    TokExists       -> "∃"
-    TokEqual        -> "="
-    TokInequal      -> "≠")
-
 -- ↓ Tokens that map 1:1 to symbols
 -- ↓ (in order of precedence)
 symbolMapping :: Array (String /\ Token)
 symbolMapping =
-  [ ( "(" /\ TokOpen )
-  , ( ")" /\ TokClose )
-
-  , ( "→" /\ TokIf )
-  , ( ">" /\ TokIf )
-
-  , ( "↔" /\ TokIff )
-  , ( "<>" /\ TokIff )
-
-  , ( "⊥" /\ TokBottom )
-  , ( "_" /\ TokBottom )
-  , ( "#" /\ TokBottom )
-
-  , ( "¬" /\ TokNot )
-  , ( "-" /\ TokNot )
-  , ( "~" /\ TokNot )
-  , ( "!" /\ TokNot )
-
-  , ( "∧" /\ TokAnd )
-  , ( "&" /\ TokAnd )
-  , ( "*" /\ TokAnd )
-  , ( "." /\ TokAnd )
-
-  , ( "∨" /\ TokOr )
-  , ( "|" /\ TokOr )
-  , ( "v" /\ TokOr )
-  , ( "+" /\ TokOr )
-
-  , ( "∀" /\ TokForall )
-  , ( "\\" /\ TokForall )
-  , ( "V" /\ TokForall )
-
-  , ( "∃" /\ TokExists )
-  , ( "@" /\ TokExists )
-  , ( "E" /\ TokExists )
-
-  , ( "=" /\ TokEqual )
-
-  , ( "≠" /\ TokInequal )
-  , ( "!=" /\ TokInequal )
-  , ( "/=" /\ TokInequal )
+  [ "(" /\ TokOpen
+  , ")" /\ TokClose
+  , "→" /\ TokIf
+  , "↔" /\ TokIff
+  , "⊥" /\ TokBottom
+  , "¬" /\ TokNot
+  , "∧" /\ TokAnd
+  , "∨" /\ TokOr
+  , "∀" /\ TokForall
+  , "∃" /\ TokExists
+  , "=" /\ TokEqual
+  , "≠" /\ TokInequal
   ]
 
 chompCodePoint :: String -> Maybe (CodePoint /\ String)
@@ -319,9 +312,6 @@ parse :: String -> Maybe Formula
 parse = tokenize >>> List.fromFoldable >>> parseTokens
 
 -- --
-
-prettifyText :: String -> String
-prettifyText = tokenize >>> renderTokens
 
 pretty :: Formula -> String
 pretty formula = case formula of

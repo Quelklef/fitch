@@ -110,9 +110,9 @@ viewProof depth model proof = case proof of
       [ span [ addClass "line:number" ] [ Html.text $ show lineno ]
       , input
         [ addClass "line:input"
-        , value (Formula.prettifyText text)
+        , value text
         , id (Path.toId path)
-        , onInput (SetFormulaAt path)
+        , onInput (Formula.desugar >>> SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)
         ]
       , span [ addClass "line:justification" ] [ Html.text $ case justification of
@@ -394,4 +394,4 @@ rulesHtml =
 
 makeExamples :: Array { label :: String, proof :: Proofy String } -> Array (Html Message)
 makeExamples =
-  map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text $ label ] ])
+  map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo $ Formula.desugar <$> proof) ] [ text $ label ] ])

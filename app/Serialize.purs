@@ -16,7 +16,6 @@ import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (choice, try, lookAhead)
 
 import Fitch.Types (Proofy (..))
-import Fitch.Formula as Formula
 import Fitch.Util.Parsing (match, token, unlazy)
 
 
@@ -28,15 +27,9 @@ foreign import fromPayload :: String -> String
 serialize :: Proofy String -> String
 serialize =
 
-    map preserve >>> toString >>> toPayload
+    toString >>> toPayload
 
   where
-
-  -- ↓ Canonicize strings by preferring unicode characters (e.g. ∀)
-  --   over ascii alternatives (resp. V) in order to make the URL string
-  --   more resistent to version changes
-  preserve :: String -> String
-  preserve = Formula.prettifyText
 
   toString :: Proofy String -> String
   toString = case _ of
