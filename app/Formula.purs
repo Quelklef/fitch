@@ -2,28 +2,25 @@ module Fitch.Formula where
 
 import Prelude
 import Data.Array as Array
-import Data.List as List
-import Data.List (List)
-import Data.Either (hush)
+import Data.Either (Either (..), hush)
 import Data.Set as Set
 import Data.Set (Set)
-import Data.Maybe (Maybe (..), fromMaybe)
-import Data.Tuple.Nested ((/\), type (/\))
-import Data.Foldable (intercalate, any)
+import Data.Maybe (Maybe (..))
+import Data.Tuple.Nested ((/\))
+import Data.Foldable (intercalate)
 import Data.String.CodePoints (CodePoint)
-import Data.String.CodePoints (codePointFromChar, drop, length, singleton, take, takeWhile, uncons, stripPrefix) as String
+import Data.String.CodePoints (drop, length, singleton, take, stripPrefix, codePointAt) as String
 import Data.String.Pattern (Pattern (..)) as String
-import Data.String.Utils (startsWith) as String
-import Data.CodePoint.Unicode as CodePoint
-import Data.Generic.Rep (class Generic)
-import Data.Show.Generic (genericShow)
-import Text.Parsing.Parser (Parser, fail, runParser)
-import Text.Parsing.Parser.Combinators (choice, try)
+import Data.String.Utils (filter) as String
+import Data.String.CodeUnits as StringU
+import Data.CodePoint.Unicode (isAlpha, isLower, isUpper)
+import Control.Lazy (defer)
+import Text.Parsing.StringParser (Parser (..), fail, runParser, try)
+import Text.Parsing.StringParser.CodePoints (eof, string)
+import Text.Parsing.StringParser.CodeUnits (anyChar)
+import Text.Parsing.StringParser.Combinators (choice, many)
 
 import Fitch.Types (Formula (..))
-import Fitch.Util.StringUtil as StringUtil
-import Fitch.Util.MaybeUtil as MaybeUtil
-import Fitch.Util.Parsing (match, token, eof, unlazy)
 
 
 desugar :: String -> String
@@ -66,128 +63,39 @@ desugar = case _ of
     ]
 
 
-data Token
-  = TokInvalid String    -- invalid syntax
-  | TokIgnored String    -- valid but meaningless syntax, such as whitespace
-  | TokOpen              -- open parens
-  | TokClose             -- close parens
-  | TokBottom            -- bottom
-  | TokName CodePoint    -- variable name
-  | TokDeclare CodePoint -- declaring a new variable
-  | TokNot               -- negation
-  | TokAnd               -- conjunction
-  | TokOr                -- disjunction
-  | TokIf                -- implication
-  | TokIff               -- biconditional
-  | TokForall            -- forall
-  | TokExists            -- exists
-  | TokEqual             -- equality
-  | TokInequal           -- inequality
+anyCodePoint :: Parser CodePoint
+anyCodePoint = Parser \{ str, pos } ->
+  case String.codePointAt 0 (StringU.drop pos str) of
+    Just cp -> Right { result: cp, suffix: { str, pos: pos + String.length (String.singleton cp) } }
+    Nothing -> Left { pos, error: "Unexpected EOF" }
 
-derive instance Eq Token
-derive instance Generic Token _
-instance Show Token where show = genericShow
+parseBottom :: Parser Formula
+parseBottom = string "⊥" $> Bottom
 
--- ↓ Tokens that map 1:1 to symbols
--- ↓ (in order of precedence)
-symbolMapping :: Array (String /\ Token)
-symbolMapping =
-  [ "(" /\ TokOpen
-  , ")" /\ TokClose
-  , "→" /\ TokIf
-  , "↔" /\ TokIff
-  , "⊥" /\ TokBottom
-  , "¬" /\ TokNot
-  , "∧" /\ TokAnd
-  , "∨" /\ TokOr
-  , "∀" /\ TokForall
-  , "∃" /\ TokExists
-  , "=" /\ TokEqual
-  , "≠" /\ TokInequal
-  ]
-
-chompCodePoint :: String -> Maybe (CodePoint /\ String)
-chompCodePoint str = String.uncons str # map (\{ head, tail } -> head /\ tail)
-
-tokenizeName :: String -> Maybe (Array Token /\ String)
-tokenizeName code = do
-  name /\ rest <- chompCodePoint code
-  if CodePoint.isAlpha name then Just ([TokName name] /\ rest)
-                            else Nothing
-
--- ↓ Tokenize a declaration.
--- ↓ Note that, as a special case, all code following a valid declaration
--- ↓ will be turned into an 'ignored' token.
--- ↓ This is to allow users to write comments on their declarations!
-tokenizeDeclaration :: String -> Maybe (Array Token /\ String)
-tokenizeDeclaration code =
-  let prefix = StringUtil.get 0 code
-      char = StringUtil.get 1 code
-      suffix = StringUtil.get 2 code
-      rest = String.drop 3 code
-  in
-    case char of
-      Just name ->
-        if prefix == Just (String.codePointFromChar '[')
-        && suffix == Just (String.codePointFromChar ']')
-        then Just $ [TokDeclare name, TokIgnored rest] /\ ""
-        else Nothing
-      Nothing -> Nothing
-
-tokenizeSymbol :: String -> Maybe (Array Token /\ String)
-tokenizeSymbol code =
-  symbolMapping
-  # Array.mapMaybe (\(string /\ token) ->
-    if String.startsWith string code
-    then Just $ [token] /\ String.drop (String.length string) code
-    else Nothing
-  )
-  # Array.head
-
-tokenizeWhitespace :: String -> Maybe (Array Token /\ String)
-tokenizeWhitespace code =
-  let whitespace = code # String.takeWhile (_ == String.codePointFromChar ' ')
-      rest = String.drop (String.length whitespace) code
-  in if whitespace /= ""
-     then Just $ [TokIgnored whitespace] /\ rest
-     else Nothing
-
-tokenizeOne :: String -> (Array Token /\ String)
-tokenizeOne code =
-  tokenizeSymbol code
-  # MaybeUtil.orElseLazy (\_ -> tokenizeName code)
-  # MaybeUtil.orElseLazy (\_ -> tokenizeDeclaration code)
-  # MaybeUtil.orElseLazy (\_ -> tokenizeWhitespace code)
-  # fromMaybe ([TokInvalid $ String.take 1 code] /\ String.drop 1 code)
-
-tokenize :: String -> Array Token
-tokenize code =
-  if String.length code == 0
-  then []
-  else let tokens /\ rest = tokenizeOne code
-       in tokens <> tokenize rest
-
--- --
-
-parseBottom :: Parser (List Token) Formula
-parseBottom = match TokBottom $> Bottom
-
-parseDeclaration :: Parser (List Token) Formula
+parseDeclaration :: Parser Formula
 parseDeclaration = do
-  token >>= case _ of
-    TokDeclare name -> pure (Declaration name)
-    _ -> fail "Expected declaration"
+  void $ string "["
+  char <- anyCodePoint
+  void $ string "]"
 
-parseNameRaw :: Parser (List Token) CodePoint
+  -- ↓ As a special case, allow comments after declarations
+  void $ many anyChar
+
+  if isAlpha char
+  then pure (Declaration char)
+  else fail "Expected declaration"
+
+parseNameRaw :: Parser CodePoint
 parseNameRaw = do
-  token >>= case _ of
-    TokName name -> pure name
-    _ -> fail "Expected name"
+  char <- anyCodePoint
+  if isAlpha char
+  then pure char
+  else fail "Expected name"
 
-parseName :: Parser (List Token) Formula
+parseName :: Parser Formula
 parseName = Name <$> parseNameRaw
 
-parseApplication :: Parser (List Token) Formula
+parseApplication :: Parser Formula
 parseApplication = do
   head <- parseNameRaw
   tail <- Array.many (try parseNameRaw)
@@ -195,58 +103,57 @@ parseApplication = do
     -- ↓ As a special rule, allow aRb to mean Rab
     -- ↓ Works only on exactly 3 names in a row following pattern lowercase-uppercase-lowercase
     [a, r, b] ->
-      if CodePoint.isLower a && CodePoint.isUpper r && CodePoint.isLower b
+      if isLower a && isUpper r && isLower b
       then Application r [a, b]
       else Application a [r, b]
     _ -> Application head tail
 
-parseNegation :: Parser (List Token) Formula
-parseNegation = unlazy \_ ->
-                match TokNot *> (Negation <$> parseNonBinOp)
+parseNegation :: Parser Formula
+parseNegation = defer \_ ->
+                string "¬" *> (Negation <$> parseNonBinOp)
 
-parseParenthesized :: Parser (List Token) Formula
-parseParenthesized = unlazy \_ ->
-                     match TokOpen *> parseTop <* match TokClose
+parseParenthesized :: Parser Formula
+parseParenthesized = defer \_ ->
+                     string "(" *> parseTop <* string ")"
 
 parseBinOp ::
-  forall tok lhs rhs res
-  .  Eq tok
-  => tok
-  -> Parser (List tok) lhs
-  -> Parser (List tok) rhs
+  forall lhs rhs res
+  .  String
+  -> Parser lhs
+  -> Parser rhs
   -> (lhs -> rhs -> res)
-  -> Parser (List tok) res
+  -> Parser res
 parseBinOp opToken lhsParser rhsParser makeResult = do
   lhs <- lhsParser
-  void $ match opToken
+  void $ string opToken
   rhs <- rhsParser
   pure $ makeResult lhs rhs
 
-parseEquality :: Parser (List Token) Formula
-parseEquality = parseBinOp TokEqual parseNameRaw parseNameRaw Equality
+parseEquality :: Parser Formula
+parseEquality = parseBinOp "=" parseNameRaw parseNameRaw Equality
 
-parseInequality :: Parser (List Token) Formula
-parseInequality = parseBinOp TokInequal parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
+parseInequality :: Parser Formula
+parseInequality = parseBinOp "≠" parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
 
-parseForall :: Parser (List Token) Formula
+parseForall :: Parser Formula
 parseForall = do
-  void $ match TokForall
+  void $ string "∀"
   name <- parseNameRaw
   body <- parseNonBinOp
   pure $ Forall name body
 
-parseExists :: Parser (List Token) Formula
+parseExists :: Parser Formula
 parseExists = do
-  void $ match TokExists
+  void $ string "∃"
   name <- parseNameRaw
   body <- parseNonBinOp
   pure $ Exists name body
 
-parseEmpty :: Parser (List Token) Formula
+parseEmpty :: Parser Formula
 parseEmpty = eof $> Empty
 
-parseNonBinOp :: Parser (List Token) Formula
-parseNonBinOp = unlazy \_ ->
+parseNonBinOp :: Parser Formula
+parseNonBinOp = defer \_ ->
   choice <<< map try $
     [ parseEmpty
     , parseBottom
@@ -261,55 +168,39 @@ parseNonBinOp = unlazy \_ ->
     ]
 
 parseBinOpWithFallthrough ::
-  forall tok res
-  .  Show tok => Eq tok
-  => tok
-  -> Parser (List tok) res
+  forall res
+  .  String
+  -> Parser res
   -> (res -> res -> res)
-  -> Parser (List tok) res
-parseBinOpWithFallthrough opToken innerParser makeResult = do
+  -> Parser res
+parseBinOpWithFallthrough op innerParser makeResult = do
   val <- innerParser
   choice <<< map try $
     [ do let lhs = val
-         void $ match opToken
+         void $ string op
          rhs <- innerParser
          pure $ makeResult lhs rhs
     , do pure val
     ]
 
-parseConjunction :: Parser (List Token) Formula
-parseConjunction = unlazy \_ -> parseBinOpWithFallthrough TokAnd parseNonBinOp Conjunction
+parseConjunction :: Parser Formula
+parseConjunction = defer \_ -> parseBinOpWithFallthrough "∧" parseNonBinOp Conjunction
 
-parseDisjunction :: Parser (List Token) Formula
-parseDisjunction = unlazy \_ -> parseBinOpWithFallthrough TokOr parseConjunction Disjunction
+parseDisjunction :: Parser Formula
+parseDisjunction = defer \_ -> parseBinOpWithFallthrough "∨" parseConjunction Disjunction
 
-parseImplication :: Parser (List Token) Formula
-parseImplication = unlazy \_ -> parseBinOpWithFallthrough TokIf parseDisjunction Implication
+parseImplication :: Parser Formula
+parseImplication = defer \_ -> parseBinOpWithFallthrough "→" parseDisjunction Implication
 
-parseBiconditional :: Parser (List Token) Formula
-parseBiconditional = unlazy \_ -> parseBinOpWithFallthrough TokIff parseImplication Biconditional
+parseBiconditional :: Parser Formula
+parseBiconditional = defer \_ -> parseBinOpWithFallthrough "↔" parseImplication Biconditional
 
-parseTop :: Parser (List Token) Formula
-parseTop = unlazy \_ -> parseBiconditional
-
-parseTokens :: List Token -> Maybe Formula
-parseTokens tokens =
-  if any (not <<< isValid) tokens then Nothing
-  else hush $ runParser (List.filter isMeaningful tokens) (parseTop <* eof)
-
-  where
-
-  isMeaningful = case _ of
-    TokInvalid _ -> false
-    TokIgnored _ -> false
-    _ -> true
-
-  isValid = case _ of
-    TokInvalid _ -> false
-    _ -> true
+parseTop :: Parser Formula
+parseTop = defer \_ -> parseBiconditional
 
 parse :: String -> Maybe Formula
-parse = tokenize >>> List.fromFoldable >>> parseTokens
+parse str =
+  hush $ runParser (parseTop <* eof) (String.filter (_ /= " ") str)
 
 -- --
 

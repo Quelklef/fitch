@@ -15,7 +15,7 @@ nixed = purs-nix.purs
         stringutils
         unicode
         elmish-latest
-        parsing
+        string-parsers
       ];
   };
 

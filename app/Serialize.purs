@@ -3,20 +3,17 @@ module Fitch.Serialize where
 import Prelude
 import Data.Map as Map
 import Data.Array as Array
-import Data.List as List
-import Data.List (List)
 import Data.Tuple.Nested ((/\))
 import Data.Maybe (Maybe, fromMaybe)
-import Data.String.CodePoints as String
-import Data.String.CodePoints (CodePoint)
-import Data.Foldable (intercalate, elem)
+import Data.String.CodeUnits as String
+import Data.Foldable (intercalate)
 import Data.Either (hush)
-import Control.Alternative (guard)
-import Text.Parsing.Parser (Parser, runParser)
-import Text.Parsing.Parser.Combinators (choice, try, lookAhead)
+import Control.Lazy (defer)
+import Text.Parsing.StringParser (Parser, runParser, try)
+import Text.Parsing.StringParser.CodeUnits (oneOf, char, anyChar)
+import Text.Parsing.StringParser.Combinators (choice, lookAhead)
 
 import Fitch.Types (Proofy (..))
-import Fitch.Util.Parsing (match, token, unlazy)
 
 
 -- ↓ Convert strings into and out of a portable, URI-embeddable encoding
@@ -43,19 +40,17 @@ serialize =
 
     escape :: String -> String
     escape =
-      String.toCodePointArray
+      String.toCharArray
       >>> map (\char -> Map.lookup char mapping # fromMaybe (String.singleton char))
       >>> intercalate ""
 
-    mapping = Map.fromFoldable <<< map (mapFst String.codePointFromChar) $
+    mapping = Map.fromFoldable $
       [ '{' /\ "\\{"
       , '}' /\ "\\}"
       , ';' /\ "\\;"
       , ':' /\ "\\:"
       , '\\' /\ "\\\\"
       ]
-
-    mapFst f (a /\ b) = f a /\ b
 
 
 deserialize :: String -> Maybe (Proofy String)
@@ -66,42 +61,38 @@ deserialize =
   where
 
   fromString :: String -> Maybe (Proofy String)
-  fromString str =
-    let chars = List.fromFoldable <<< String.toCodePointArray $ str
-    in hush $ runParser chars parseProof
+  fromString str = hush $ runParser parseProof str
 
-  parseLine :: Parser (List CodePoint) String
+  parseLine :: Parser String
   parseLine = choice <<< map try $
 
-    [ do first <- lookAhead token
-         guard $ first `elem` (String.codePointFromChar <$> ['{', '}', ':', ';'])
-         pure ""
+    [ lookAhead' (oneOf ['{', '}', ':', ';']) *> pure ""
 
-    , do void (match' '\\')
-         second <- token
+    , do void (char '\\')
+         second <- anyChar
          tail <- parseLine
          pure $ String.singleton second <> tail
 
-    , do first <- token
+    , do first <- anyChar
          tail <- parseLine
          pure $ String.singleton first <> tail
 
     ]
 
-  parseProof :: Parser (List CodePoint) (Proofy String)
+    where lookAhead' = try <<< lookAhead
+          -- https://github.com/purescript-contrib/purescript-string-parsers/issues/73
+
+  parseProof :: Parser (Proofy String)
   parseProof = choice <<< map try $
-    [ unlazy \_ -> parseBlock
+    [ defer \_ -> parseBlock
     , ProofLine <$> parseLine
     ]
 
-  parseBlock :: Parser (List CodePoint) (Proofy String)
+  parseBlock :: Parser (Proofy String)
   parseBlock = do
-    void $ match' '{'
-    headElems <- Array.many (try $ parseLine <* match' ';')
-    void $ match' ':'
-    bodyElems <- Array.many (try $ parseProof <* match' ';')
-    void $ match' '}'
+    void $ char '{'
+    headElems <- Array.many (try $ parseLine <* char ';')
+    void $ char ':'
+    bodyElems <- Array.many (try $ parseProof <* char ';')
+    void $ char '}'
     pure $ ProofBlock headElems bodyElems
-
-  match' :: Char -> Parser (List CodePoint) CodePoint
-  match' = match <<< String.codePointFromChar
