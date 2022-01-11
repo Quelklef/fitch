@@ -9,13 +9,11 @@ import Data.String.CodePoints (CodePoint)
 type Model =
   { proof :: Proofy String
   , showDebugInfo :: Boolean
-  , useUnicode :: Boolean
   }
 
 -- ↓ A program message
 data Message
   = ToggleDebugMode
-  | ToggleUseUnicode
   | CopyProofToClipboard
   | SetProofTo (Proofy String)
   | Noop

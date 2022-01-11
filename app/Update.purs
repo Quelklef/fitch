@@ -34,8 +34,7 @@ update :: Message -> Model -> Update Message Model
 update msg model =
   case msg of
     ToggleDebugMode      -> pure $ model { showDebugInfo = not model.showDebugInfo }
-    ToggleUseUnicode     -> pure $ model { useUnicode = not model.useUnicode }
-    CopyProofToClipboard -> model <$ (tell <<< effectToCmd) (model.proof # Decorate.decorate # Decorate.toText model.useUnicode # copyToClipboard)
+    CopyProofToClipboard -> model <$ (tell <<< effectToCmd) (model.proof # Decorate.decorate # Decorate.toText # copyToClipboard)
     Noop                 -> pure model
     SetFocusTo path  -> model <$ tell (setFocusTo path)
     SetProofTo newProof                -> fromNewProofAndCommand $ Just (newProof /\ mempty)

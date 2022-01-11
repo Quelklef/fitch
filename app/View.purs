@@ -16,7 +16,6 @@ import Attribute (Attribute, value, addClass, id, style, type_, href, target, on
 import Fitch.Types (Proofy (..), Path, Model, Message (..), DecoratedLine, KnowledgeBox (..))
 import Fitch.Proof as Proof
 import Fitch.Path as Path
-import Fitch.TextStyle as TextStyle
 import Fitch.Formula as Formula
 import Fitch.Decorate as Decorate
 import Fitch.Serialize as Serialize
@@ -30,9 +29,7 @@ view model =
     [ div [ id "left" ]
       [ Html.h1 [] [ text "Fitch-Style Proof Helper" ]
       , p [ addClass "options" ]
-        [ checkbox (not model.useUnicode) ToggleUseUnicode "force plain symbols"
-        , text " | "
-        , checkbox model.showDebugInfo ToggleDebugMode "show debug info"
+        [ checkbox model.showDebugInfo ToggleDebugMode "show debug info"
         , text " | "
         , button [ onClick CopyProofToClipboard ] [ text "copy proof to clipboard" ]
         , text " | "
@@ -43,11 +40,11 @@ view model =
       ]
     , div [ id "right" ]
       [ Html.h3 [] [ text "Usage" ]
-      , keyboardControlsHtml model.useUnicode
+      , keyboardControlsHtml
       , Html.h3 [] [ text "Examples" ]
-      , examplesHtml model.useUnicode
+      , examplesHtml
       , Html.h3 [] [ text "Rules (click for example)" ]
-      , rulesHtml model.useUnicode
+      , rulesHtml
       , Html.h3 [] [ text "Github" ]
       , p [] [ a [ target "_blank", href "https://github.com/quelklef/fitch" ] [ text "Github" ] ]
       ]
@@ -82,8 +79,8 @@ checkbox _isChecked msg name =
     , text $ " " <> name
     ]
 
-keyboardControlsHtml :: forall a. Boolean -> Html a
-keyboardControlsHtml useUnicode =
+keyboardControlsHtml :: forall a. Html a
+keyboardControlsHtml =
   [ { keys: [".", "&", "*"], label: "conjunction (∧)" }
   , { keys: ["|",  "v", "+"], label: "disjunction (∨)" }
   , { keys: [">"], label: "implication (→)" }
@@ -101,7 +98,7 @@ keyboardControlsHtml useUnicode =
   ]
   # map (\{ keys, label } ->
     let keysHtml = keys >>= (\key -> [ span [ addClass "key" ] [ text key ], text " " ])
-    in p [] ( keysHtml <> [ text $ TextStyle.map useUnicode label ] ))
+    in p [] ( keysHtml <> [ text $ label ] ))
   # div []
 
 viewProof :: Int -> Model -> Proofy DecoratedLine -> Html Message
@@ -113,19 +110,19 @@ viewProof depth model proof = case proof of
       [ span [ addClass "line:number" ] [ Html.text $ show lineno ]
       , input
         [ addClass "line:input"
-        , value (Formula.prettifyText model.useUnicode text)
+        , value (Formula.prettifyText text)
         , id (Path.toId path)
         , onInput (SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)
         ]
-      , span [ addClass "line:justification" ] [ (Html.text <<< TextStyle.map model.useUnicode) $ case justification of
+      , span [ addClass "line:justification" ] [ Html.text $ case justification of
           Right justn -> justn
           Left err -> err ]
       , if model.showDebugInfo
         then let info =
                    "path: " <> Path.pretty path <> "\n" <>
-                   "formula: " <> (formula <#> (Formula.pretty >>> TextStyle.map model.useUnicode) # fromMaybe "(invalid)") <> "\n" <>
-                   "knowledge: " <> prettifyKnowledge knowledge # TextStyle.map model.useUnicode
+                   "formula: " <> (formula <#> Formula.pretty # fromMaybe "(invalid)") <> "\n" <>
+                   "knowledge: " <> prettifyKnowledge knowledge
              in pre [ addClass "debug-info" ] [ Html.text info ]
         else Html.text ""
       ]
@@ -188,8 +185,8 @@ lineOnKeydown wholeProof path { keyCode, shiftKey } =
 
 -- --
 
-examplesHtml :: Boolean -> Html Message
-examplesHtml useUnicode =
+examplesHtml :: Html Message
+examplesHtml =
   [ { label: "DeMorgan's Law (∨)", proof:
         ProofBlock
         [ "" ]
@@ -364,11 +361,11 @@ examplesHtml useUnicode =
         ]
   }
   ]
-  # makeExamples useUnicode
+  # makeExamples
   # div []
 
-rulesHtml :: Boolean -> Html Message
-rulesHtml useUnicode =
+rulesHtml :: Html Message
+rulesHtml =
   [ { label: "RI (reiteration): P ∴ P", proof: ProofBlock ["P"] [ProofLine "P"] }
   , { label: "∧I: P , Q ∴ P∧Q", proof: ProofBlock ["P", "Q"] [ProofLine "P.Q"] }
   , { label: "∧E: P∧Q ∴ P", proof: ProofBlock ["P.Q"] [ProofLine "P"] }
@@ -391,10 +388,10 @@ rulesHtml useUnicode =
   , { label: "=I: x=x", proof: ProofBlock ["[a]"] [ProofLine "a=a"] }
   , { label: "=E: Px , x=y ∴ Py", proof: ProofBlock ["[a]", "Pa"] [ProofBlock ["[b]", "a=b"] [ProofLine "Pb"]] }
   ]
-  # makeExamples useUnicode
-  # (\ar -> Array.snoc ar (p [] [ text $ TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ]))
+  # makeExamples
+  # (\ar -> Array.snoc ar (p [] [ text $ "a≠b is treated as ¬(a=b)" ]))
   # div []
 
-makeExamples :: Boolean -> Array { label :: String, proof :: Proofy String } -> Array (Html Message)
-makeExamples useUnicode =
-  map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text $ TextStyle.map useUnicode label ] ])
+makeExamples :: Array { label :: String, proof :: Proofy String } -> Array (Html Message)
+makeExamples =
+  map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text $ label ] ])

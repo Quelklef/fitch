@@ -28,4 +28,4 @@ main = do
 init :: forall msg. String -> Update msg Model
 init proofFromUrl =
   let proof = Serialize.deserialize proofFromUrl # fromMaybe (ProofBlock [""] [])
-  in pure { proof, showDebugInfo: false, useUnicode: true }
+  in pure { proof, showDebugInfo: false }

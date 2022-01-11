@@ -14,7 +14,6 @@ import Data.String.CodePoints as String
 import Fitch.Types (Proofy(..), Path, Lineno, Knowledge, KnowledgeBox(..), DecoratedLine)
 import Fitch.Formula as Formula
 import Fitch.Semantics as Semantics
-import Fitch.TextStyle as TextStyle
 import Fitch.Util.StringUtil as StringUtil
 
 decorate :: Proofy String -> Proofy DecoratedLine
@@ -72,10 +71,10 @@ decorate = decorateImpl 1 [] [] >>> fst
       in Array.cons decoratedFirst decoratedRest /\ lineno3
 
 
-toText :: Boolean -> Proofy DecoratedLine -> String
-toText useUnicode proof =
-  toTextImpl (maxLineLength proof + 5) 0 proof
-  # TextStyle.map useUnicode
+toText :: Proofy DecoratedLine -> String
+toText proof =
+
+    toTextImpl (maxLineLength proof + 5) 0 proof
 
   where
 
@@ -84,7 +83,7 @@ toText useUnicode proof =
     case _ of
       ProofLine line ->
         sum <<< map String.length
-        $ [ " ", show line.lineno, ". ", Formula.prettifyText useUnicode line.text ]
+        $ [ " ", show line.lineno, ". ", Formula.prettifyText line.text ]
 
       ProofBlock head body ->
         let headMaxs = (maxLineLength <<< ProofLine) <$> head
@@ -97,9 +96,9 @@ toText useUnicode proof =
     case _ of
       ProofLine line ->
         (<>)
-          ("│" `power` depth <> " " <> show line.lineno <> ". " <> Formula.prettifyText useUnicode line.text
+          ("│" `power` depth <> " " <> show line.lineno <> ". " <> Formula.prettifyText line.text
             # StringUtil.padTo (String.codePointFromChar ' ') assumptionsColumn)
-          (Formula.prettifyText useUnicode $ getJustificationText line)
+          (Formula.prettifyText $ getJustificationText line)
 
       ProofBlock head body ->
         let headTexts = head <#> ProofLine <#> toTextImpl assumptionsColumn (depth + 1)

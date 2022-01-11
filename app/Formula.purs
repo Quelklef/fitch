@@ -320,8 +320,8 @@ parse = tokenize >>> List.fromFoldable >>> parseTokens
 
 -- --
 
-prettifyText :: Boolean -> String -> String
-prettifyText useUnicode = tokenize >>> renderTokens >>> TextStyle.map useUnicode
+prettifyText :: String -> String
+prettifyText = tokenize >>> renderTokens
 
 pretty :: Formula -> String
 pretty formula = case formula of

@@ -36,7 +36,7 @@ serialize =
   --   over ascii alternatives (resp. V) in order to make the URL string
   --   more resistent to version changes
   preserve :: String -> String
-  preserve = Formula.prettifyText true
+  preserve = Formula.prettifyText
 
   toString :: Proofy String -> String
   toString = case _ of
