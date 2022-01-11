@@ -191,7 +191,6 @@ pretty :: Formula -> String
 pretty formula = case formula of
   Empty -> ""
   Bottom -> "⊥"
-  Name name -> String.singleton name
   Declaration name -> "[" <> String.singleton name <> "]"
   Application name args -> String.singleton name <> intercalate "" (map String.singleton args)
   Negation body -> "¬(" <> pretty body <> ")"
@@ -210,7 +209,6 @@ substitute from to formula =
     Bottom -> Bottom
     Declaration name -> Declaration (mapName name)
     Application name args -> Application name (map mapName args)
-    Name name -> Name (mapName name)
     Negation body -> Negation (substitute from to body)
     Conjunction lhs rhs -> Conjunction (substitute from to lhs) (substitute from to rhs)
     Disjunction lhs rhs -> Disjunction (substitute from to lhs) (substitute from to rhs)
@@ -232,7 +230,6 @@ freeObjectVars formula = case formula of
   Declaration _name -> Set.empty
   -- ↓ Predicate variables are not included
   Application _name args -> Set.fromFoldable args
-  Name name -> Set.singleton name
   Negation body -> freeObjectVars body
   Conjunction lhs rhs -> Set.union (freeObjectVars lhs) (freeObjectVars rhs)
   Disjunction lhs rhs -> Set.union (freeObjectVars lhs) (freeObjectVars rhs)
@@ -255,7 +252,6 @@ children formula = case formula of
   Bottom -> []
   Declaration _ -> []
   Application _ _ -> []
-  Name _ -> []
   Negation body -> [body]
   Conjunction lhs rhs -> [lhs, rhs]
   Disjunction lhs rhs -> [lhs, rhs]

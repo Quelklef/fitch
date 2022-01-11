@@ -30,8 +30,6 @@ derive instance Eq Message
 data Formula
   = Empty
   | Bottom
-  -- ↓ Reference to a variable or proposition
-  | Name CodePoint
   -- ↓ Introduces a new variable
   | Declaration CodePoint
   -- ↓ Application of a predicate to 0 or more arguments
