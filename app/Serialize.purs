@@ -6,7 +6,7 @@ import Data.Array as Array
 import Data.List as List
 import Data.List (List)
 import Data.Tuple.Nested ((/\))
-import Data.Maybe (Maybe (..))
+import Data.Maybe (Maybe, fromMaybe)
 import Data.String.CodePoints as String
 import Data.String.CodePoints (CodePoint)
 import Data.Foldable (intercalate, elem)
@@ -16,73 +16,99 @@ import Text.Parsing.Parser (Parser, runParser)
 import Text.Parsing.Parser.Combinators (choice, try, lookAhead)
 
 import Fitch.Types (Proofy (..))
+import Fitch.Formula as Formula
 import Fitch.Util.Parsing (match, token, unlazy)
 
-escape :: String -> String
-escape string =
-  string
-  # String.toCodePointArray
-  # map (\char ->
-      case Map.lookup char mapping of
-        Just str -> str
-        Nothing -> String.singleton char)
-  # intercalate ""
 
-  where
-  mapping = Map.fromFoldable $
-    [ String.codePointFromChar '{' /\ "\\{"
-    , String.codePointFromChar '}' /\ "\\}"
-    , String.codePointFromChar ';' /\ "\\;"
-    , String.codePointFromChar ':' /\ "\\:"
-    , String.codePointFromChar '\\' /\ "\\\\"
-    ]
+-- ↓ Convert strings into and out of a portable, URI-embeddable encoding
+foreign import toPayload :: String -> String
+foreign import fromPayload :: String -> String
+
 
 serialize :: Proofy String -> String
-serialize proof = case proof of
-  ProofLine line -> escape line
-  ProofBlock head body ->
-    let serializedHead = head # map (escape >>> (_ <> ";")) # intercalate ""
-        serializedBody = body # map (serialize >>> (_ <> ";")) # intercalate ""
-    in "{" <> serializedHead <> ":" <> serializedBody <> "}"
+serialize =
 
---
+    map preserve >>> toString >>> toPayload
 
-match' :: Char -> Parser (List CodePoint) CodePoint
-match' = match <<< String.codePointFromChar
+  where
+
+  -- ↓ Canonicize strings by preferring unicode characters (e.g. ∀)
+  --   over ascii alternatives (resp. V) in order to make the URL string
+  --   more resistent to version changes
+  preserve :: String -> String
+  preserve = Formula.prettifyText true
+
+  toString :: Proofy String -> String
+  toString = case _ of
+    ProofLine line -> escape line
+    ProofBlock head body ->
+      let serializedHead = head # map (escape >>> (_ <> ";")) # intercalate ""
+          serializedBody = body # map (toString >>> (_ <> ";")) # intercalate ""
+      in "{" <> serializedHead <> ":" <> serializedBody <> "}"
+
+    where
+
+    escape :: String -> String
+    escape =
+      String.toCodePointArray
+      >>> map (\char -> Map.lookup char mapping # fromMaybe (String.singleton char))
+      >>> intercalate ""
+
+    mapping = Map.fromFoldable <<< map (mapFst String.codePointFromChar) $
+      [ '{' /\ "\\{"
+      , '}' /\ "\\}"
+      , ';' /\ "\\;"
+      , ':' /\ "\\:"
+      , '\\' /\ "\\\\"
+      ]
+
+    mapFst f (a /\ b) = f a /\ b
+
 
 deserialize :: String -> Maybe (Proofy String)
-deserialize str = hush $ runParser chars parseProof
-  where chars = List.fromFoldable <<< String.toCodePointArray $ str
+deserialize =
 
-parseLine :: Parser (List CodePoint) String
-parseLine = choice <<< map try $
+    fromPayload >>> fromString
 
-  [ do first <- lookAhead token
-       guard $ first `elem` (String.codePointFromChar <$> ['{', '}', ':', ';'])
-       pure ""
+  where
 
-  , do void (match' '\\')
-       second <- token
-       tail <- parseLine
-       pure $ String.singleton second <> tail
+  fromString :: String -> Maybe (Proofy String)
+  fromString str =
+    let chars = List.fromFoldable <<< String.toCodePointArray $ str
+    in hush $ runParser chars parseProof
 
-  , do first <- token
-       tail <- parseLine
-       pure $ String.singleton first <> tail
+  parseLine :: Parser (List CodePoint) String
+  parseLine = choice <<< map try $
 
-  ]
+    [ do first <- lookAhead token
+         guard $ first `elem` (String.codePointFromChar <$> ['{', '}', ':', ';'])
+         pure ""
 
-parseProof :: Parser (List CodePoint) (Proofy String)
-parseProof = choice <<< map try $
-  [ unlazy \_ -> parseBlock
-  , ProofLine <$> parseLine
-  ]
+    , do void (match' '\\')
+         second <- token
+         tail <- parseLine
+         pure $ String.singleton second <> tail
 
-parseBlock :: Parser (List CodePoint) (Proofy String)
-parseBlock = do
-  void $ match' '{'
-  headElems <- Array.many (try $ parseLine <* match' ';')
-  void $ match' ':'
-  bodyElems <- Array.many (try $ parseProof <* match' ';')
-  void $ match' '}'
-  pure $ ProofBlock headElems bodyElems
+    , do first <- token
+         tail <- parseLine
+         pure $ String.singleton first <> tail
+
+    ]
+
+  parseProof :: Parser (List CodePoint) (Proofy String)
+  parseProof = choice <<< map try $
+    [ unlazy \_ -> parseBlock
+    , ProofLine <$> parseLine
+    ]
+
+  parseBlock :: Parser (List CodePoint) (Proofy String)
+  parseBlock = do
+    void $ match' '{'
+    headElems <- Array.many (try $ parseLine <* match' ';')
+    void $ match' ':'
+    bodyElems <- Array.many (try $ parseProof <* match' ';')
+    void $ match' '}'
+    pure $ ProofBlock headElems bodyElems
+
+  match' :: Char -> Parser (List CodePoint) CodePoint
+  match' = match <<< String.codePointFromChar
