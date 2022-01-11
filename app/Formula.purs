@@ -63,146 +63,129 @@ desugar = case _ of
     ]
 
 
-anyCodePoint :: Parser CodePoint
-anyCodePoint = Parser \{ str, pos } ->
-  case String.codePointAt 0 (StringU.drop pos str) of
-    Just cp -> Right { result: cp, suffix: { str, pos: pos + String.length (String.singleton cp) } }
-    Nothing -> Left { pos, error: "Unexpected EOF" }
-
-parseBottom :: Parser Formula
-parseBottom = string "⊥" $> Bottom
-
-parseDeclaration :: Parser Formula
-parseDeclaration = do
-  void $ string "["
-  char <- anyCodePoint
-  void $ string "]"
-
-  -- ↓ As a special case, allow comments after declarations
-  void $ many anyChar
-
-  if isAlpha char
-  then pure (Declaration char)
-  else fail "Expected declaration"
-
-parseNameRaw :: Parser CodePoint
-parseNameRaw = do
-  char <- anyCodePoint
-  if isAlpha char
-  then pure char
-  else fail "Expected name"
-
-parseName :: Parser Formula
-parseName = Name <$> parseNameRaw
-
-parseApplication :: Parser Formula
-parseApplication = do
-  head <- parseNameRaw
-  tail <- Array.many (try parseNameRaw)
-  pure $ case Array.cons head tail of
-    -- ↓ As a special rule, allow aRb to mean Rab
-    -- ↓ Works only on exactly 3 names in a row following pattern lowercase-uppercase-lowercase
-    [a, r, b] ->
-      if isLower a && isUpper r && isLower b
-      then Application r [a, b]
-      else Application a [r, b]
-    _ -> Application head tail
-
-parseNegation :: Parser Formula
-parseNegation = defer \_ ->
-                string "¬" *> (Negation <$> parseNonBinOp)
-
-parseParenthesized :: Parser Formula
-parseParenthesized = defer \_ ->
-                     string "(" *> parseTop <* string ")"
-
-parseBinOp ::
-  forall lhs rhs res
-  .  String
-  -> Parser lhs
-  -> Parser rhs
-  -> (lhs -> rhs -> res)
-  -> Parser res
-parseBinOp opToken lhsParser rhsParser makeResult = do
-  lhs <- lhsParser
-  void $ string opToken
-  rhs <- rhsParser
-  pure $ makeResult lhs rhs
-
-parseEquality :: Parser Formula
-parseEquality = parseBinOp "=" parseNameRaw parseNameRaw Equality
-
-parseInequality :: Parser Formula
-parseInequality = parseBinOp "≠" parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
-
-parseForall :: Parser Formula
-parseForall = do
-  void $ string "∀"
-  name <- parseNameRaw
-  body <- parseNonBinOp
-  pure $ Forall name body
-
-parseExists :: Parser Formula
-parseExists = do
-  void $ string "∃"
-  name <- parseNameRaw
-  body <- parseNonBinOp
-  pure $ Exists name body
-
-parseEmpty :: Parser Formula
-parseEmpty = eof $> Empty
-
-parseNonBinOp :: Parser Formula
-parseNonBinOp = defer \_ ->
-  choice <<< map try $
-    [ parseEmpty
-    , parseBottom
-    , parseNegation
-    , parseEquality
-    , parseInequality
-    , parseParenthesized
-    , parseApplication
-    , parseDeclaration
-    , parseForall
-    , parseExists
-    ]
-
-parseBinOpWithFallthrough ::
-  forall res
-  .  String
-  -> Parser res
-  -> (res -> res -> res)
-  -> Parser res
-parseBinOpWithFallthrough op innerParser makeResult = do
-  val <- innerParser
-  choice <<< map try $
-    [ do let lhs = val
-         void $ string op
-         rhs <- innerParser
-         pure $ makeResult lhs rhs
-    , do pure val
-    ]
-
-parseConjunction :: Parser Formula
-parseConjunction = defer \_ -> parseBinOpWithFallthrough "∧" parseNonBinOp Conjunction
-
-parseDisjunction :: Parser Formula
-parseDisjunction = defer \_ -> parseBinOpWithFallthrough "∨" parseConjunction Disjunction
-
-parseImplication :: Parser Formula
-parseImplication = defer \_ -> parseBinOpWithFallthrough "→" parseDisjunction Implication
-
-parseBiconditional :: Parser Formula
-parseBiconditional = defer \_ -> parseBinOpWithFallthrough "↔" parseImplication Biconditional
-
-parseTop :: Parser Formula
-parseTop = defer \_ -> parseBiconditional
-
 parse :: String -> Maybe Formula
-parse str =
-  hush $ runParser (parseTop <* eof) (String.filter (_ /= " ") str)
+parse =
 
--- --
+    \str -> hush $ runParser (parseImpl <* eof) (String.filter (_ /= " ") str)
+
+  where
+
+  anyCodePoint :: Parser CodePoint
+  anyCodePoint = Parser \{ str, pos } ->
+    case String.codePointAt 0 (StringU.drop pos str) of
+      Just cp -> Right { result: cp, suffix: { str, pos: pos + String.length (String.singleton cp) } }
+      Nothing -> Left { pos, error: "Unexpected EOF" }
+
+  parseBottom :: Parser Formula
+  parseBottom = string "⊥" $> Bottom
+
+  parseDeclaration :: Parser Formula
+  parseDeclaration = do
+    void $ string "["
+    char <- anyCodePoint
+    void $ string "]"
+
+    -- ↓ As a special case, allow comments after declarations
+    void $ many anyChar
+
+    if isAlpha char
+    then pure (Declaration char)
+    else fail "Expected declaration"
+
+  parseNameRaw :: Parser CodePoint
+  parseNameRaw = do
+    char <- anyCodePoint
+    if isAlpha char
+    then pure char
+    else fail "Expected name"
+
+  parseApplication :: Parser Formula
+  parseApplication = do
+    head <- parseNameRaw
+    tail <- Array.many (try parseNameRaw)
+    pure $ case Array.cons head tail of
+      -- ↓ As a special rule, allow aRb to mean Rab
+      --   Works only on exactly 3 names in a row following pattern lowercase-uppercase-lowercase
+      [a, r, b] ->
+        if isLower a && isUpper r && isLower b
+        then Application r [a, b]
+        else Application a [r, b]
+      _ -> Application head tail
+
+  parseNegation = defer \_ -> string "¬" *> (Negation <$> parseNonBinOp)
+
+  parseParenthesized = defer \_ -> string "(" *> parseImpl <* string ")"
+
+  parseBinOp ::
+    forall lhs rhs res
+    .  String
+    -> Parser lhs
+    -> Parser rhs
+    -> (lhs -> rhs -> res)
+    -> Parser res
+  parseBinOp opToken lhsParser rhsParser makeResult = do
+    lhs <- lhsParser
+    void $ string opToken
+    rhs <- rhsParser
+    pure $ makeResult lhs rhs
+
+  parseEquality = parseBinOp "=" parseNameRaw parseNameRaw Equality
+  parseInequality = parseBinOp "≠" parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
+
+  parseForall = do
+    void $ string "∀"
+    name <- parseNameRaw
+    body <- parseNonBinOp
+    pure $ Forall name body
+
+  parseExists = do
+    void $ string "∃"
+    name <- parseNameRaw
+    body <- parseNonBinOp
+    pure $ Exists name body
+
+  parseEmpty :: Parser Formula
+  parseEmpty = eof $> Empty
+
+  parseNonBinOp :: Parser Formula
+  parseNonBinOp = defer \_ ->
+    choice <<< map try $
+      [ parseEmpty
+      , parseBottom
+      , parseNegation
+      , parseEquality
+      , parseInequality
+      , parseParenthesized
+      , parseApplication
+      , parseDeclaration
+      , parseForall
+      , parseExists
+      ]
+
+  parseBinOpWithFallthrough ::
+    forall res
+    .  String
+    -> Parser res
+    -> (res -> res -> res)
+    -> Parser res
+  parseBinOpWithFallthrough op innerParser makeResult = do
+    val <- innerParser
+    choice <<< map try $
+      [ do let lhs = val
+           void $ string op
+           rhs <- innerParser
+           pure $ makeResult lhs rhs
+      , do pure val
+      ]
+
+  parseConjunction = defer \_ -> parseBinOpWithFallthrough "∧" parseNonBinOp Conjunction
+  parseDisjunction = defer \_ -> parseBinOpWithFallthrough "∨" parseConjunction Disjunction
+  parseImplication = defer \_ -> parseBinOpWithFallthrough "→" parseDisjunction Implication
+  parseBiconditional = defer \_ -> parseBinOpWithFallthrough "↔" parseImplication Biconditional
+
+  parseImpl :: Parser Formula
+  parseImpl = defer \_ -> parseBiconditional
+
 
 pretty :: Formula -> String
 pretty formula = case formula of
