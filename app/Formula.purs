@@ -4,24 +4,19 @@ import Prelude
 import Data.Array as Array
 import Data.List as List
 import Data.List (List)
-import Data.Either (Either (..), hush)
+import Data.Either (hush)
 import Data.Set as Set
 import Data.Set (Set)
 import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (intercalate, any)
 import Data.String.CodePoints (CodePoint)
-import Data.String.CodePoints as String
+import Data.String.CodePoints (codePointFromChar, drop, length, singleton, take, takeWhile, uncons) as String
 import Data.String.Utils (startsWith) as String
 import Data.CodePoint.Unicode as CodePoint
 import Data.Generic.Rep (class Generic)
-import Data.Show (class Show)
 import Data.Show.Generic (genericShow)
-import Control.Alt ((<|>))
-import Control.Monad.State.Trans (get, put)
-import Text.Parsing.Parser (Parser, ParseState (..), ParseError (..), fail, runParser, position, failWithPosition)
-import Text.Parsing.Parser.Pos (Position, initialPos)
-import Text.Parsing.Parser.Token (match, token) as Parser
+import Text.Parsing.Parser (Parser, fail, runParser)
 import Text.Parsing.Parser.Combinators (choice, try)
 
 import Fitch.Types (Formula (..))
@@ -73,6 +68,7 @@ renderTokens = intercalate "" <<< map (\token -> case token of
 
 -- ↓ Tokens that map 1:1 to symbols
 -- ↓ (in order of precedence)
+symbolMapping :: Array (String /\ Token)
 symbolMapping =
   [ ( "(" /\ TokOpen )
   , ( ")" /\ TokClose )
@@ -233,21 +229,27 @@ parseBinOp opToken lhsParser rhsParser makeResult = do
   rhs <- rhsParser
   pure $ makeResult lhs rhs
 
+parseEquality :: Parser (List Token) Formula
 parseEquality = parseBinOp TokEqual parseNameRaw parseNameRaw Equality
+
+parseInequality :: Parser (List Token) Formula
 parseInequality = parseBinOp TokInequal parseNameRaw parseNameRaw (\lhs rhs -> Negation (Equality lhs rhs))
 
+parseForall :: Parser (List Token) Formula
 parseForall = do
   void $ match TokForall
   name <- parseNameRaw
   body <- parseNonBinOp
   pure $ Forall name body
 
+parseExists :: Parser (List Token) Formula
 parseExists = do
   void $ match TokExists
   name <- parseNameRaw
   body <- parseNonBinOp
   pure $ Exists name body
 
+parseEmpty :: Parser (List Token) Formula
 parseEmpty = eof $> Empty
 
 parseNonBinOp :: Parser (List Token) Formula
@@ -282,9 +284,16 @@ parseBinOpWithFallthrough opToken innerParser makeResult = do
     , do pure val
     ]
 
+parseConjunction :: Parser (List Token) Formula
 parseConjunction = unlazy \_ -> parseBinOpWithFallthrough TokAnd parseNonBinOp Conjunction
+
+parseDisjunction :: Parser (List Token) Formula
 parseDisjunction = unlazy \_ -> parseBinOpWithFallthrough TokOr parseConjunction Disjunction
+
+parseImplication :: Parser (List Token) Formula
 parseImplication = unlazy \_ -> parseBinOpWithFallthrough TokIf parseDisjunction Implication
+
+parseBiconditional :: Parser (List Token) Formula
 parseBiconditional = unlazy \_ -> parseBinOpWithFallthrough TokIff parseImplication Biconditional
 
 parseTop :: Parser (List Token) Formula
@@ -356,7 +365,7 @@ freeObjectVars formula = case formula of
   Empty -> Set.empty
   Bottom -> Set.empty
   -- ↓ Declared variables are not considered to be free
-  Declaration name -> Set.empty
+  Declaration _name -> Set.empty
   -- ↓ Predicate variables are not included
   Application _name args -> Set.fromFoldable args
   Name name -> Set.singleton name

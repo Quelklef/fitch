@@ -1,7 +1,7 @@
 module Fitch.Util.StringUtil where
 
 import Prelude
-import Data.Maybe (Maybe (..))
+import Data.Maybe (Maybe)
 import Data.String.CodePoints (CodePoint)
 import Data.String.CodePoints as String
 import Data.Monoid (power)

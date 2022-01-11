@@ -3,9 +3,6 @@ module Fitch.Util.ArrayUtil where
 import Prelude
 import Data.Maybe (Maybe (..))
 import Data.Array as Array
-import Data.Tuple.Nested ((/\), type (/\))
-
-import Fitch.Util.MaybeUtil as MaybeUtil
 
 startsWith :: forall a. Eq a => Array a -> Array a -> Boolean
 startsWith prefix ar = Array.slice 0 (Array.length prefix) ar == prefix

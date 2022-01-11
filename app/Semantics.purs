@@ -79,7 +79,7 @@ scopedFirstJust :: forall a. (Set CodePoint -> Formula -> Maybe a) -> Formula ->
 scopedFirstJust = scopedFirstJustImpl Set.empty
   where
 
-  scopedFirstJustImpl :: forall a. Set CodePoint -> (Set CodePoint -> Formula -> Maybe a) -> Formula -> Maybe a
+  scopedFirstJustImpl :: Set CodePoint -> (Set CodePoint -> Formula -> Maybe a) -> Formula -> Maybe a
   scopedFirstJustImpl scope getMaybe formula =
     case getMaybe scope formula of
       Just x -> Just x
@@ -382,10 +382,10 @@ justifyForallElim knowledge goal =
       freeVar <- LList.fromFoldable (Formula.freeObjectVars goal)
       pure $ forall' /\ forallName /\ forallClaim /\ freeVar
 
-    valid (forall' /\ forallName /\ forallClaim /\ freeVar) =
+    valid (_ /\ forallName /\ forallClaim /\ freeVar) =
       goal == (forallClaim # Formula.substitute forallName freeVar)
 
-    pretty (forall' /\ forallName /\ forallClaim /\ freeVar) =
+    pretty (forall' /\ forallName /\ _ /\ freeVar) =
       "∀E:" <> rangeOf forall' <> "[" <> String.singleton forallName <> "→" <> String.singleton freeVar <> "]"
 
 justifyExistsIntro :: Strategy

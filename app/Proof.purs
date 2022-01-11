@@ -1,13 +1,11 @@
 module Fitch.Proof where
 
 import Prelude
-import Prelude as Prelude
 import Data.Maybe (Maybe (..))
 import Data.Array as Array
 import Control.Alt ((<|>))
 
 import Fitch.Types (Proofy(..), Path)
-import Fitch.Util.ArrayUtil as ArrayUtil
 import Fitch.Util.MaybeUtil as MaybeUtil
 
 get :: forall a. Path -> Proofy a -> Maybe (Proofy a)

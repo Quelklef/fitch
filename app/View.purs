@@ -1,6 +1,6 @@
 module Fitch.View where
 
-import Prelude
+import Prelude hiding (div)
 import Effect (Effect)
 import Data.Array as Array
 import Data.Tuple.Nested ((/\))
@@ -11,7 +11,7 @@ import Data.Monoid (guard)
 
 import Html as Html
 import Html (Html, button, div, span, text, input, label, p, pre, a)
-import Attribute (Attribute, value, addClass, id, style, type_, checked, href, target, onInput, onClick, on, charset, rel)
+import Attribute (Attribute, value, addClass, id, style, type_, href, target, onInput, onClick, on, charset, rel)
 
 import Fitch.Types (Proofy (..), Path, Model, Message (..), DecoratedLine, KnowledgeBox (..))
 import Fitch.Proof as Proof
@@ -74,7 +74,7 @@ foreign import getKeyCodeShiftKey :: forall ev. ev -> { keyCode :: Int, shiftKey
 foreign import doPreventDefault :: forall ev. ev -> Effect Unit
 
 checkbox :: forall msg. Eq msg => Boolean -> msg -> String -> Html msg
-checkbox isChecked msg name =
+checkbox _isChecked msg name =
   label
     [ ]
     [ input [ type_ "checkbox", onClick msg ]
@@ -395,5 +395,6 @@ rulesHtml useUnicode =
   # (\ar -> Array.snoc ar (p [] [ text $ TextStyle.map useUnicode "a≠b is treated as ¬(a=b)" ]))
   # div []
 
+makeExamples :: Boolean -> Array { label :: String, proof :: Proofy String } -> Array (Html Message)
 makeExamples useUnicode =
   map (\{ label, proof } -> p [] [ a [ onClick (SetProofTo proof) ] [ text $ TextStyle.map useUnicode label ] ])

@@ -55,16 +55,16 @@ update msg model =
      Nothing -> pure model
 
 doSetFormulaAt :: Path -> String -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
-doSetFormulaAt path newFormula proof = (_ /\ mempty) <$> doSetFormulaAtImpl path proof
+doSetFormulaAt = \path newFormula proof -> (_ /\ mempty) <$> doSetFormulaAtImpl path newFormula proof
   where
 
-  doSetFormulaAtImpl :: Path -> Proofy String -> Maybe (Proofy String)
-  doSetFormulaAtImpl path proof =
+  doSetFormulaAtImpl :: Path -> String -> Proofy String -> Maybe (Proofy String)
+  doSetFormulaAtImpl path new proof =
     case Array.uncons path of
       Nothing -> case proof of
         ProofBlock _ _ -> Nothing
-        ProofLine  _oldFormula -> Just (ProofLine newFormula)
-      Just { head: idx, tail: idxs } -> Proof.replaceM idx (doSetFormulaAtImpl idxs) proof
+        ProofLine  _old -> Just (ProofLine new)
+      Just { head: idx, tail: idxs } -> Proof.replaceM idx (doSetFormulaAtImpl idxs new) proof
 
 doNewLineAfter :: Path -> Boolean -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
 doNewLineAfter path preferAssumption proof = do
@@ -73,7 +73,7 @@ doNewLineAfter path preferAssumption proof = do
   pure $ newProof /\ setFocusTo newPath
 
 doIndentAt :: Path -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
-doIndentAt path proof = do
+doIndentAt = \path proof -> do
   newProof <- doIndentAtImpl path proof
   pure $ newProof /\ setFocusTo (path <> [-0-1])
   where
@@ -87,7 +87,7 @@ doIndentAt path proof = do
       Just { head: idx, tail: idxs } -> Proof.replaceM idx (doIndentAtImpl idxs) proof
 
 doDedentAt :: Path -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
-doDedentAt path proof = do
+doDedentAt = \path proof -> do
   newProof <- doDedentAtImpl path proof
   let targetHasOnlyOneLine =
           fromMaybe false do
@@ -132,7 +132,7 @@ doDedentAt path proof = do
       Just { head: idx, tail: idxs } -> Proof.replaceM idx (doDedentAtImpl idxs) proof
 
 doBackspaceAt :: Path -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
-doBackspaceAt path proof =
+doBackspaceAt = \path proof ->
   if not $ Path.targetsEmptyLine proof path
   then Nothing
   else do newProof <- doBackspaceAtImpl path proof

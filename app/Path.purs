@@ -7,7 +7,6 @@ import Data.Foldable (intercalate)
 
 import Fitch.Types (Proofy (..), Path)
 import Fitch.Proof as Proof
-import Fitch.Util.ArrayUtil as ArrayUtil
 import Fitch.Util.MaybeUtil as MaybeUtil
 
 pretty :: Path -> String

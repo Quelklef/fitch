@@ -2,13 +2,13 @@ module Fitch.Util.Parsing where
 
 import Prelude
 import Data.List (List)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested ((/\))
 import Data.Either (Either (..))
 import Control.Monad.State.Trans (get, put)
-import Text.Parsing.Parser (Parser, ParseState (..), ParseError (..), fail, runParser, position, failWithPosition)
-import Text.Parsing.Parser.Pos (Position, initialPos)
+import Text.Parsing.Parser (Parser, ParseError (..), fail, runParser, failWithPosition)
+import Text.Parsing.Parser.Pos (initialPos)
 import Text.Parsing.Parser.Token (match, token) as Parser
-import Text.Parsing.Parser.Combinators (choice, try)
+import Text.Parsing.Parser.Combinators (choice)
 
 -- Workaround for cyclic references
 unlazy :: forall s a. Monoid s => (Unit -> Parser s a) -> Parser s a

@@ -15,7 +15,6 @@ import Fitch.Types (Proofy(..), Path, Lineno, Knowledge, KnowledgeBox(..), Decor
 import Fitch.Formula as Formula
 import Fitch.Semantics as Semantics
 import Fitch.TextStyle as TextStyle
-import Fitch.Util.ArrayUtil as ArrayUtil
 import Fitch.Util.StringUtil as StringUtil
 
 decorate :: Proofy String -> Proofy DecoratedLine

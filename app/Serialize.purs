@@ -5,23 +5,18 @@ import Data.Map as Map
 import Data.Array as Array
 import Data.List as List
 import Data.List (List)
-import Data.Tuple.Nested ((/\), type (/\))
+import Data.Tuple.Nested ((/\))
 import Data.Maybe (Maybe (..))
 import Data.String.CodePoints as String
 import Data.String.CodePoints (CodePoint)
-import Data.Tuple (fst)
 import Data.Foldable (intercalate, elem)
-import Data.Either (Either (..), hush)
+import Data.Either (hush)
 import Control.Alternative (guard)
-import Control.Monad.State.Trans (get, put)
-import Text.Parsing.Parser (Parser, ParseState (..), ParseError (..), fail, runParser, position, failWithPosition)
-import Text.Parsing.Parser.Pos (Position, initialPos)
-import Text.Parsing.Parser.Token (match, token) as Parser
-import Text.Parsing.Parser.Combinators (choice, try, optionMaybe, lookAhead)
+import Text.Parsing.Parser (Parser, runParser)
+import Text.Parsing.Parser.Combinators (choice, try, lookAhead)
 
 import Fitch.Types (Proofy (..))
-import Fitch.Util.ArrayUtil as ArrayUtil
-import Fitch.Util.Parsing (match, token, eof, unlazy)
+import Fitch.Util.Parsing (match, token, unlazy)
 
 escape :: String -> String
 escape string =
