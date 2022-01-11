@@ -8,6 +8,7 @@ import Data.Foldable (intercalate)
 import Fitch.Types (Proofy (..), Path)
 import Fitch.Proof as Proof
 import Fitch.Util.ArrayUtil as ArrayUtil
+import Fitch.Util.MaybeUtil as MaybeUtil
 
 pretty :: Path -> String
 pretty = map show >>> intercalate " → "
@@ -15,28 +16,26 @@ pretty = map show >>> intercalate " → "
 pathToLastLine :: forall a. Proofy a -> Maybe Path
 pathToLastLine proof = case proof of
   ProofLine _ -> Just []
-  ProofBlock head body ->
-    let maybeIdx =
-          if Array.length body > 0 then Just $ Array.length body - 1
-          else if Array.length head > 0 then Just $ -(Array.length head)
-          else Nothing
-    in maybeIdx
-       # (_ >>= (\idx -> Proof.get [idx] proof
-       # (_ >>= (\subproof -> pathToLastLine subproof))
-       # map (\pathTail -> Array.cons idx pathTail)))
+  ProofBlock head body -> do
+    idx <-
+      if Array.length body > 0 then Just $ Array.length body - 1
+      else if Array.length head > 0 then Just $ -(Array.length head)
+      else Nothing
+    subproof <- Proof.get [idx] proof
+    pathTail <- pathToLastLine subproof
+    pure $ Array.cons idx pathTail
 
 pathToFirstLine :: forall a. Proofy a -> Maybe Path
 pathToFirstLine proof = case proof of
   ProofLine _ -> Just []
-  ProofBlock head body ->
-    let maybeIdx =
-          if Array.length head > 0 then Just $ -(Array.length head)
-          else if Array.length body > 0 then Just 0
-          else Nothing
-    in maybeIdx
-       # (_ >>= (\idx -> Proof.get [idx] proof
-       # (_ >>= (\subproof -> pathToFirstLine subproof))
-       # map (\pathTail -> Array.cons idx pathTail)))
+  ProofBlock head body -> do
+    idx <-
+      if Array.length head > 0 then Just $ -(Array.length head)
+      else if Array.length body > 0 then Just 0
+      else Nothing
+    subproof <- Proof.get [idx] proof
+    pathTail <- pathToFirstLine subproof
+    pure $ Array.cons idx pathTail
 
 indexOfLastAssumption :: forall a. Proofy a -> Maybe Int
 indexOfLastAssumption proof = case proof of
@@ -66,25 +65,23 @@ linearSucc proof = Array.uncons >>> case _ of
   Just { head: idx, tail: idxs } ->
     let
         -- ↓ Attempt to look for the result at the current idx
-        hereAttempt =
-          Proof.get [idx] proof
-          # (_ >>= (\subproof -> linearSucc subproof idxs))
-          # map (\pathTail -> Array.cons idx pathTail)
+        hereAttempt = do
+          subproof <- Proof.get [idx] proof
+          pathTail <- linearSucc subproof idxs
+          pure $ Array.cons idx pathTail
 
         -- ↓ If that fails, we'll look for the result in the succeeding index
-        succAttempt _ =
+        succAttempt _ = do
           let succIdx =
                 if targetsLastAssumption proof [idx] then 0
                 else if idx < 0 then idx - 1
                 else idx + 1
-          in Proof.get [succIdx] proof
-             # (_ >>= (\subproof -> case subproof of
-               ProofLine _ -> Just [succIdx]
-               ProofBlock _ _ -> pathToFirstLine subproof <#> (\pathTail -> Array.cons succIdx pathTail)))
+          subproof <- Proof.get [succIdx] proof
+          case subproof of
+             ProofLine _ -> Just [succIdx]
+             ProofBlock _ _ -> Array.cons succIdx <$> pathToFirstLine subproof
 
-    in case hereAttempt of
-      Just _ -> hereAttempt
-      Nothing -> succAttempt unit
+    in hereAttempt # MaybeUtil.orElseLazy succAttempt
 
 -- ↓ Like linearSucc, but in the opposite direction
 linearPred :: forall a. Proofy a -> Path -> Maybe Path
@@ -92,26 +89,23 @@ linearPred proof = Array.uncons >>> case _ of
   Nothing -> Nothing
   Just { head: idx, tail: idxs } ->
     let
-        hereAttempt =
-          Proof.get [idx] proof
-          # (_ >>= (\subproof -> linearPred subproof idxs))
-          # map (\pathTail -> Array.cons idx pathTail)
+        hereAttempt = do
+          subproof <- Proof.get [idx] proof
+          pathTail <- linearPred subproof idxs
+          pure $ Array.cons idx pathTail
 
-        predAttempt _ =
-          let maybePredIdx =
-                if idx == 0 then indexOfLastAssumption proof
-                else if idx == -1 then Nothing
-                else if idx < 0 then Just $ idx + 1
-                else Just $ idx - 1
-          in maybePredIdx
-             # (_ >>= (\predIdx -> Proof.get [predIdx] proof
-             # (_ >>= (\subproof -> case subproof of
-               ProofLine _ -> Just [predIdx]
-               ProofBlock _ _ -> pathToLastLine subproof <#> (\pathTail -> Array.cons predIdx pathTail)))))
+        predAttempt _ = do
+          predIdx <-
+            if idx == 0 then indexOfLastAssumption proof
+            else if idx == -1 then Nothing
+            else if idx < 0 then Just $ idx + 1
+            else Just $ idx - 1
+          subproof <- Proof.get [predIdx] proof
+          case subproof of
+             ProofLine _ -> Just [predIdx]
+             ProofBlock _ _ -> Array.cons predIdx <$> pathToLastLine subproof
 
-    in case hereAttempt of
-      Just _ -> hereAttempt
-      Nothing -> predAttempt unit
+    in hereAttempt # MaybeUtil.orElseLazy predAttempt
 
 toId :: Path -> String
 toId path = "path_" <> intercalate "_" (show <$> path)
@@ -155,12 +149,6 @@ targetsEmptyLine :: Proofy String -> Path -> Boolean
 targetsEmptyLine proof path = case Proof.get path proof of
   Just (ProofLine "") -> true
   _ -> false
-
-targetsBody :: Path -> Boolean
-targetsBody path =
-  Array.last path
-  # map (\lastIdx -> lastIdx >= 0)
-  # fromMaybe false
 
 -- ↓ If the given path targets a ProofLine, rather than a ProofBlock, then
 -- ↓ inserts a new line after that targeted line.

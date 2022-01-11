@@ -4,6 +4,7 @@ import Prelude
 import Prelude as Prelude
 import Data.Maybe (Maybe (..))
 import Data.Array as Array
+import Control.Alt ((<|>))
 
 import Fitch.Types (Proofy(..), Path)
 import Fitch.Util.ArrayUtil as ArrayUtil
@@ -17,11 +18,8 @@ get path proof = case Array.uncons path of
       ProofLine _ -> Nothing
       ProofBlock head body ->
         if idx >= 0
-        then Array.index body idx
-             # (_ >>= get idxs)
-        else Array.index head (-idx-1)
-             # Prelude.map (\formula -> ProofLine formula)
-             # (_ >>= (\subproof -> get idxs subproof))
+        then get idxs =<< Array.index body idx
+        else get idxs =<< (ProofLine <$> Array.index head (-idx-1))
 
 set :: forall a. Int -> Proofy a -> Proofy a -> Maybe (Proofy a)
 set idx subproof proof =
@@ -30,18 +28,18 @@ set idx subproof proof =
     ProofBlock head body ->
       if idx >= 0 then case subproof of
         ProofLine line -> Array.updateAt idx line head
-                          # Prelude.map (\newHead -> ProofBlock newHead body)
+                          # map (\newHead -> ProofBlock newHead body)
         ProofBlock _ _ -> Nothing
       else Array.updateAt (-idx-1) subproof body
-           # Prelude.map (\newBody -> ProofBlock head newBody)
+           # map (\newBody -> ProofBlock head newBody)
 
 remove :: forall a. Int -> Proofy a -> Maybe (Proofy a)
 remove idx proof =
   case proof of
     ProofLine _ -> Nothing
     ProofBlock head body ->
-      if idx >= 0 then Array.deleteAt idx body # Prelude.map (\newBody -> ProofBlock head newBody)
-      else Array.deleteAt (-idx-1) head # Prelude.map (\newHead -> ProofBlock newHead body)
+      if idx >= 0 then Array.deleteAt idx body # map (\newBody -> ProofBlock head newBody)
+      else Array.deleteAt (-idx-1) head # map (\newHead -> ProofBlock newHead body)
 
 firstLine :: forall a. Proofy a -> Maybe a
 firstLine proof = case proof of
@@ -54,9 +52,7 @@ lastLine :: forall a. Proofy a -> Maybe a
 lastLine proof = case proof of
   ProofLine line -> Just line
   ProofBlock head body ->
-    Array.last body
-    # (_ >>= lastLine)
-    # MaybeUtil.orElseLazy (\_ -> Array.last head)
+    (Array.last body >>= lastLine) <|> Array.last head
 
 assumptions :: forall a. Proofy a -> Array a
 assumptions proof = case proof of
@@ -68,34 +64,26 @@ conclusion proof = case proof of
   ProofLine _ -> Nothing
   ProofBlock _ _ -> lastLine proof
 
-map :: forall a b. (a -> b) -> Proofy a -> Proofy b
-map fn proof = case proof of
-  ProofLine line -> ProofLine (fn line)
-  ProofBlock head body -> ProofBlock (Prelude.map fn head) (Prelude.map (map fn) body)
-
 replaceM :: forall a. Int -> (Proofy a -> Maybe (Proofy a)) -> Proofy a -> Maybe (Proofy a)
 replaceM idx fn proof =
   case proof of
     ProofLine _ -> Nothing
     ProofBlock head body ->
-      if idx >= 0 then
-        Array.index body idx
-        # (_ >>= fn)
-        # (_ >>= (\newSubproof -> Array.updateAt idx newSubproof body))
-        # Prelude.map (\newBody -> ProofBlock head newBody)
-      else
-        Array.index head (-idx-1)
-        # Prelude.map ProofLine
-        # (_ >>= fn)
-        # (_ >>= (\newSubproof -> case newSubproof of
+      if idx >= 0 then do
+        newSubproof <- fn =<< Array.index body idx
+        newBody <- Array.updateAt idx newSubproof body
+        pure $ ProofBlock head newBody
+      else do
+        newSubproof <- fn =<< (ProofLine <$> Array.index head (-idx-1))
+        newHead <- case newSubproof of
           ProofLine newLine -> Array.updateAt (-idx-1) newLine head
-          ProofBlock _ _ -> Nothing))
-        # Prelude.map (\newHead -> ProofBlock newHead body)
+          ProofBlock _ _ -> Nothing
+        pure $ ProofBlock newHead body
 
 replace :: forall a. Int -> (Proofy a -> Proofy a) -> Proofy a -> Maybe (Proofy a)
 replace idx fn = replaceM idx (fn >>> Just)
 
 length :: forall a. Proofy a -> Int
-length proof = case proof of
+length = case _ of
   ProofLine _ -> 1
   ProofBlock head body -> Array.length head + Array.length body

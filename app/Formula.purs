@@ -121,10 +121,10 @@ chompCodePoint :: String -> Maybe (CodePoint /\ String)
 chompCodePoint str = String.uncons str # map (\{ head, tail } -> head /\ tail)
 
 tokenizeName :: String -> Maybe (Array Token /\ String)
-tokenizeName code =
-  chompCodePoint code
-  >>= (\(name /\ rest) ->
-    if CodePoint.isAlpha name then Just ([TokName name] /\ rest) else Nothing)
+tokenizeName code = do
+  name /\ rest <- chompCodePoint code
+  if CodePoint.isAlpha name then Just ([TokName name] /\ rest)
+                            else Nothing
 
 -- ↓ Tokenize a declaration.
 -- ↓ Note that, as a special case, all code following a valid declaration
@@ -157,7 +157,7 @@ tokenizeSymbol code =
 
 tokenizeWhitespace :: String -> Maybe (Array Token /\ String)
 tokenizeWhitespace code =
-  let whitespace = code # String.takeWhile (\char -> char == String.codePointFromChar ' ')
+  let whitespace = code # String.takeWhile (_ == String.codePointFromChar ' ')
       rest = String.drop (String.length whitespace) code
   in if whitespace /= ""
      then Just $ [TokIgnored whitespace] /\ rest
@@ -332,8 +332,7 @@ pretty formula = case formula of
 
 substitute :: CodePoint -> CodePoint -> Formula -> Formula
 substitute from to formula =
-  let mapName str = if str == from then to else str
-  in case formula of
+  case formula of
     Empty -> Empty
     Bottom -> Bottom
     Declaration name -> Declaration (mapName name)
@@ -348,6 +347,8 @@ substitute from to formula =
     Forall arg body -> if arg == from then formula else Forall arg (substitute from to body)
     Exists arg body -> if arg == from then formula else Exists arg (substitute from to body)
     Equality lhs rhs -> Equality (mapName lhs) (mapName rhs)
+
+  where mapName str = if str == from then to else str
 
 -- ↓ Return all free variables which do not represent predicates or propositions
 freeObjectVars :: Formula -> Set CodePoint

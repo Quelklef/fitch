@@ -27,8 +27,5 @@ main = do
 
 init :: forall msg. String -> Update msg Model
 init proofFromUrl =
-  proofFromUrl
-  # Serialize.deserialize
-  # fromMaybe (ProofBlock [""] [])
-  # (\proof -> { proof, showDebugInfo: false, useUnicode: true })
-  # pure
+  let proof = Serialize.deserialize proofFromUrl # fromMaybe (ProofBlock [""] [])
+  in pure { proof, showDebugInfo: false, useUnicode: true }

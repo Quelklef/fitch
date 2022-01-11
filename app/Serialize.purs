@@ -46,8 +46,8 @@ serialize :: Proofy String -> String
 serialize proof = case proof of
   ProofLine line -> escape line
   ProofBlock head body ->
-    let serializedHead = map escape head # map (\str -> str <> ";") # intercalate ""
-        serializedBody = map serialize body # map (\str -> str <> ";") # intercalate ""
+    let serializedHead = head # map (escape >>> (_ <> ";")) # intercalate ""
+        serializedBody = body # map (serialize >>> (_ <> ";")) # intercalate ""
     in "{" <> serializedHead <> ":" <> serializedBody <> "}"
 
 --

@@ -60,6 +60,7 @@ data Proofy lineT
   | ProofBlock (Array lineT) (Array (Proofy lineT))
 
 derive instance Eq lineT => Eq (Proofy lineT)
+derive instance Functor Proofy
 
 -- ↓ Path to a formula in a proof, as a list of indicies
 -- ↓ A negative index is an index into a block head; positive into the body
