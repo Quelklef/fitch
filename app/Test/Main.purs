@@ -27,6 +27,7 @@ main = do
   log "path pred >> succ = id"
   quickCheck' 300 $ testLinearStepUnstep Path.pathToFirstLine linearPred linearSucc
 
+
 testLinearStepUnstep
   :: (Proofy Unit -> Maybe Path)
   -> (Proofy Unit -> Path -> Maybe Path)
@@ -37,36 +38,39 @@ testLinearStepUnstep getOmittedPath step unstep  =
     test <$> (genProofsAndPaths' `suchThat` (not <<< pathIsOmitted))
 
   where
-    pathIsOmitted (proof /\ path) = getOmittedPath proof == Just path
-    test (proof /\ path) =
-      (step proof >=> unstep proof) path == Just path
-      <?> (intercalate "\n"
-            [ "Test failed."
-            , "Raw proof: " <> show proof
-            , "Proof url: http://localhost:8000/?proof=" <> serialize (proof $> "")
-            , "Path: " <> (intercalate " → " $ show <$> path)
-            ])
 
-genProofsAndPaths' :: Gen (Proofy Unit /\ Path)
-genProofsAndPaths' = genProofsAndPaths
+  pathIsOmitted (proof /\ path) = getOmittedPath proof == Just path
+  test (proof /\ path) =
 
-genProofsAndPaths :: forall ln. Arbitrary ln => Gen (Proofy ln /\ Path)
-genProofsAndPaths = do
-  proof <- arbitrary
-  path <- genPath proof
-  pure $ proof /\ path
+    (step proof >=> unstep proof) path == Just path
+    <?> (intercalate "\n"
+          [ "Test failed."
+          , "Raw proof: " <> show proof
+          , "Proof url: http://localhost:8000/?proof=" <> serialize (proof $> "")
+          , "Path: " <> (intercalate " → " $ show <$> path)
+          ])
 
-  where
 
-  genPath :: forall a. Proofy a -> Gen Path
-  genPath = case _ of
-    ProofLine _ -> pure []
-    ProofBlock hd bd -> do
-      idx <- chooseInt (-(Array.length hd - 1)-1) (Array.length bd - 1)
-      if idx < 0
-      then pure [idx]
-      else let subproof = unsafeFromJust (bd !! idx)
-           in Array.cons idx <$> genPath subproof
+  genProofsAndPaths' :: Gen (Proofy Unit /\ Path)
+  genProofsAndPaths' = genProofsAndPaths
 
-  unsafeFromJust :: forall a. Maybe a -> a
-  unsafeFromJust x = unsafePartial (fromJust x)
+  genProofsAndPaths :: forall ln. Arbitrary ln => Gen (Proofy ln /\ Path)
+  genProofsAndPaths = do
+    proof <- arbitrary
+    path <- genPath proof
+    pure $ proof /\ path
+
+    where
+
+    genPath :: forall a. Proofy a -> Gen Path
+    genPath = case _ of
+      ProofLine _ -> pure []
+      ProofBlock hd bd -> do
+        idx <- chooseInt (-(Array.length hd - 1)-1) (Array.length bd - 1)
+        if idx < 0
+        then pure [idx]
+        else let subproof = unsafeFromJust (bd !! idx)
+             in Array.cons idx <$> genPath subproof
+
+    unsafeFromJust :: forall a. Maybe a -> a
+    unsafeFromJust x = unsafePartial (fromJust x)
