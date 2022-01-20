@@ -3,3 +3,4 @@ index.js
 output/
 node_modules/
 .working/
+.purs-nix-run.js

@@ -16,6 +16,7 @@ nixed = purs-nix.purs
         unicode
         elmish-latest
         string-parsers
+        quickcheck
       ];
   };
 
@@ -47,7 +48,7 @@ in {
   shell = pkgs.mkShell {
     buildInputs =
       [ (nixed.command { srcs = [ ''$(realpath "$PWD/app")'' ]; })
-        pkgs.nodejs
+        pkgs.nodejs-17_x  # some newer APIs needed for tests
         pkgs.python3
         pkgs.entr
       ];
@@ -56,7 +57,7 @@ in {
 
       function workflow.build {(
         echo watching
-        find app | entr -s '
+        find app | entr -cs '
           set -eo pipefail
           echo building
 

@@ -1,9 +1,16 @@
 module Fitch.Types where
 
 import Prelude
+import Data.Array.NonEmpty as NE
 import Data.Maybe (Maybe)
 import Data.Either (Either)
 import Data.String.CodePoints (CodePoint)
+import Data.Generic.Rep (class Generic)
+import Data.Show.Generic (genericShow)
+import Control.Lazy (defer)
+import Test.QuickCheck.Arbitrary (class Arbitrary)
+import Test.QuickCheck.Arbitrary (arbitrary) as QC
+import Test.QuickCheck.Gen (sized, resize, arrayOf, oneOf, suchThat) as QC
 
 -- ↓ The program model
 type Model =
@@ -25,6 +32,8 @@ data Message
   | BackspaceAt Path
 
 derive instance Eq Message
+derive instance Generic Message _
+instance Show Message where show = genericShow
 
 -- ↓ A formula in a proof
 data Formula
@@ -45,6 +54,8 @@ data Formula
   | Equality CodePoint CodePoint
 
 derive instance Eq Formula
+derive instance Generic Formula _
+instance Show Formula where show x = genericShow x
 
 -- ↓ Something in the shape of a proof,
 -- ↓ but containing an unknown type representing proof lines
@@ -56,10 +67,27 @@ data Proofy lineT
   | ProofBlock (Array lineT) (Array (Proofy lineT))
 
 derive instance Eq lineT => Eq (Proofy lineT)
+derive instance Generic (Proofy ln) _
+instance Show ln => Show (Proofy ln) where show x = genericShow x
 derive instance Functor Proofy
+instance Arbitrary ln => Arbitrary (Proofy ln) where
+  arbitrary = defer \_ ->
+    QC.sized \maxDepth ->
+
+      let genLine = ProofLine <$> QC.arbitrary
+          genBlock = ( ProofBlock <$> QC.arbitrary <*> QC.arrayOf (QC.resize (maxDepth - 1) QC.arbitrary) )
+                     `QC.suchThat` (not <<< isEmptyBlock)
+
+          isEmptyBlock (ProofLine _) = false
+          isEmptyBlock (ProofBlock [] []) = true
+          isEmptyBlock (ProofBlock _ _) = false
+
+      in if maxDepth == 0 then genLine
+         else QC.oneOf (NE.singleton genLine <> NE.singleton genBlock)
 
 -- ↓ Path to a formula in a proof, as a list of indicies
 -- ↓ A negative index is an index into a block head; positive into the body
+-- ↓ Thus, at a single depth, a proof is indexed [ -1 .. -A, 0, .. B ]
 type Path = Array Int
 
 -- ↓ A line number in a proof
