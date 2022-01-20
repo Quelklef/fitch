@@ -179,7 +179,10 @@ lineOnKeydown wholeProof path { keyCode, shiftKey } =
       let msg = Path.linearSucc wholeProof path <#> (\newPath -> SetFocusTo newPath) # fromMaybe Noop
       in { msg: msg, preventDefault: true }
     -- ↓ Backspace key pressed
-    8 /\ false -> { msg: BackspaceAt path, preventDefault: false }
+    8 /\ false -> { msg: BackspaceAt path
+                  , preventDefault: Path.targetsEmptyLine wholeProof path
+                      -- ↑ If removing a line, don't follow that up by backspacing a character
+                  }
     -- ↓ Any other key pressed
     _ -> { msg: Noop, preventDefault: false }
 
