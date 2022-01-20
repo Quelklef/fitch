@@ -10,7 +10,7 @@ import Data.Show.Generic (genericShow)
 import Control.Lazy (defer)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Arbitrary (arbitrary) as QC
-import Test.QuickCheck.Gen (sized, resize, arrayOf, oneOf, suchThat) as QC
+import Test.QuickCheck.Gen (sized, resize, arrayOf, arrayOf1, oneOf) as QC
 
 -- ↓ The program model
 type Model =
@@ -73,15 +73,10 @@ derive instance Functor Proofy
 instance Arbitrary ln => Arbitrary (Proofy ln) where
   arbitrary = defer \_ ->
     QC.sized \maxDepth ->
-
       let genLine = ProofLine <$> QC.arbitrary
-          genBlock = ( ProofBlock <$> QC.arbitrary <*> QC.arrayOf (QC.resize (maxDepth - 1) QC.arbitrary) )
-                     `QC.suchThat` (not <<< isEmptyBlock)
-
-          isEmptyBlock (ProofLine _) = false
-          isEmptyBlock (ProofBlock [] []) = true
-          isEmptyBlock (ProofBlock _ _) = false
-
+          genBlock = ProofBlock
+                     <$> (NE.toArray <$> QC.arrayOf1 QC.arbitrary)  -- empty heads generally disallowed
+                     <*> QC.arrayOf (QC.resize (maxDepth - 1) QC.arbitrary)
       in if maxDepth == 0 then genLine
          else QC.oneOf (NE.singleton genLine <> NE.singleton genBlock)
 

@@ -29,7 +29,7 @@ pathToFirstLine proof = case proof of
   ProofLine _ -> Just []
   ProofBlock head body -> do
     idx <-
-      if Array.length head > 0 then Just $ -(Array.length head)
+      if Array.length head > 0 then Just $ -1
       else if Array.length body > 0 then Just 0
       else Nothing
     subproof <- Proof.get [idx] proof
