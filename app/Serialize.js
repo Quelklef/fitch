@@ -21,10 +21,7 @@ function decode(s) {
 
   for (let i = 0; i < s.length; i++) {
     const d = charset.indexOf(s[i]);
-    if (d === -1) {
-      console.warn('cannot decode');
-      return '';
-    }
+    if (d === -1) return null;
     n = n * BigInt(charset.length) + BigInt(d);
   }
 
@@ -39,4 +36,4 @@ function decode(s) {
 
 
 exports.toPayload = encode;
-exports.fromPayload = decode;
+exports.fromPayload_f = decode;

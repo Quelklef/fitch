@@ -43,7 +43,7 @@ testSerializationRoundtrip =
              [ "Test failed."
              , "Proof: " <> show pf
              , "Serialized: " <> show ser
-             , "Decoded: " <> Serialize.fromPayload ser
+             , "Decoded: " <> (show $ Serialize.fromPayload ser)
              , "Deserialized: " <> show des
              ])
 

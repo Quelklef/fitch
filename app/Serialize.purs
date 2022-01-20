@@ -5,9 +5,11 @@ import Data.Map as Map
 import Data.Array as Array
 import Data.Tuple.Nested ((/\))
 import Data.Maybe (fromMaybe)
+import Data.Nullable (Nullable)
+import Data.Nullable as Nullable
 import Data.String.CodeUnits as String
 import Data.Foldable (intercalate)
-import Data.Either (Either)
+import Data.Either (Either, note)
 import Data.Bifunctor (lmap)
 import Control.Lazy (defer)
 import Control.Alt ((<|>))
@@ -20,7 +22,10 @@ import Fitch.Types (Proofy (..))
 
 -- ↓ Convert strings into and out of a portable, URI-embeddable encoding
 foreign import toPayload :: String -> String
-foreign import fromPayload :: String -> String
+foreign import fromPayload_f :: String -> Nullable String
+
+fromPayload :: String -> Either String String
+fromPayload = fromPayload_f >>> Nullable.toMaybe >>> note "failed to read payload"
 
 
 serialize :: Proofy String -> String
@@ -58,7 +63,7 @@ serialize =
 deserialize :: String -> Either String (Proofy String)
 deserialize =
 
-    fromPayload >>> fromString
+    fromPayload >=> fromString
 
   where
 
