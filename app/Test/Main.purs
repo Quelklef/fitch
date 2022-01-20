@@ -4,6 +4,7 @@ import Prelude
 import Effect (Effect)
 import Effect.Console (log)
 import Data.Maybe (Maybe (..), fromJust)
+import Data.Either (Either (..))
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Array ((!!))
 import Data.Array as Array
@@ -16,16 +17,35 @@ import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Fitch.Path as Path
 import Fitch.Path (linearSucc, linearPred)
 import Fitch.Types (Path, Proofy (..))
-import Fitch.Serialize (serialize)
+import Fitch.Serialize (serialize, deserialize)
+import Fitch.Serialize as Serialize
 
 main :: Effect Unit
 main = do
+
+  log "serialize >> deserialize = id"
+  quickCheck' 25 testSerializationRoundtrip
 
   log "path succ >> pred = id"
   quickCheck' 300 $ testLinearStepUnstep Path.pathToLastLine linearSucc linearPred
 
   log "path pred >> succ = id"
   quickCheck' 300 $ testLinearStepUnstep Path.pathToFirstLine linearPred linearSucc
+
+
+testSerializationRoundtrip :: Proofy String -> Result
+testSerializationRoundtrip =
+  \pf ->
+    let ser = serialize pf
+        des = deserialize ser
+    in des == Right pf
+       <?> (intercalate "\n"
+             [ "Test failed."
+             , "Proof: " <> show pf
+             , "Serialized: " <> show ser
+             , "Decoded: " <> Serialize.fromPayload ser
+             , "Deserialized: " <> show des
+             ])
 
 
 testLinearStepUnstep

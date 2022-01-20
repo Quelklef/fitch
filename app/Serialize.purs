@@ -4,13 +4,15 @@ import Prelude
 import Data.Map as Map
 import Data.Array as Array
 import Data.Tuple.Nested ((/\))
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.String.CodeUnits as String
 import Data.Foldable (intercalate)
-import Data.Either (hush)
+import Data.Either (Either)
+import Data.Bifunctor (lmap)
 import Control.Lazy (defer)
+import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser, runParser, try)
-import Text.Parsing.StringParser.CodeUnits (oneOf, char, anyChar)
+import Text.Parsing.StringParser.CodeUnits (oneOf, char, anyChar, eof)
 import Text.Parsing.StringParser.Combinators (choice, lookAhead)
 
 import Fitch.Types (Proofy (..))
@@ -53,20 +55,20 @@ serialize =
       ]
 
 
-deserialize :: String -> Maybe (Proofy String)
+deserialize :: String -> Either String (Proofy String)
 deserialize =
 
     fromPayload >>> fromString
 
   where
 
-  fromString :: String -> Maybe (Proofy String)
-  fromString str = hush $ runParser parseProof str
+  fromString :: String -> Either String (Proofy String)
+  fromString str = lmap _.error $ runParser parseProof str
 
   parseLine :: Parser String
   parseLine = choice <<< map try $
 
-    [ lookAhead' (oneOf ['{', '}', ':', ';']) *> pure ""
+    [ lookAhead' (void (oneOf ['{', '}', ':', ';']) <|> eof) *> pure ""
 
     , do void (char '\\')
          second <- anyChar
