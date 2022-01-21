@@ -18,7 +18,6 @@ import Fitch.Proof as Proof
 import Fitch.Path as Path
 import Fitch.Formula as Formula
 import Fitch.Decorate as Decorate
-import Fitch.Serialize as Serialize
 import Fitch.Util.ArrayUtil as ArrayUtil
 
 view :: Model -> { head :: Array (Html Message), body :: Array (Html Message) }
@@ -29,14 +28,12 @@ view model =
     [ div [ id "left" ]
       [ Html.h1 [] [ text "Fitch-Style Proof Helper" ]
       , p [ addClass "options" ]
-        [ checkbox model.showDebugInfo ToggleDebugMode "show debug info"
-        , text " | "
-        , button [ onClick CopyProofToClipboard ] [ text "copy proof to clipboard" ]
-        , text " | "
+        [ button [ onClick CopyProofToClipboard ] [ text "copy proof to clipboard" ]
+        , text " "
         , button [ onClick (SetProofTo $ ProofBlock [""] []) ] [ text "reset proof" ]
         ]
-      , if model.showDebugInfo then pre [ addClass "debug-info" ] [ text ("serialized: " <> Serialize.serialize model.proof) ] else text ""
       , proof
+      , p [ addClass "options", addClass "--subtle" ] [ checkbox model.showDebugInfo ToggleDebugMode "debug" ]
       ]
     , div [ id "right" ]
       [ Html.h3 [] [ text "Usage" ]
