@@ -26,3 +26,16 @@ exports.getByIdAndSetFocus = id => () => {
   }
   $el.focus();
 }
+
+// Set the value of an input, changing caret position only minimally
+exports.reupInput = ({ id, value }) => () => {
+  const $input = document.getElementById(id);
+  if (!$input || !($input instanceof HTMLInputElement)) {
+    console.error(`Unable to reup ${id}`);
+    return;
+  }
+
+  const i = $input.selectionEnd + (value.length - $input.value.length);
+  $input.value = value;
+  $input.selectionStart = $input.selectionEnd = i;
+};

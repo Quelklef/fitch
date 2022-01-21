@@ -64,7 +64,7 @@ in {
           mkdir -p .working
           cd .working
 
-          cp -r ../{app,app/{index.html,input-fix.js,css.css}} .
+          cp -r ../{app,app/{index.html,css.css}} .
 
           purs-nix bundle
         '

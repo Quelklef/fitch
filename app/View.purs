@@ -110,8 +110,8 @@ viewProof depth model proof = case proof of
       [ span [ addClass "line:number" ] [ Html.text $ show lineno ]
       , input
         [ addClass "line:input"
-        , value text
         , id (Path.toId path)
+        , value text
         , onInput (Formula.desugar >>> SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)
         ]

@@ -23,6 +23,12 @@ foreign import copyToClipboard :: String -> Effect Unit
 
 foreign import getByIdAndSetFocus :: String -> Effect Unit
 
+foreign import reupInput :: { id :: String, value :: String } -> Effect Unit
+-- ↑ Sets the value of an input
+--   Ideally, this would be handled in the view.
+--   However, in this app, we set input value to values other than what the
+--   user typed, which will move the caret if special care is not taken.
+
 effectToCmd :: forall a. Effect a -> Cmd Message
 effectToCmd eff = attemptTask (const Noop) task
   where task = makeTask \done _ -> eff *> done unit *> pure (pure unit)
@@ -54,7 +60,13 @@ update msg model =
      Nothing -> pure model
 
 doSetFormulaAt :: Path -> String -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
-doSetFormulaAt = \path newFormula proof -> (_ /\ mempty) <$> doSetFormulaAtImpl path newFormula proof
+doSetFormulaAt =
+
+    \path newFormula proof ->
+            do proof' <- doSetFormulaAtImpl path newFormula proof
+               let cmd = effectToCmd $ reupInput { id: Path.toId path, value: newFormula }
+               pure $ proof' /\ cmd
+
   where
 
   doSetFormulaAtImpl :: Path -> String -> Proofy String -> Maybe (Proofy String)
