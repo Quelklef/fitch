@@ -64,7 +64,7 @@ in {
           mkdir -p .working
           cd .working
 
-          cp -r ../{app,app/{index.html,css.css}} .
+          cp -r ../{app,app/{index.html,css.css,favicon.ico}} .
 
           purs-nix bundle
         '

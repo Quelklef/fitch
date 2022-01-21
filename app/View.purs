@@ -53,6 +53,7 @@ view model =
           [ Html.meta [ charset "utf-8" ]
           , Html.title "Fitch-style Proof Helper"
           , Html.link [ rel "stylesheet", type_ "text/css", href "./css.css" ]
+          , Html.link [ rel "icon", type_ "image/ico", href "./favicon.ico" ]
           ]
       , body: [body]
       }
