@@ -26,7 +26,7 @@ in {
     name = "fitch";
     src = ./../app;
 
-    buildInputs = [ pkgs.nodejs pkgs.nodePackages.uglify-js ];
+    buildInputs = [ pkgs.nodePackages.uglify-js ];
 
     installPhase = ''
       mkdir -p $out
