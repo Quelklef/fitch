@@ -367,7 +367,7 @@ examplesHtml =
 
 rulesHtml :: Html Message
 rulesHtml =
-  [ { label: "RI (reiteration): P ∴ P", proof: ProofBlock ["P"] [ProofLine "P"] }
+  [ { label: "RE: P ∴ P", proof: ProofBlock ["P"] [ProofLine "P"] }
   , { label: "∧I: P , Q ∴ P∧Q", proof: ProofBlock ["P", "Q"] [ProofLine "P.Q"] }
   , { label: "∧E: P∧Q ∴ P", proof: ProofBlock ["P.Q"] [ProofLine "P"] }
   , { label: "∧E: P∧Q ∴ Q", proof: ProofBlock ["P.Q"] [ProofLine "Q"] }
