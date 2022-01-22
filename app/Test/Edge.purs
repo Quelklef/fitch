@@ -45,7 +45,7 @@ main = do
     ││││ 5. [x]            'x' is shadowed
     │││├──────────
     ││││ 6. Px             RI:4
-    │││ 7. ∀xPx            ∀I:5-6[x→x]
+    │││ 7. ∀xPx            invalid
     ││ 8. ∀xPx             ∃E:2,3-7
     │ 9. (∃xPx)→(∀xPx)     →I:2-8
   """

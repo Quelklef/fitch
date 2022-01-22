@@ -357,11 +357,22 @@ justifyForallIntro knowledge goal =
             maybeConclusion = _.formula <$> Proof.conclusion block
         in case assumptionMaybes /\ maybeConclusion of
           [Just (Declaration blockDeclaringName)] /\ Just conclusion ->
-            if (Formula.substitute blockDeclaringName forallName <$> conclusion) == Just forallClaim
+            if ((Formula.substitute blockDeclaringName forallName <$> conclusion) == Just forallClaim)
+               && (((forallName `Set.member` _) <$> (Formula.freeObjectVars <$> conclusion)) /= Just true) -- See (*)
             then Just ("∀I:" <> rangeOf block <> "[" <> String.singleton blockDeclaringName <> "→" <> String.singleton forallName <> "]")
             else Nothing
           _ -> Nothing)
     _ -> Nothing
+
+    {- (*) This second condition disallows steps like step #7 in the following proof fragment
+
+                  ││││ 5. [y]            assumed
+                  │││├──────────
+                  ││││ 6. Px             RI:4
+                  │││ 7. ∀xPx            ∀I:5-6[y→x]
+
+           Also see https://github.com/Quelklef/fitch/issues/13 -}
+
 
 justifyForallElim :: Strategy
 justifyForallElim knowledge goal =
