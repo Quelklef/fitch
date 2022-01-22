@@ -2,7 +2,6 @@ module Fitch.Types where
 
 import Prelude
 import Data.Array.NonEmpty as NE
-import Data.Maybe (Maybe)
 import Data.Either (Either)
 import Data.String.CodePoints (CodePoint)
 import Data.Generic.Rep (class Generic)
@@ -106,7 +105,7 @@ data KnowledgeBox = KnowledgeBox Knowledge
 -- ↓ A proof line, decorated with a bunch of extra info
 type DecoratedLine =
   { text :: String
-  , formula :: Maybe Formula
+  , formula :: Formula
   , path :: Path
   , lineno :: Lineno
   , knowledge :: KnowledgeBox

@@ -27,7 +27,7 @@ decorate = decorateImpl 1 [] [] >>> fst
       let mayFormula = Formula.parse text
           decorated =
             { text
-            , formula: mayFormula
+            , formula: mayFormula # fromMaybe Empty
             , path
             , lineno
             , knowledge: KnowledgeBox knowledge
@@ -50,7 +50,7 @@ decorate = decorateImpl 1 [] [] >>> fst
       let mayFormula = Formula.parse lineText
           decoratedLine =
             { text: lineText
-            , formula: mayFormula
+            , formula: mayFormula # fromMaybe Empty
             , path: pathStub <> [-idx-1]
             , lineno: lineno
             , knowledge: KnowledgeBox knowledge

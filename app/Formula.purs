@@ -193,7 +193,7 @@ parse =
 
 pretty :: Formula -> String
 pretty formula = case formula of
-  Empty -> ""
+  Empty -> "⊤"
   Bottom -> "⊥"
   Declaration name -> "[" <> String.singleton name <> "]"
   Application name args -> String.singleton name <> intercalate "" (map String.singleton args)

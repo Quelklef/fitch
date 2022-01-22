@@ -124,7 +124,7 @@ viewProof depth model proof = case proof of
       , if model.showDebugInfo
         then let info =
                    "path: " <> Path.pretty path <> "\n" <>
-                   "formula: " <> (formula <#> Formula.pretty # fromMaybe "(invalid)") <> "\n" <>
+                   "formula: " <> Formula.pretty formula <> "\n" <>
                    "knowledge: " <> prettifyKnowledge knowledge
              in pre [ addClass "debug-info" ] [ Html.text info ]
         else Html.text ""

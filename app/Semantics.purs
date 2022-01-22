@@ -46,7 +46,7 @@ checkNoUndeclaredFreeVars knowledge formula =
       ProofLine line -> [line]
       _ -> []
     var <- case line.formula of
-      Just (Declaration var) -> [var]
+      Declaration var -> [var]
       _ -> []
     pure $ var
 
@@ -103,7 +103,7 @@ checkNoShadowingInNestedBlocks knowledge formula =
     Declaration innerDeclName ->
       knowledge
       # findMap (\proof -> case proof <#> _.formula of
-        ProofLine (Just (Declaration outerDeclName)) ->
+        ProofLine (Declaration outerDeclName) ->
             guard (outerDeclName == innerDeclName)
                   (Just $ "'" <> String.singleton outerDeclName <> "' is shadowed")
         _ -> Nothing)
@@ -154,7 +154,7 @@ rangeOfKnownFormula target knowledge =
   knowledge
   # Array.filter (\proof ->
     case proof of
-      ProofLine line -> line.formula == Just target
+      ProofLine line -> line.formula == target
       _ -> false)
   # Array.head
   # map rangeOf
@@ -194,7 +194,7 @@ justifyConjunctionElim knowledge goal =
   knowledge # Array.findMap (case _ of
       ProofBlock _ _ -> Nothing
       pf@(ProofLine line) -> case line.formula of
-        Just (Conjunction lhs rhs) ->
+        Conjunction lhs rhs ->
           if lhs == goal || rhs == goal
           then Just $ "∧E:" <> rangeOf pf
           else Nothing
@@ -218,7 +218,7 @@ justifyDisjunctionElim knowledge goal =
 
     disjunctions = knowledge # Array.mapMaybe \known -> case known of
       ProofLine line -> case line.formula of
-        Just (Disjunction lhs rhs) -> Just $ known /\ lhs /\ rhs
+        Disjunction lhs rhs -> Just $ known /\ lhs /\ rhs
         _ -> Nothing
       _ -> Nothing
 
@@ -229,10 +229,10 @@ justifyDisjunctionElim knowledge goal =
       pure $ disj /\ lhs /\ rhs /\ block1 /\ block2
 
     valid (_ /\ lhs /\ rhs /\ blockA /\ blockB) =
-      and [ (Proof.conclusion blockA >>= _.formula) == Just goal
-          , (Proof.conclusion blockB >>= _.formula) == Just goal
-          , (Proof.assumptions blockA <#> _.formula) == [Just lhs]
-          , (Proof.assumptions blockB <#> _.formula) == [Just rhs]
+      and [ (Proof.conclusion blockA <#> _.formula) == Just goal
+          , (Proof.conclusion blockB <#> _.formula) == Just goal
+          , (Proof.assumptions blockA <#> _.formula) == [lhs]
+          , (Proof.assumptions blockB <#> _.formula) == [rhs]
           ]
 
     pretty (disj /\ _ /\ _ /\ blockA /\ blockB) =
@@ -243,8 +243,8 @@ justifyImplicationIntro knowledge goal = case goal of
   Implication lhs rhs ->
     knowledge # Array.findMap \known ->
       let valid = and
-            [ (Proof.assumptions known <#> _.formula) == [Just lhs]
-            , (Proof.conclusion known >>= _.formula) == Just rhs
+            [ (Proof.assumptions known <#> _.formula) == [lhs]
+            , (Proof.conclusion known <#> _.formula) == Just rhs
             ]
       in guard valid (Just $ "→I:" <> rangeOf known)
   _ -> Nothing
@@ -258,7 +258,7 @@ justifyImplicationElim knowledge goal =
 
     implications = knowledge # Array.mapMaybe (\known -> case known of
           ProofLine line -> case line.formula of
-            Just (Implication lhs rhs) -> Just $ known /\ lhs /\ rhs
+            Implication lhs rhs -> Just $ known /\ lhs /\ rhs
             _ -> Nothing
           _ -> Nothing)
 
@@ -268,7 +268,7 @@ justifyImplicationElim knowledge goal =
        pure $ im /\ lhs /\ rhs /\ st
 
     valid (_ /\ lhs /\ rhs /\ statement) =
-      statement.formula == Just lhs && goal == rhs
+      statement.formula == lhs && goal == rhs
 
     pretty (implication /\ _ /\ _ /\ statement) =
       "→E:" <> rangeOf implication <> "," <> rangeOf (ProofLine statement)
@@ -284,10 +284,10 @@ justifyBiconditionalIntro knowledge goal =
       )
       # findMap \(blockA /\ blockB) ->
         let valid = and
-              [ (Proof.assumptions blockA # map _.formula) == [Just lhs]
-              , (Proof.conclusion blockA >>= _.formula) == Just rhs
-              , (Proof.assumptions blockB # map _.formula) == [Just rhs]
-              , (Proof.conclusion blockB >>= _.formula) == Just lhs
+              [ (Proof.assumptions blockA # map _.formula) == [lhs]
+              , (Proof.conclusion blockA # map _.formula) == Just rhs
+              , (Proof.assumptions blockB # map _.formula) == [rhs]
+              , (Proof.conclusion blockB # map _.formula) == Just lhs
               ]
          in guard valid (Just $ "↔I:" <> rangeOf blockA <> "," <> rangeOf blockB)
     _ -> Nothing
@@ -301,7 +301,7 @@ justifyBiconditionalElim knowledge goal =
 
     biconditionals = knowledge # Array.mapMaybe \known -> case known of
         ProofLine line -> case line.formula of
-          Just (Biconditional lhs rhs) -> Just $ known /\ lhs /\ rhs
+          Biconditional lhs rhs -> Just $ known /\ lhs /\ rhs
           _ -> Nothing
         _ -> Nothing
 
@@ -311,8 +311,8 @@ justifyBiconditionalElim knowledge goal =
       pure $ bi /\ lhs /\ rhs /\ st
 
     valid (_ /\ lhs /\ rhs /\ statement) =
-         statement.formula == Just lhs && goal == rhs
-      || statement.formula == Just rhs && goal == lhs
+         statement.formula == lhs && goal == rhs
+      || statement.formula == rhs && goal == lhs
 
     pretty (biconditional /\ _ /\ _ /\ statement) =
       "↔E:" <> rangeOf biconditional <> "," <> rangeOf (ProofLine statement)
@@ -321,7 +321,7 @@ justifyBottomIntro :: Strategy
 justifyBottomIntro knowledge _goal =
   knowledge # Array.findMap \known -> case known of
     ProofLine line -> case line.formula of
-      Just (Conjunction lhs rhs) ->
+      Conjunction lhs rhs ->
         guard (lhs == Negation rhs || rhs == Negation lhs)
               (Just $ "⊥I:" <> rangeOf known)
       _ -> Nothing
@@ -332,8 +332,8 @@ justifyNegationIntro knowledge goal =
   case goal of
     Negation negated ->
       blocks knowledge # Array.findMap \block ->
-          let valid = (Proof.assumptions block <#> _.formula) == [Just negated]
-                      && (Proof.conclusion block >>= _.formula) == Just Bottom
+          let valid = (Proof.assumptions block <#> _.formula) == [negated]
+                      && (Proof.conclusion block <#> _.formula) == Just Bottom
           in guard valid (Just $ "¬I:" <> rangeOf block)
     _ -> Nothing
 
@@ -342,7 +342,7 @@ justifyNegationElim knowledge goal =
   knowledge # Array.findMap \known ->
     case known of
       ProofLine line -> case line.formula of
-        Just (Negation (Negation body)) -> guard (body == goal) (Just $ "¬E:" <> rangeOf known)
+        Negation (Negation body) -> guard (body == goal) (Just $ "¬E:" <> rangeOf known)
         _ -> Nothing
       _ -> Nothing
 
@@ -352,12 +352,12 @@ justifyForallIntro knowledge goal =
     Forall forallName forallClaim ->
       blocks knowledge
       # findMap (\block ->
-        let assumptionMaybes = _.formula <$> Proof.assumptions block
+        let assumptions = _.formula <$> Proof.assumptions block
             maybeConclusion = _.formula <$> Proof.conclusion block
-        in case assumptionMaybes /\ maybeConclusion of
-          [Just (Declaration blockDeclaringName)] /\ Just conclusion ->
-            if ((Formula.substitute blockDeclaringName forallName <$> conclusion) == Just forallClaim)
-               && (((forallName `Set.member` _) <$> (Formula.freeObjectVars <$> conclusion)) /= Just true) -- See (*)
+        in case assumptions /\ maybeConclusion of
+          [Declaration blockDeclaringName] /\ Just conclusion ->
+            if (Formula.substitute blockDeclaringName forallName conclusion == forallClaim)
+               && (not $ forallName `Set.member` Formula.freeObjectVars  conclusion) -- See (*)
             then Just ("∀I:" <> rangeOf block <> "[" <> String.singleton blockDeclaringName <> "→" <> String.singleton forallName <> "]")
             else Nothing
           _ -> Nothing)
@@ -383,7 +383,7 @@ justifyForallElim knowledge goal =
     foralls = knowledge # Array.mapMaybe (\known ->
       case known of
         ProofLine line -> case line.formula of
-          Just (Forall forallName forallClaim) -> Just $ known /\ forallName /\ forallClaim
+          Forall forallName forallClaim -> Just $ known /\ forallName /\ forallClaim
           _ -> Nothing
         _ -> Nothing)
 
@@ -403,8 +403,7 @@ justifyExistsIntro knowledge goal =
   case goal of
     Exists existsName existsClaim ->
       statements knowledge # findMap \statement ->
-         do
-           formula <- statement.formula
+           let formula = statement.formula in
            Formula.freeObjectVars formula # findMap \freeVar ->
             guard ((existsClaim # Formula.substitute existsName freeVar) == formula)
                   (Just <<< fold $ [ "∃I:", rangeOf (ProofLine statement)
@@ -421,11 +420,11 @@ justifyExistsElim knowledge goal =
   )
   # findMap (\(statement /\ block) ->
     case statement.formula of
-      Just (Exists existsName existsClaim) ->
+      Exists existsName existsClaim ->
         blockDeclarationNameAndAssumption block >>= \(blockDeclaringName /\ blockAssumption) ->
           let valid = and
                 [ (existsClaim # Formula.substitute existsName blockDeclaringName) == blockAssumption
-                , (Proof.conclusion block >>= _.formula) == Just goal
+                , (Proof.conclusion block <#> _.formula) == Just goal
                 ]
           in guard valid (Just $ "∃E:" <> rangeOf (ProofLine statement) <> "," <> rangeOf block)
       _ -> Nothing)
@@ -439,8 +438,8 @@ justifyExistsElim knowledge goal =
     blockDeclarationNameAndAssumption :: Proofy DecoratedLine -> Maybe (CodePoint /\ Formula)
     blockDeclarationNameAndAssumption block =
       case Proof.assumptions block <#> _.formula of
-        [Just (Declaration name), Just assumption] -> Just $ name /\ assumption
-        [Just (Declaration name)] -> Just $ name /\ Empty
+        [Declaration name, assumption] -> Just $ name /\ assumption
+        [Declaration name] -> Just $ name /\ Empty
         _ -> Nothing
 
 justifyEqualityIntro :: Strategy
@@ -457,7 +456,7 @@ justifyEqualityElim knowledge goal =
 
     eqs = knowledge # Array.mapMaybe (\known -> case known of
       ProofLine line -> case line.formula of
-        Just (Equality lhs rhs) -> Just $ known /\ lhs /\ rhs
+        Equality lhs rhs -> Just $ known /\ lhs /\ rhs
         _ -> Nothing
       _ -> Nothing)
 
@@ -468,7 +467,7 @@ justifyEqualityElim knowledge goal =
 
     mapper (equality /\ lhs /\ rhs /\ statement) =
       let tryReplacement fromName toName =
-            let valid = (statement.formula <#> (Formula.substitute fromName toName)) == Just goal
+            let valid = (statement.formula # Formula.substitute fromName toName) == goal
             in guard valid $ Just <<< fold $
                   [ "=E:", rangeOf equality, ",", rangeOf (ProofLine statement)
                   , "[", String.singleton fromName, "→", String.singleton toName, "]"
