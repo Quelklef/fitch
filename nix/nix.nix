@@ -25,7 +25,7 @@ node_modules = npmlock2nix.node_modules { src = gitignoreSource ./..; };
 in {
 
   deriv = pkgs.stdenv.mkDerivation {
-    name = "porygon";
+    name = "fitch";
     dontUnpack = true;
 
     buildInputs = [ pkgs.nodejs ];
