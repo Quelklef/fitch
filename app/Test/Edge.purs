@@ -50,6 +50,17 @@ main = do
     │ 9. (∃xPx)→(∀xPx)     →I:2-8
   """
 
+  edgecase "Bug #15; empty formula parsing" """
+    │ 1. P∧     malformed
+    │ 2. P∨     malformed
+    │ 3. P→     malformed
+    │ 4. P↔     malformed
+    │ 5. ∀x     malformed
+    │ 6. ∃x     assumed
+    ├──────────
+    │ 7.        
+  """
+
   edgecase "DeMorgan's (∨)" """
     │ 1.
     ├──────────

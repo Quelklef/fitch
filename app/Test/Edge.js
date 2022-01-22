@@ -27,8 +27,8 @@ exports.parseProof_f = ({ mkLine, mkBlock }) => string => {
       }
 
       if (bodyLine && bodyLine.startsWith(' ')) {
-        const content = getContent(bodyLine);
-        if (content) body.push(mkLine(content));
+        if (bodyLine.includes('.'))
+          body.push(mkLine(getContent(bodyLine)));
       }
 
     }

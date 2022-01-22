@@ -15,6 +15,7 @@ import Data.String.Utils (filter) as String
 import Data.String.CodeUnits as StringU
 import Data.CodePoint.Unicode (isAlpha, isLower, isUpper)
 import Control.Lazy (defer)
+import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser (..), fail, runParser, try)
 import Text.Parsing.StringParser.CodePoints (eof, string)
 import Text.Parsing.StringParser.CodeUnits (anyChar)
@@ -66,7 +67,7 @@ desugar = case _ of
 parse :: String -> Maybe Formula
 parse =
 
-    \str -> hush $ runParser (parseImpl <* eof) (String.filter (_ /= " ") str)
+    \str -> hush $ runParser (parseEmpty <|> parseFormula <* eof) (String.filter (_ /= " ") str)
 
   where
 
@@ -78,6 +79,12 @@ parse =
 
   parseBottom :: Parser Formula
   parseBottom = string "⊥" $> Bottom
+
+  parseTaut :: Parser Formula
+  parseTaut = void (string "⊤") $> Empty
+
+  parseEmpty :: Parser Formula
+  parseEmpty = eof $> Empty
 
   parseDeclaration :: Parser Formula
   parseDeclaration = do
@@ -114,7 +121,7 @@ parse =
 
   parseNegation = defer \_ -> string "¬" *> (Negation <$> parseNonBinOp)
 
-  parseParenthesized = defer \_ -> string "(" *> parseImpl <* string ")"
+  parseParenthesized = defer \_ -> string "(" *> parseFormula <* string ")"
 
   parseBinOp ::
     forall lhs rhs res
@@ -141,16 +148,13 @@ parse =
   parseExists = do
     void $ string "∃"
     name <- parseNameRaw
-    body <- parseNonBinOp
+    body <- parseEmpty <|> parseNonBinOp
     pure $ Exists name body
-
-  parseEmpty :: Parser Formula
-  parseEmpty = eof $> Empty
 
   parseNonBinOp :: Parser Formula
   parseNonBinOp = defer \_ ->
     choice <<< map try $
-      [ parseEmpty
+      [ parseTaut
       , parseBottom
       , parseNegation
       , parseEquality
@@ -183,8 +187,8 @@ parse =
   parseImplication = defer \_ -> parseBinOpWithFallthrough "→" parseDisjunction Implication
   parseBiconditional = defer \_ -> parseBinOpWithFallthrough "↔" parseImplication Biconditional
 
-  parseImpl :: Parser Formula
-  parseImpl = defer \_ -> parseBiconditional
+  parseFormula :: Parser Formula
+  parseFormula = defer \_ -> parseBiconditional
 
 
 pretty :: Formula -> String
