@@ -38,7 +38,7 @@ exports.parseProof_f = ({ mkLine, mkBlock }) => string => {
   }
 
   function getContent(str) {
-    const i = str.indexOf('. ') + 2;
+    const i = str.indexOf('.') + 2;
     let j = str.indexOf('  ', i);
     if (j === -1) j = str.length;
     return str.slice(i, j);

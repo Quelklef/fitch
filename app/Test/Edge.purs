@@ -19,14 +19,14 @@ main :: Effect Unit
 main = do
 
   edgecase "Bug #13; ∀I w/ tricky variable replacement" """
-    │ 1.                   assumed
+    │ 1.
     ├──────────
     ││ 2. ∃xPx             assumed
     │├──────────
-    │││ 3. [x]             assumed
+    │││ 3. [x]
     │││ 4. Px              assumed
     ││├──────────
-    ││││ 5. [y]            assumed
+    ││││ 5. [y]
     │││├──────────
     ││││ 6. Px             RI:4
     │││ 7. ∀xPx            invalid
@@ -35,11 +35,11 @@ main = do
   """
 
   edgecase "Bug #10; variable shadowing" """
-    │ 1.                   assumed
+    │ 1.
     ├──────────
     ││ 2. ∃xPx             assumed
     │├──────────
-    │││ 3. [x]             assumed
+    │││ 3. [x]
     │││ 4. Px              assumed
     ││├──────────
     ││││ 5. [x]            'x' is shadowed
@@ -51,7 +51,7 @@ main = do
   """
 
   edgecase "DeMorgan's (∨)" """
-    │ 1.                     assumed
+    │ 1.
     ├──────────
     ││ 2. ¬(P∨Q)             assumed
     │├──────────
@@ -90,7 +90,7 @@ main = do
   """
 
   edgecase "DeMorgan's (∧)" """
-    │ 1.                          assumed
+    │ 1.
     ├──────────
     ││ 2. ¬(P∧Q)                  assumed
     │├──────────
@@ -137,11 +137,11 @@ main = do
   """
 
   edgecase "DeMorgan's (∃)" """
-    │ 1.                       assumed
+    │ 1.
     ├──────────
     ││ 2. ¬∃xPx                assumed
     │├──────────
-    │││ 3. [a]                 assumed
+    │││ 3. [a]
     ││├──────────
     ││││ 4. Pa                 assumed
     │││├──────────
@@ -155,7 +155,7 @@ main = do
     │├──────────
     │││ 11. ∃xPx               assumed
     ││├──────────
-    ││││ 12. [a]               assumed
+    ││││ 12. [a]
     ││││ 13. Pa                assumed
     │││├──────────
     ││││ 14. ¬Pa               ∀E:10[x→a]
@@ -167,13 +167,13 @@ main = do
   """
 
   edgecase "DeMorgan's (∀)" """
-    │ 1.                          assumed
+    │ 1.
     ├──────────
     ││ 2. ¬∀xPx                   assumed
     │├──────────
     │││ 3. ¬∃x¬Px                 assumed
     ││├──────────
-    ││││ 4. [a]                   assumed
+    ││││ 4. [a]
     │││├──────────
     │││││ 5. ¬Pa                  assumed
     ││││├──────────
@@ -192,7 +192,7 @@ main = do
     │├──────────
     │││ 17. ∀xPx                  assumed
     ││├──────────
-    ││││ 18. [a]                  assumed
+    ││││ 18. [a]
     ││││ 19. ¬Pa                  assumed
     │││├──────────
     ││││ 20. Pa                   ∀E:17[x→a]
@@ -211,7 +211,7 @@ main = do
     let
       expected = trim4 proofString
       proof = decorate $ unsafeParseProof proofString
-      actual = toText proof
+      actual = trim4 $ toText proof
       errors = linewiseDiff expected actual
                <#> (\(exp /\ act) -> "Expected " <> show exp <> " but got " <> show act)
     in do

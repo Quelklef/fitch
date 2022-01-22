@@ -11,7 +11,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Data.Foldable (intercalate, maximum, sum)
 import Data.String.CodePoints as String
 
-import Fitch.Types (Proofy(..), Path, Lineno, Knowledge, KnowledgeBox(..), DecoratedLine)
+import Fitch.Types (Proofy(..), Formula(..), Path, Lineno, Knowledge, KnowledgeBox(..), DecoratedLine)
 import Fitch.Formula as Formula
 import Fitch.Semantics as Semantics
 import Fitch.Util.StringUtil as StringUtil
@@ -57,7 +57,10 @@ decorate = decorateImpl 1 [] [] >>> fst
             , justification: do
                 formula <- Either.note "malformed" mayFormula
                 Semantics.verifySemantics knowledge formula
-                pure "assumed"
+                pure $ case formula of
+                  Empty -> ""
+                  Declaration _ -> ""
+                  _ -> "assumed"
             }
           decoratedRest /\ lineno2 /\ knowledge2 = restLines # decorateHead (idx + 1) (lineno + 1) pathStub (knowledge <> [ProofLine decoratedLine])
       in Array.cons decoratedLine decoratedRest /\ lineno2 /\ knowledge2
