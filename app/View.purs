@@ -104,7 +104,10 @@ viewProof depth model proof = case proof of
   ProofLine { text, formula, path, lineno, knowledge, justification } ->
     let isValid = either (const false) (const true) justification
         isLastAssumption = Path.targetsLastAssumption model.proof path
-    in div [ addClass "line", guard (not isValid) (addClass "--invalid"), guard isLastAssumption (addClass "--last-assumption") ]
+    in div [ addClass "line"
+           , guard isLastAssumption (addClass "--last-assumption")
+           , guard (not isValid) (addClass "--invalid")
+           ]
       [ span [ addClass "line:number" ] [ Html.text $ show lineno ]
       , input
         [ addClass "line:input"
