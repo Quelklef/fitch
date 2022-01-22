@@ -7,6 +7,7 @@ import Data.Either (Either)
 import Data.String.CodePoints (CodePoint)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
+import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
 import Control.Lazy (defer)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Arbitrary (arbitrary) as QC
@@ -70,6 +71,14 @@ derive instance Eq lineT => Eq (Proofy lineT)
 derive instance Generic (Proofy ln) _
 instance Show ln => Show (Proofy ln) where show x = genericShow x
 derive instance Functor Proofy
+
+instance Foldable Proofy where
+  foldl pf = foldlDefault pf
+  foldr pf = foldrDefault pf
+
+  foldMap f (ProofLine ln) = f ln
+  foldMap f (ProofBlock hd bd) = foldMap f hd <> foldMap (foldMap f) bd
+
 instance Arbitrary ln => Arbitrary (Proofy ln) where
   arbitrary = defer \_ ->
     QC.sized \maxDepth ->
