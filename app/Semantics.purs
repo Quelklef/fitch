@@ -131,7 +131,6 @@ justify knowledge goal =
         , justifyForallElim
         , justifyExistsIntro
         , justifyExistsElim
-        , justifyDomainNonempty
         , justifyEqualityIntro
         , justifyEqualityElim
         ]
@@ -443,11 +442,6 @@ justifyExistsElim knowledge goal =
         [Just (Declaration name), Just assumption] -> Just $ name /\ assumption
         [Just (Declaration name)] -> Just $ name /\ Empty
         _ -> Nothing
-
-justifyDomainNonempty :: Strategy
-justifyDomainNonempty _ = case _ of
-  Exists _ Empty -> Just "NE"
-  _ -> Nothing
 
 justifyEqualityIntro :: Strategy
 justifyEqualityIntro _ = case _ of
