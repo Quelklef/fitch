@@ -26,11 +26,12 @@ in {
     name = "fitch";
     src = ./../app;
 
-    buildInputs = [ pkgs.nodejs ];
+    buildInputs = [ pkgs.nodejs pkgs.nodePackages.uglify-js ];
 
     installPhase = ''
       mkdir -p $out
-      cp ${nixed.modules.Main.bundle {}} $out/index.js
+      cp ${nixed.modules.Main.bundle {}} ./index.js
+      uglifyjs ./index.js -o $out/index.js
       cp $src/{index.html,css.css,favicon.ico} $out
     '';
   };
