@@ -12,6 +12,7 @@ import Data.Monoid (guard)
 import Html as Html
 import Html (Html, button, div, span, text, input, label, p, pre, a)
 import Attribute (Attribute, value, addClass, id, style, type_, href, target, onInput, onClick, on, charset, rel)
+import Attribute as A
 
 import Fitch.Types (Proofy (..), Path, Model, Message (..), DecoratedLine, KnowledgeBox (..))
 import Fitch.Proof as Proof
@@ -113,6 +114,7 @@ viewProof depth model proof = case proof of
         [ addClass "line:input"
         , id (Path.toId path)
         , value text
+        , A.autocomplete "off"
         , onInput (Formula.desugar >>> SetFormulaAt path)
         , onKeydown (lineOnKeydown model.proof path)
         ]
