@@ -13,10 +13,17 @@ function encode(s) {
     cs.push(charset[n % b]);
     n = n / b;
   }
-  return cs.reverse().join('');
+
+  let result = cs.reverse().join('');
+  result = 'u' + result;  // future-proof to allow other prefixes,
+                          // e.g. to do acsii-optimizes encoding
+  return result;
 }
 
 function decode(s) {
+  if (!s.startsWith('u')) return null;
+  s = s.slice(1);
+
   let n = 0n;
 
   for (let i = 0; i < s.length; i++) {
