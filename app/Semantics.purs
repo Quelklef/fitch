@@ -357,7 +357,9 @@ justifyForallIntro knowledge goal =
         in case assumptions /\ maybeConclusion of
           [Declaration blockDeclaringName] /\ Just conclusion ->
             if (Formula.substitute blockDeclaringName forallName conclusion == forallClaim)
-               && (not $ forallName `Set.member` Formula.freeObjectVars  conclusion) -- See (*)
+               && (forallName == blockDeclaringName
+                   || (not $ forallName `Set.member` Formula.freeObjectVars conclusion))
+                  -- ↑ See (*)
             then Just ("∀I:" <> rangeOf block <> "[" <> String.singleton blockDeclaringName <> "→" <> String.singleton forallName <> "]")
             else Nothing
           _ -> Nothing)

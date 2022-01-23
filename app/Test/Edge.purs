@@ -45,7 +45,7 @@ main = do
     ││││ 5. [x]            'x' is shadowed
     │││├──────────
     ││││ 6. Px             RI:4
-    │││ 7. ∀xPx            invalid
+    │││ 7. ∀xPx            ∀I:5-6[x→x]
     ││ 8. ∀xPx             ∃E:2,3-7
     │ 9. (∃xPx)→(∀xPx)     →I:2-8
   """
@@ -58,7 +58,18 @@ main = do
     │ 5. ∀x     malformed
     │ 6. ∃x     assumed
     ├──────────
-    │ 7.        
+    │ 7.
+  """
+
+  edgecase "Bug #16; ∀I with no variable sub" """
+    │ 1.          
+    ├──────────
+    ││ 2. [x]     
+    │├──────────
+    ││ 3. Px      invalid
+    │ 4.          
+    │ 5. ∀xPx     ∀I:2-3[x→x]
+    │ 6. ∀aPa     ∀I:2-3[x→a]
   """
 
   edgecase "DeMorgan's (∨)" """
