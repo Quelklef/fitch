@@ -16,25 +16,24 @@ import Fitch.Proof as Proof
 import Fitch.Decorate as Decorate
 import Fitch.Serialize as Serialize
 
--- ↓ Replaces the url of the page without reloading
-foreign import setUrlArg :: String -> Effect Unit
-
-foreign import copyToClipboard :: String -> Effect Unit
-
-foreign import getByIdAndSetFocus :: String -> Effect Unit
-
-foreign import reupInput :: { id :: String, value :: String } -> Effect Unit
--- ↑ Sets the value of an input
---   Ideally, this would be handled in the view.
---   However, in this app, we set input value to values other than what the
---   user typed, which will move the caret if special care is not taken.
-
 effectToCmd :: forall a. Effect a -> Cmd Message
 effectToCmd eff = attemptTask (const Noop) task
   where task = makeTask \done _ -> eff *> done unit *> pure (pure unit)
 
 setFocusTo :: Path -> Cmd Message
 setFocusTo path = effectToCmd (getByIdAndSetFocus $ Path.toId path)
+  where
+  getByIdAndSetFocus :: String -> Effect Unit
+  getByIdAndSetFocus = asm """
+    id => () => {
+      const $el = document.getElementById(id);
+      if (!$el) {
+        console.warn('No element with id', id);
+        return;
+      }
+      $el.focus();
+    }
+  """
 
 update :: Message -> Model -> Update Message Model
 update msg model =
@@ -59,6 +58,34 @@ update msg model =
        pure $ model { proof = newProof }
      Nothing -> pure model
 
+  -- ↓ Replace the url of the page without reloading
+  setUrlArg :: String -> Effect Unit
+  setUrlArg = asm """
+    arg => () => {
+      window.history.replaceState(null, '', window.location.pathname + "?proof=" + encodeURI(arg));
+    }
+  """
+
+  copyToClipboard :: String -> Effect Unit
+  copyToClipboard = asm """
+    (function() {
+      // Stolen from https://stackoverflow.com/a/45308151/4608364
+      const copyToClipboard_impl =
+      function(){const e=document.createElement("textarea");return e.style.cssText
+      ="position: absolute; left: -99999em",e.setAttribute("readonly",!0),document.
+      body.appendChild(e),function(t){e.value=t;const n=document.getSelection().
+      rangeCount>0&&document.getSelection().getRangeAt(0);if(navigator.userAgent.
+      match(/ipad|ipod|iphone/i)){const t=e.contentEditable;e.contentEditable=!0;
+      const n=document.createRange();n.selectNodeContents(e);const o=window.
+      getSelection();o.removeAllRanges(),o.addRange(n),e.setSelectionRange(0,999999)
+      ,e.contentEditable=t}else e.select();try{const e=document.execCommand("copy");
+      return n&&(document.getSelection().removeAllRanges(),document.getSelection()
+      .addRange(n)),e}catch(e){return console.error(e),!1}}}();
+
+      return str => () => copyToClipboard_impl(str);
+    })()
+  """
+
 doSetFormulaAt :: Path -> String -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
 doSetFormulaAt =
 
@@ -76,6 +103,25 @@ doSetFormulaAt =
         ProofBlock _ _ -> Nothing
         ProofLine  _old -> Just (ProofLine new)
       Just { head: idx, tail: idxs } -> Proof.replaceM idx (doSetFormulaAtImpl idxs new) proof
+
+  -- ↓ Sets the value of an input
+  --   Ideally, this would be handled in the view.
+  --   However, in this app, we set input value to values other than what the
+  --   user typed, which will move the caret if special care is not taken.
+  reupInput :: { id :: String, value :: String } -> Effect Unit
+  reupInput = asm """
+    ({ id, value }) => () => {
+      const $input = document.getElementById(id);
+      if (!$input || !($input instanceof HTMLInputElement)) {
+        console.error(`Unable to reup ${id}`);
+        return;
+      }
+
+      const i = $input.selectionEnd + (value.length - $input.value.length);
+      $input.value = value;
+      $input.selectionStart = $input.selectionEnd = i;
+    }
+  """
 
 doNewLineAfter :: Path -> Boolean -> Proofy String -> Maybe (Proofy String /\ Cmd Message)
 doNewLineAfter path preferAssumption proof = do

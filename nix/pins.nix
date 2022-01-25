@@ -23,6 +23,15 @@ elmish-latest =
               };
   in purs-nix.ps-pkgs-ns.ursi.elmish.local src;
 
+ps-inline-asm =
+  let src = pkgs.fetchFromGitHub
+              { owner  = "quelklef";
+                repo   = "ps-inline-asm";
+                rev    = "af95a5ae20d2e38c037b67a141c7e4c511bba888";
+                sha256 = "1bsla6r7rpnkxl6rb25d780rmjbvyhw1ccgkkfjvj59lnam1cb49";
+              };
+  in import src { inherit pkgs; };
+
 npmlock2nix =
   let fetched = builtins.fetchGit {
         url = "https://github.com/tweag/npmlock2nix.git";

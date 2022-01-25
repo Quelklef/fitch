@@ -14,8 +14,6 @@ import Fitch.Update (update)
 import Fitch.View (view)
 import Fitch.Serialize as Serialize
 
-foreign import getUrlArg :: Effect (Nullable String)
-
 main :: Effect Unit
 main = do
 
@@ -31,3 +29,9 @@ main = do
         }
 
   runEffectFn1 fn unit
+
+
+  where
+
+  getUrlArg :: Effect (Nullable String)
+  getUrlArg = asm "() => new URL(window.location.href).searchParams.get('proof')"

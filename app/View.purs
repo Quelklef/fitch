@@ -66,8 +66,18 @@ onKeydown respond =
       when preventDefault $ doPreventDefault event
       pure (Just msg)
 
-foreign import getKeyCodeShiftKey :: forall ev. ev -> { keyCode :: Int, shiftKey :: Boolean }
-foreign import doPreventDefault :: forall ev. ev -> Effect Unit
+  where
+
+  getKeyCodeShiftKey :: forall ev. ev -> { keyCode :: Int, shiftKey :: Boolean }
+  getKeyCodeShiftKey = asm """
+    ev => ({ keyCode: ev.keyCode
+           , shiftKey: ev.shiftKey })
+  """
+
+  doPreventDefault :: forall ev. ev -> Effect Unit
+  doPreventDefault = asm """
+    ev => () => ev.preventDefault()
+  """
 
 checkbox :: forall msg. Eq msg => Boolean -> msg -> String -> Html msg
 checkbox _isChecked msg name =

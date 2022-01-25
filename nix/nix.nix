@@ -1,9 +1,9 @@
 let
 
-inherit (import ./pins.nix) pkgs purs-nix elmish-latest npmlock2nix gitignoreSource;
+inherit (import ./pins.nix) pkgs purs-nix elmish-latest ps-inline-asm npmlock2nix gitignoreSource;
 
 nixed = purs-nix.purs
-  { srcs = [ ../app ];
+  { srcs = [ ];
     dependencies =
       with purs-nix.ps-pkgs;
       [ console
@@ -24,13 +24,19 @@ in {
 
   deriv = pkgs.stdenv.mkDerivation {
     name = "fitch";
-    src = ./../app;
+    src = ../app;
 
-    buildInputs = [ pkgs.nodePackages.uglify-js ];
+    buildInputs = [
+      pkgs.nodePackages.uglify-js
+      (nixed.command { srcs = [ "." ]; })
+      ps-inline-asm
+    ];
 
     installPhase = ''
+      shopt -s extglob globstar
       mkdir -p $out
-      cp ${nixed.modules.Main.bundle {}} ./index.js
+      ps-inline-asm ./**/*.purs
+      purs-nix bundle
       uglifyjs ./index.js -o $out/index.js
       cp $src/{index.html,css.css,favicon.ico} $out
     '';
@@ -39,6 +45,7 @@ in {
   shell = pkgs.mkShell {
     buildInputs =
       [ (nixed.command { srcs = [ ''$(realpath "$PWD/app")'' ]; })
+        ps-inline-asm
         pkgs.nodejs-17_x  # some newer APIs needed for tests
         pkgs.python3
         pkgs.entr
@@ -50,13 +57,19 @@ in {
         echo watching
         find app | entr -cs '
           set -eo pipefail
+          shopt -s extglob globstar
+
           echo building
 
           mkdir -p .working
           cd .working
 
-          cp -r ../{app,app/{index.html,css.css,favicon.ico}} .
+          # Repopulate all but compiler output
+          rm -rf !(output)
+          cp -r ../{app,app/{index.html,css.css,favicon.ico}} ./.
 
+          # Compile
+          ps-inline-asm ./**/*.purs
           purs-nix bundle
         '
       )}
