@@ -20,14 +20,12 @@ main = do
   arg <- Nullable.toMaybe <$> getUrlArg
   let proof0 = arg >>= (Serialize.deserialize >>> hush) # fromMaybe (ProofBlock [""] [])
 
-  let fn = app
-        { init: const $ pure $ model0 proof0
-        , subscriptions: const mempty
-        , update: flip update
-        , view
-        }
-
-  runEffectFn1 fn unit
+  flip runEffectFn1 unit $ app
+    { init: const $ pure $ model0 proof0
+    , subscriptions: const mempty
+    , update: flip update
+    , view
+    }
 
 
   where
