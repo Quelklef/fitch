@@ -24,18 +24,16 @@ elmish-latest =
   in purs-nix.ps-pkgs-ns.ursi.elmish.local src;
 
 ps-inline-asm =
-  let src = pkgs.fetchFromGitHub
-              { owner  = "quelklef";
-                repo   = "ps-inline-asm";
-                rev    = "af95a5ae20d2e38c037b67a141c7e4c511bba888";
-                sha256 = "1bsla6r7rpnkxl6rb25d780rmjbvyhw1ccgkkfjvj59lnam1cb49";
+  let src = builtins.fetchGit
+              { url = "https://github.com/quelklef/ps-inline-asm";
+                rev = "7e1bc0b44460836f6d670ab6bdbca41c6245afee";
               };
-  in import src { inherit pkgs; };
+  in import src { }; # Using our pkgs breaks it, I think due to a higher node version
 
 npmlock2nix =
   let fetched = builtins.fetchGit {
         url = "https://github.com/tweag/npmlock2nix.git";
-        rev = "8ada8945e05b215f3fffbd10111f266ea70bb502";
+        rev = "228988a72aa375b7632ef658e93c9edcced169eb";
       };
   in import fetched { inherit pkgs; };
 

@@ -35,7 +35,7 @@ in {
     installPhase = ''
       shopt -s extglob globstar
       mkdir -p $out
-      ps-inline-asm ./**/*.purs
+      ps-inline-asm --in=. --in-place
       purs-nix bundle
       uglifyjs ./index.js -o $out/index.js
       cp $src/{index.html,css.css,favicon.ico} $out
@@ -67,7 +67,7 @@ in {
         cp -r ../{app,app/{index.html,css.css,favicon.ico}} ./.
 
         # Desugar
-        ps-inline-asm ./**/*.purs
+        ps-inline-asm --in=./app --in-place
       '
 
       function test {(

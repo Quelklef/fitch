@@ -94,9 +94,7 @@ onKeydown respond =
   """
 
   doPreventDefault :: forall ev. ev -> Effect Unit
-  doPreventDefault = asm """
-    ev => () => ev.preventDefault()
-  """
+  doPreventDefault = asm "ev => () => ev.preventDefault()"
 
 checkbox :: forall msg. Eq msg => Boolean -> msg -> String -> Html msg
 checkbox _isChecked msg name =
