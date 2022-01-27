@@ -53,25 +53,34 @@ in {
 
     shellHook = ''
 
+      _build='
+        set -eo pipefail
+        shopt -s extglob globstar
+
+        echo building
+
+        mkdir -p .working
+        cd .working
+
+        # Repopulate all but compiler output
+        rm -rf !(output)
+        cp -r ../{app,app/{index.html,css.css,favicon.ico}} ./.
+
+        # Desugar
+        ps-inline-asm ./**/*.purs
+      '
+
+      function test {(
+        eval "$_build"
+        purs-nix test
+      )}
+
       function workflow.build {(
         echo watching
-        find app | entr -cs '
-          set -eo pipefail
-          shopt -s extglob globstar
-
-          echo building
-
-          mkdir -p .working
-          cd .working
-
-          # Repopulate all but compiler output
-          rm -rf !(output)
-          cp -r ../{app,app/{index.html,css.css,favicon.ico}} ./.
-
-          # Compile
-          ps-inline-asm ./**/*.purs
+        find app | entr -cs "
+          $_build
           purs-nix bundle
-        '
+        "
       )}
 
       function workflow.serve {(
