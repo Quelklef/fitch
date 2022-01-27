@@ -5,11 +5,12 @@ import Effect (Effect)
 import Data.Array as Array
 import Data.Tuple.Nested ((/\))
 import Data.Maybe (Maybe (..), fromMaybe)
-import Data.Foldable (intercalate)
+import Data.Foldable (intercalate, fold)
 import Data.Either (Either (..), either)
 import Data.Monoid (guard)
 
 import Html as Html
+import Html as H
 import Html (Html, button, div, span, text, input, label, p, pre, a)
 import Attribute (Attribute, value, addClass, id, style, type_, href, target, onInput, onClick, on, charset, rel)
 import Attribute as A
@@ -47,6 +48,16 @@ view model =
     , div [ id "right" ]
       [ Html.h3 [] [ text "Usage" ]
       , keyboardControlsHtml
+      , guard (model.strictNames) $ fold
+          [ H.br [ ]
+          , p [ ] [ text "Symbol restrictions:" ]
+          , H.ul
+            [ ]
+            [ H.li [ ] [ text "A-Z: predicates/propositions" ]
+            , H.li [ ] [ text "a-m: name variables" ]
+            , H.li [ ] [ text "n-z: variables" ]
+            ]
+          ]
       , Html.h3 [] [ text "Examples" ]
       , examplesHtml
       , Html.h3 [] [ text "Rules (click for example)" ]

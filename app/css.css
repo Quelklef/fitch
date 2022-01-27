@@ -73,6 +73,10 @@ a:hover {
   border-bottom-color: black;
 }
 
+ul {
+  padding-left: 2em;
+}
+
 * {
   font-family: "Cousine", monospace;
 }
