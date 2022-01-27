@@ -35,11 +35,11 @@ main =
 fromUrlParams :: Map String String -> Maybe Model
 fromUrlParams params = do
   strictNames <-
-    Map.lookup "names" params
-    >>= case _ of
-          "strict" -> Just true
-          "lax" -> Just false
-          _ -> Nothing
+    case Map.lookup "names" params of
+      Nothing -> Just true
+      Just "strict" -> Just true
+      Just "lax" -> Just false
+      Just _ -> Nothing
 
   proof <- Map.lookup "proof" params >>= (Serialize.deserialize >>> hush)
 
