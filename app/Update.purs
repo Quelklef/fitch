@@ -15,6 +15,7 @@ import Fitch.Path as Path
 import Fitch.Proof as Proof
 import Fitch.Decorate as Decorate
 import Fitch.Serialize as Serialize
+import Fitch.Formula as Formula
 
 effectToCmd :: forall a. Effect a -> Cmd Message
 effectToCmd eff = attemptTask (const Noop) task
@@ -39,7 +40,9 @@ update :: Message -> Model -> Update Message Model
 update msg model =
   case msg of
     ToggleDebugMode      -> pure $ model { showDebugInfo = not model.showDebugInfo }
-    CopyProofToClipboard -> model <$ (tell <<< effectToCmd) (model.proof # Decorate.decorate # Decorate.toText # copyToClipboard)
+    ToggleStrictNames    -> pure $ model { strictNames = not model.strictNames }
+    CopyProofToClipboard -> let decorate = Decorate.decorate (Formula.parse { strictNames: false })
+                            in model <$ (tell <<< effectToCmd) (model.proof # decorate # Decorate.toText # copyToClipboard)
     Noop                 -> pure model
     SetFocusTo path  -> model <$ tell (setFocusTo path)
     SetProofTo newProof                -> fromNewProofAndCommand $ Just (newProof /\ mempty)

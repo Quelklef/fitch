@@ -14,6 +14,7 @@ import Partial.Unsafe (unsafePartial)
 import Fitch.Types (Proofy (..))
 import Fitch.Decorate (decorate, toText)
 import Fitch.Serialize (serialize)
+import Fitch.Formula as Formula
 
 main :: Effect Unit
 main = do
@@ -77,7 +78,7 @@ main = do
     │ 6. ∀aPa     ∀I:2-3[x→a]
   """
 
-  edgecase "Cannot quantify over predicates" """
+  edgecaseStrict "Cannot quantify over predicates" """
     │ 1. Q        assumed
     │ 2. ∀P Q     malformed
     ├──────────
@@ -505,11 +506,18 @@ main = do
 
   where
 
+  edgecaseStrict :: String -> String -> Effect Unit
+  edgecaseStrict = edgecaseImpl true
+
   edgecase :: String -> String -> Effect Unit
-  edgecase label proofString =
+  edgecase = edgecaseImpl false
+
+  edgecaseImpl :: Boolean -> String -> String -> Effect Unit
+  edgecaseImpl strictNames label proofString =
     let
       expected = trim4 proofString
-      proof = decorate $ unsafeParseProof proofString
+      parseFormula = Formula.parse { strictNames }
+      proof = decorate parseFormula $ unsafeParseProof proofString
       actual = trim4 $ toText proof
       errors = linewiseDiff expected actual
                <#> (\(exp /\ act) -> "Expected " <> show exp <> " but got " <> show act)

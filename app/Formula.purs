@@ -9,17 +9,17 @@ import Data.Maybe (Maybe (..))
 import Data.Tuple.Nested ((/\))
 import Data.Foldable (fold)
 import Data.String.CodePoints (CodePoint)
-import Data.String.CodePoints (drop, length, singleton, take, stripPrefix, codePointAt) as String
+import Data.String.CodePoints (drop, length, singleton, take, stripPrefix, codePointAt, codePointFromChar) as String
 import Data.String.Pattern (Pattern (..)) as String
 import Data.String.Utils (filter) as String
 import Data.String.CodeUnits as StringU
-import Data.CodePoint.Unicode (isAlpha, isLower, isUpper)
+import Data.CodePoint.Unicode (isAlpha, isUpper)
 import Control.Lazy (defer)
 import Control.Alt ((<|>))
 import Text.Parsing.StringParser (Parser (..), fail, runParser, try)
 import Text.Parsing.StringParser.CodePoints (eof, string)
 import Text.Parsing.StringParser.CodeUnits (anyChar)
-import Text.Parsing.StringParser.Combinators (choice, many)
+import Text.Parsing.StringParser.Combinators (choice, many, lookAhead)
 
 import Fitch.Types (Formula (..), Name_Pred (..), Name_FOL (..), Name_Fitch (..), Name_Obj (..), getName)
 
@@ -65,8 +65,8 @@ desugar = case _ of
 
 type Scope = Set Name_FOL
 
-parse :: String -> Maybe Formula
-parse =
+parse :: { strictNames :: Boolean } -> String -> Maybe Formula
+parse { strictNames } =
 
     \str -> hush $ runParser (parseEmpty <|> parseFormula mempty <* eof) (String.filter (_ /= " ") str)
 
@@ -87,19 +87,6 @@ parse =
   parseEmpty :: Parser Formula
   parseEmpty = eof $> Empty
 
-  parseDeclaration :: Parser Formula
-  parseDeclaration = do
-    void $ string "["
-    char <- anyCodePoint
-    void $ string "]"
-
-    -- ↓ As a special case, allow comments after declarations
-    void $ many anyChar
-
-    if isAlpha char
-    then pure (Declaration (Name_Fitch char))
-    else fail "Expected declaration"
-
   parseNameRaw :: Parser CodePoint
   parseNameRaw = do
     char <- anyCodePoint
@@ -110,33 +97,62 @@ parse =
   parsePredName :: Parser Name_Pred
   parsePredName = do
     char <- parseNameRaw
-    if isUpper char
-    then pure $ Name_Pred char
-    else fail "Predicates must be uppercase"
+    when (strictNames && not (isUpper char)) $
+      fail "Predicates must be uppercase"
+    pure $ Name_Pred char
+
+  parseFolName :: Parser Name_FOL
+  parseFolName = do
+    char <- parseNameRaw
+    when (strictNames && not (char_n <= char && char <= char_z)) $
+      fail "Variables must be m-z"
+    pure (Name_FOL char)
+
+  parseFitchName :: Parser Name_Fitch
+  parseFitchName = do
+    char <- parseNameRaw
+    when (strictNames && not (char_a <= char && char <= char_m)) $
+      fail "Name variables must be a-n"
+    pure (Name_Fitch char)
 
   parseObjName :: Scope -> Parser Name_Obj
   parseObjName sc = do
-    char <- parseNameRaw
-    when (not $ isLower char) $
-      fail "Variables must be lowercase"
-    pure $
-      -- ↓ Infer free variables to be name variables
-      if Name_FOL char `Set.member` sc
-      then Name_Obj_FOL (Name_FOL char)
-      else Name_Obj_Fitch (Name_Fitch char)
+    char <- lookAhead parseNameRaw
+    -- ↓ Parse only bound names as variables
+    --   This allows variables and name variables to share symbols
+    let canBeFolName = Name_FOL char `Set.member` sc
+    if canBeFolName
+        then (Name_Obj_FOL <$> parseFolName) <|> (Name_Obj_Fitch <$> parseFitchName)
+        else Name_Obj_Fitch <$> parseFitchName
+
+  char_a = String.codePointFromChar 'a'
+  char_n = String.codePointFromChar 'n'
+  char_m = String.codePointFromChar 'm'
+  char_z = String.codePointFromChar 'z'
+
+  parseDeclaration :: Parser Formula
+  parseDeclaration = do
+    name <- string "[" *> parseFitchName <* string "]"
+    void $ many anyChar -- Allow comments after declarations
+    pure (Declaration name)
 
   parseApplication :: Scope -> Parser Formula
   parseApplication sc =
     choice <<< map try $
-      [ do pred <- parsePredName
-           vals <- Array.many (try $ parseObjName sc)
-           pure $ Application pred vals
 
       -- Allow aRb to mean Rab
-      , do a <- parseObjName sc
+      [ do a <- parseObjName sc
            r <- parsePredName
+           let Name_Pred n = r
+           when (not $ isUpper n)
+             (fail "aRb syntax requires a capitalized predicate")
            b <- parseObjName sc
            pure $ Application r [a, b]
+
+      -- Normal Pxy syntax
+      , do pred <- parsePredName
+           vals <- Array.many (try $ parseObjName sc)
+           pure $ Application pred vals
       ]
 
   parseNegation :: Scope -> Parser Formula
@@ -183,9 +199,7 @@ parse =
     -> Scope -> Parser Formula
   parseBinding symb mk sc = do
     void $ string symb
-    char <- parseNameRaw
-    when (not $ isLower char) (fail "Variables must be lowercase")
-    let name = Name_FOL char
+    name <- parseFolName
     let sc' = Set.insert name sc
     body <- parseEmpty <|> parseNonBinOp sc'
     pure $ mk name body

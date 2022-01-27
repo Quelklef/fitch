@@ -23,7 +23,10 @@ import Fitch.Util.ArrayUtil as ArrayUtil
 
 view :: Model -> { head :: Array (Html Message), body :: Array (Html Message) }
 view model =
-  let proof = viewProof 0 model (Decorate.decorate model.proof)
+  let
+    parseFormula = Formula.parse { strictNames: model.strictNames }
+    decorated = Decorate.decorate parseFormula model.proof
+    proof = viewProof 0 model decorated
   in template $
     div [ id "wrap" ]
     [ div [ id "left" ]
@@ -34,7 +37,12 @@ view model =
         , button [ onClick (SetProofTo $ ProofBlock [""] []) ] [ text "reset proof" ]
         ]
       , proof
-      , p [ addClass "options", addClass "--subtle" ] [ checkbox model.showDebugInfo ToggleDebugMode "debug" ]
+      , p
+        [ addClass "options", addClass "--subtle" ]
+        [ checkbox (not model.strictNames) ToggleStrictNames "lax names"
+        , text " "
+        , checkbox model.showDebugInfo ToggleDebugMode "debug"
+        ]
       ]
     , div [ id "right" ]
       [ Html.h3 [] [ text "Usage" ]

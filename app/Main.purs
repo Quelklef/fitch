@@ -9,7 +9,7 @@ import Data.Nullable (Nullable)
 import Data.Nullable as Nullable
 import Data.Either (hush)
 
-import Fitch.Types (Proofy(..))
+import Fitch.Types (Proofy(..), model0)
 import Fitch.Update (update)
 import Fitch.View (view)
 import Fitch.Serialize as Serialize
@@ -19,10 +19,9 @@ main = do
 
   arg <- Nullable.toMaybe <$> getUrlArg
   let proof0 = arg >>= (Serialize.deserialize >>> hush) # fromMaybe (ProofBlock [""] [])
-  let model0 = { proof: proof0, showDebugInfo: false }
 
   let fn = app
-        { init: const $ pure model0
+        { init: const $ pure $ model0 proof0
         , subscriptions: const mempty
         , update: flip update
         , view

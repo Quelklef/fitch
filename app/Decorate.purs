@@ -12,19 +12,18 @@ import Data.Foldable (intercalate, maximum, sum)
 import Data.String.CodePoints as String
 
 import Fitch.Types (Proofy(..), Formula(..), Path, Lineno, Knowledge, KnowledgeBox(..), DecoratedLine)
-import Fitch.Formula as Formula
 import Fitch.Semantics as Semantics
 import Fitch.Util.StringUtil as StringUtil
 
-decorate :: Proofy String -> Proofy DecoratedLine
-decorate = decorateImpl 1 [] [] >>> fst
+decorate :: (String -> Maybe Formula) -> Proofy String -> Proofy DecoratedLine
+decorate parse = decorateImpl 1 [] [] >>> fst
 
   where
 
   decorateImpl :: Lineno -> Path -> Knowledge -> Proofy String -> Proofy DecoratedLine /\ Lineno
   decorateImpl lineno path knowledge = case _ of
     ProofLine text ->
-      let mayFormula = Formula.parse text
+      let mayFormula = parse text
           decorated =
             { text
             , formula: mayFormula # fromMaybe Empty
@@ -47,7 +46,7 @@ decorate = decorateImpl 1 [] [] >>> fst
   decorateHead idx lineno pathStub knowledge = Array.uncons >>> case _ of
     Nothing -> [] /\ lineno /\ knowledge
     Just { head: lineText, tail: restLines } ->
-      let mayFormula = Formula.parse lineText
+      let mayFormula = parse lineText
           decoratedLine =
             { text: lineText
             , formula: mayFormula # fromMaybe Empty

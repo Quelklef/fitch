@@ -17,11 +17,20 @@ import Test.QuickCheck.Gen (sized, resize, arrayOf, arrayOf1, oneOf) as QC
 type Model =
   { proof :: Proofy String
   , showDebugInfo :: Boolean
+  , strictNames :: Boolean
+  }
+
+model0 :: Proofy String -> Model
+model0 proof =
+  { proof
+  , showDebugInfo: false
+  , strictNames: true
   }
 
 -- ↓ A program message
 data Message
   = ToggleDebugMode
+  | ToggleStrictNames
   | CopyProofToClipboard
   | SetProofTo (Proofy String)
   | Noop
