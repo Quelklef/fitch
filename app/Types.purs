@@ -20,9 +20,9 @@ type Model =
   , strictNames :: Boolean
   }
 
-model0 :: Proofy String -> Model
-model0 proof =
-  { proof
+nilModel :: Model
+nilModel =
+  { proof: ProofBlock [""] []
   , showDebugInfo: false
   , strictNames: true
   }

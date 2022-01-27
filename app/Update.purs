@@ -6,6 +6,7 @@ import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Array as Array
 import Data.Tuple.Nested ((/\), type (/\))
 import Control.Monad.Writer.Class (tell)
+import Control.Monad.Trans.Class (lift)
 import Task (makeTask)
 
 import Platform (Update, Cmd, attemptTask)
@@ -16,6 +17,7 @@ import Fitch.Proof as Proof
 import Fitch.Decorate as Decorate
 import Fitch.Serialize as Serialize
 import Fitch.Formula as Formula
+import Fitch.SyncUrl as SyncUrl
 
 effectToCmd :: forall a. Effect a -> Cmd Message
 effectToCmd eff = attemptTask (const Noop) task
@@ -36,8 +38,21 @@ setFocusTo path = effectToCmd (getByIdAndSetFocus $ Path.toId path)
     }
   """
 
+
 update :: Message -> Model -> Update Message Model
-update msg model =
+update msg model = do
+  model' <- update' msg model
+
+  -- Update URL
+  lift $ SyncUrl.writeParams
+          [ "proof" /\ Serialize.serialize model'.proof
+          , "names" /\ if model'.strictNames then "strict" else "lax"
+          ]
+
+  pure model'
+
+update' :: Message -> Model -> Update Message Model
+update' msg model =
   case msg of
     ToggleDebugMode      -> pure $ model { showDebugInfo = not model.showDebugInfo }
     ToggleStrictNames    -> pure $ model { strictNames = not model.strictNames }
@@ -55,19 +70,8 @@ update msg model =
   where
 
   fromNewProofAndCommand = case _ of
-     Just (newProof /\ cmd) -> do
-       tell cmd
-       (tell <<< effectToCmd) (setUrlArg $ Serialize.serialize newProof)
-       pure $ model { proof = newProof }
+     Just (newProof /\ cmd) -> tell cmd $> model { proof = newProof }
      Nothing -> pure model
-
-  -- ↓ Replace the url of the page without reloading
-  setUrlArg :: String -> Effect Unit
-  setUrlArg = asm """
-    arg => () => {
-      window.history.replaceState(null, '', window.location.pathname + "?proof=" + encodeURI(arg));
-    }
-  """
 
   copyToClipboard :: String -> Effect Unit
   copyToClipboard = asm """

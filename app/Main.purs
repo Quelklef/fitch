@@ -4,31 +4,43 @@ import Prelude
 import Effect (Effect)
 import Effect.Uncurried (runEffectFn1)
 import Platform (app)
-import Data.Maybe (fromMaybe)
-import Data.Nullable (Nullable)
-import Data.Nullable as Nullable
+import Data.Map as Map
+import Data.Maybe (Maybe (..), fromMaybe)
 import Data.Either (hush)
+import Control.Monad.Trans.Class (lift)
 
-import Fitch.Types (Proofy(..), model0)
+import Fitch.Types (nilModel)
 import Fitch.Update (update)
 import Fitch.View (view)
 import Fitch.Serialize as Serialize
+import Fitch.SyncUrl as SyncUrl
 
 main :: Effect Unit
-main = do
-
-  arg <- Nullable.toMaybe <$> getUrlArg
-  let proof0 = arg >>= (Serialize.deserialize >>> hush) # fromMaybe (ProofBlock [""] [])
-
+main =
   flip runEffectFn1 unit $ app
-    { init: const $ pure $ model0 proof0
+    { init
     , subscriptions: const mempty
     , update: flip update
     , view
     }
 
-
   where
 
-  getUrlArg :: Effect (Nullable String)
-  getUrlArg = asm "() => new URL(window.location.href).searchParams.get('proof')"
+  init _ = do
+    params <- lift SyncUrl.readParams
+
+    let model0 =
+          fromMaybe nilModel do
+
+            strictNames <-
+              Map.lookup "names" params
+              >>= case _ of
+                    "strict" -> Just true
+                    "lax" -> Just false
+                    _ -> Nothing
+
+            proof <- Map.lookup "proof" params >>= (Serialize.deserialize >>> hush)
+
+            pure { proof, strictNames, showDebugInfo: false }
+
+    pure model0
