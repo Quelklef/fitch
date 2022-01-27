@@ -8,9 +8,10 @@ import Data.Either (Either (..))
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Array ((!!))
 import Data.Array as Array
+import Data.Map as Map
 import Data.Foldable (intercalate)
 import Partial.Unsafe (unsafePartial)
-import Test.QuickCheck (Result, (<?>), quickCheck')
+import Test.QuickCheck (Result, (<?>), quickCheck', (===))
 import Test.QuickCheck.Gen (Gen, suchThat, chooseInt)
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 
@@ -19,17 +20,22 @@ import Fitch.Path (linearSucc, linearPred)
 import Fitch.Types (Path, Proofy (..))
 import Fitch.Serialize (serialize, deserialize)
 import Fitch.Serialize as Serialize
+import Main (fromUrlParams)
+import Fitch.Update (toUrlParams)
 
 main :: Effect Unit
 main = do
 
-  log "serialize >> deserialize = id"
+  log "proof: serialize >> deserialize = id"
   quickCheck' 25 testSerializationRoundtrip
 
-  log "path succ >> pred = id"
+  log "model: toUrl >> fromUrl = id"
+  quickCheck' 25 $ testUrlRoundtrip
+
+  log "path: succ >> pred = id"
   quickCheck' 100 $ testLinearStepUnstep Path.pathToLastLine linearSucc linearPred
 
-  log "path pred >> succ = id"
+  log "path: pred >> succ = id"
   quickCheck' 100 $ testLinearStepUnstep Path.pathToFirstLine linearPred linearSucc
 
 
@@ -94,3 +100,11 @@ testLinearStepUnstep getOmittedPath step unstep  =
 
     unsafeFromJust :: forall a. Maybe a -> a
     unsafeFromJust x = unsafePartial (fromJust x)
+
+
+testUrlRoundtrip :: Gen Result
+testUrlRoundtrip = do
+  model <- arbitrary
+  let model' = fromUrlParams (Map.fromFoldable (toUrlParams model))
+  let model'' = model' <#> (_ { showDebugInfo = model.showDebugInfo })  -- not included in URL params
+  pure $ model'' === Just model

@@ -42,14 +42,14 @@ setFocusTo path = effectToCmd (getByIdAndSetFocus $ Path.toId path)
 update :: Message -> Model -> Update Message Model
 update msg model = do
   model' <- update' msg model
-
-  -- Update URL
-  lift $ SyncUrl.writeParams
-          [ "proof" /\ Serialize.serialize model'.proof
-          , "names" /\ if model'.strictNames then "strict" else "lax"
-          ]
-
+  lift $ SyncUrl.writeParams (toUrlParams model')
   pure model'
+
+toUrlParams :: Model -> Array (String /\ String)
+toUrlParams model =
+  [ "proof" /\ Serialize.serialize model.proof
+  , "names" /\ if model.strictNames then "strict" else "lax"
+  ]
 
 update' :: Message -> Model -> Update Message Model
 update' msg model =
