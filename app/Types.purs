@@ -7,6 +7,7 @@ import Data.String.CodePoints (CodePoint)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.Foldable (class Foldable, foldMap, foldlDefault, foldrDefault)
+import Data.String.CodePoints (singleton) as String
 import Control.Lazy (defer)
 import Test.QuickCheck.Arbitrary (class Arbitrary)
 import Test.QuickCheck.Arbitrary (arbitrary) as QC
@@ -35,27 +36,79 @@ derive instance Eq Message
 derive instance Generic Message _
 instance Show Message where show = genericShow
 
+-- Order-0 variable; ie, reference to a predicate-proposition
+-- For instance, the P in ∀xPxy
+newtype Name_Pred = Name_Pred CodePoint
+
+-- Order-1 variable; ie, bound variable in FOL
+-- For instance, the x in ∀xPxy
+newtype Name_FOL = Name_FOL CodePoint
+
+-- Fitch-system-specific name variables
+-- For instance, the y in ∀xPxy
+newtype Name_Fitch = Name_Fitch CodePoint
+
+-- Reference to an object, ie, either a variable or a name variable
+data Name_Obj = Name_Obj_FOL Name_FOL | Name_Obj_Fitch Name_Fitch
+
 -- ↓ A formula in a proof
 data Formula
   = Empty
   | Bottom
   -- ↓ Introduces a new variable
-  | Declaration CodePoint
+  | Declaration Name_Fitch
   -- ↓ Application of a predicate to 0 or more arguments
   -- ↓ (Propositions are treated as arity-0 predicates)
-  | Application CodePoint (Array CodePoint)
+  | Application Name_Pred (Array Name_Obj)
   | Negation Formula
   | Conjunction Formula Formula
   | Disjunction Formula Formula
   | Implication Formula Formula
   | Biconditional Formula Formula
-  | Forall CodePoint Formula
-  | Exists CodePoint Formula
-  | Equality CodePoint CodePoint
+  | Forall Name_FOL Formula
+  | Exists Name_FOL Formula
+  | Equality Name_Obj Name_Obj
+
+derive instance Eq Name_Pred
+derive instance Generic Name_Pred _
+instance Show Name_Pred where show x = genericShow x
+instance Ord Name_Pred where compare (Name_Pred a) (Name_Pred b) = compare a b
+
+derive instance Eq Name_FOL
+derive instance Generic Name_FOL _
+instance Show Name_FOL where show x = genericShow x
+instance Ord Name_FOL where compare (Name_FOL a) (Name_FOL b) = compare a b
+
+derive instance Eq Name_Fitch
+derive instance Generic Name_Fitch _
+instance Show Name_Fitch where show x = genericShow x
+instance Ord Name_Fitch where compare (Name_Fitch a) (Name_Fitch b) = compare a b
+
+derive instance Eq Name_Obj
+derive instance Generic Name_Obj _
+instance Show Name_Obj where show x = genericShow x
 
 derive instance Eq Formula
 derive instance Generic Formula _
 instance Show Formula where show x = genericShow x
+
+-- IsName ≅ Name_Pred + Name_FOL + Name_Fitch + Name_Obj
+class IsName n where
+  getName :: n -> String
+
+instance IsName Name_Pred where
+  getName (Name_Pred n) = String.singleton n
+
+instance IsName Name_FOL where
+  getName (Name_FOL n) = String.singleton n
+
+instance IsName Name_Fitch where
+  getName (Name_Fitch n) = String.singleton n
+
+instance IsName Name_Obj where
+  getName (Name_Obj_FOL n) = getName n
+  getName (Name_Obj_Fitch n) = getName n
+
 
 -- ↓ Something in the shape of a proof,
 -- ↓ but containing an unknown type representing proof lines

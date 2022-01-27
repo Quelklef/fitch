@@ -6,15 +6,13 @@ import Data.Set (Set)
 import Data.Array as Array
 import Data.Tuple.Nested ((/\), type (/\))
 import Data.Maybe (Maybe (..), fromMaybe)
-import Data.String.CodePoints as String
-import Data.String.CodePoints (CodePoint)
 import Data.Either (Either (..))
 import Data.Foldable (findMap, find, and, fold)
 import Data.List.Lazy as LList
 import Data.Monoid (guard)
 import Control.Alt ((<|>))
 
-import Fitch.Types (Proofy (..), Formula (..), Knowledge, DecoratedLine)
+import Fitch.Types (Proofy (..), Formula (..), Knowledge, DecoratedLine, Name_FOL, Name_Fitch, Name_Obj (..), getName)
 import Fitch.Proof as Proof
 import Fitch.Formula as Formula
 import Fitch.Util.ArrayUtil as ArrayUtil
@@ -24,7 +22,6 @@ verifySemantics :: Knowledge -> Formula -> Either String Unit
 verifySemantics knowledge formula =
   let semanticChecks =
         [ checkNoUndeclaredFreeVars
-        , checkQuantifiedNamesNotUsedAsPredicatesOrPropositions
         , checkNoShadowingInFormulas
         , checkNoShadowingInNestedBlocks
         ]
@@ -35,9 +32,9 @@ verifySemantics knowledge formula =
 -- ↓ Checks that all free variables are declared
 checkNoUndeclaredFreeVars :: Knowledge -> Formula -> Maybe String
 checkNoUndeclaredFreeVars knowledge formula =
-  Formula.freeObjectVars formula # findMap (\varName ->
+  Formula.freeVars formula # findMap (\varName ->
     guard (not $ varName `Set.member` declaredVars)
-          (Just $ "'" <> String.singleton varName <> "' is free"))
+          (Just $ "'" <> getName varName <> "' is free"))
 
   where
   declaredVars = Set.fromFoldable $ do
@@ -50,42 +47,47 @@ checkNoUndeclaredFreeVars knowledge formula =
       _ -> []
     pure $ var
 
--- ↓ Gives an error on e.g. '∀PPa'
-checkQuantifiedNamesNotUsedAsPredicatesOrPropositions :: Knowledge -> Formula -> Maybe String
-checkQuantifiedNamesNotUsedAsPredicatesOrPropositions _knowledge formula =
-  formula
-  # scopedFirstJust (\scope subformula ->
-    case subformula of
-      Application name args ->
-        let kind = if Array.length args == 0 then "proposition" else "predicate"
-        in guard (Set.member name scope)
-                 (Just $ "can't quantify over " <> kind <> " '" <> String.singleton name <> "'")
-      _ -> Nothing)
+scopedFirstJustGeneric :: forall m a. Monoid m => (Formula -> m) -> (m -> Formula -> Maybe a) -> Formula -> Maybe a
+scopedFirstJustGeneric declaring = impl mempty
+  where
+
+  impl :: m -> (m -> Formula -> Maybe a) -> Formula -> Maybe a
+  impl scope getMaybe formula =
+    case getMaybe scope formula of
+      Just x -> Just x
+      Nothing -> Formula.children formula
+                 # map (impl (scope <> declaring formula) getMaybe)
+                 # ArrayUtil.firstJust
 
 -- ↓ Looks for variable shadowing within formulas
 -- ↓ Such as in '∀x∃xPx'
 checkNoShadowingInFormulas :: Knowledge -> Formula -> Maybe String
 checkNoShadowingInFormulas _knowledge formula =
   formula
-  # scopedFirstJust (\scope subformula ->
-    Set.intersection scope (Formula.declaring subformula)
+  # scopedFirstJustGeneric declaring (\scope subformula ->
+    Set.intersection scope (declaring subformula)
     # (Array.head <<< Set.toUnfoldable)
-    # map (\name -> "'" <> String.singleton name <> "' is shadowed"))
+    # map (\name -> "'" <> getName name <> "' is shadowed"))
+
+  where
+
+  declaring :: Formula -> Set Name_FOL
+  declaring = case _ of
+    Forall name _ -> Set.singleton name
+    Exists name _ -> Set.singleton name
+    _ -> Set.empty
 
 -- ↓ Given a function and a formula, recursively call the function on all
 -- ↓ subformulas with the variable scope and current formula;
 -- ↓ Return the first Just returned.
-scopedFirstJust :: forall a. (Set CodePoint -> Formula -> Maybe a) -> Formula -> Maybe a
-scopedFirstJust = scopedFirstJustImpl Set.empty
+scopedFirstJust :: forall a. (Set Name_Fitch -> Formula -> Maybe a) -> Formula -> Maybe a
+scopedFirstJust = scopedFirstJustGeneric declaring
   where
 
-  scopedFirstJustImpl :: Set CodePoint -> (Set CodePoint -> Formula -> Maybe a) -> Formula -> Maybe a
-  scopedFirstJustImpl scope getMaybe formula =
-    case getMaybe scope formula of
-      Just x -> Just x
-      Nothing -> Formula.children formula
-                 # map (scopedFirstJustImpl (Set.union scope (Formula.declaring formula)) getMaybe)
-                 # ArrayUtil.firstJust
+  declaring :: Formula -> Set Name_Fitch
+  declaring = case _ of
+    Declaration name -> Set.singleton name
+    _ -> Set.empty
   
 -- ↓ Looks for variable shadowing within nested blocks
 -- ↓ Such as in:
@@ -105,7 +107,7 @@ checkNoShadowingInNestedBlocks knowledge formula =
       # findMap (\proof -> case proof <#> _.formula of
         ProofLine (Declaration outerDeclName) ->
             guard (outerDeclName == innerDeclName)
-                  (Just $ "'" <> String.singleton outerDeclName <> "' is shadowed")
+                  (Just $ "'" <> getName outerDeclName <> "' is shadowed")
         _ -> Nothing)
     _ -> Nothing
 
@@ -356,24 +358,11 @@ justifyForallIntro knowledge goal =
             maybeConclusion = _.formula <$> Proof.conclusion block
         in case assumptions /\ maybeConclusion of
           [Declaration blockDeclaringName] /\ Just conclusion ->
-            if (Formula.substitute blockDeclaringName forallName conclusion == forallClaim)
-               && (forallName == blockDeclaringName
-                   || (not $ forallName `Set.member` Formula.freeObjectVars conclusion))
-                  -- ↑ See (*)
-            then Just ("∀I:" <> rangeOf block <> "[" <> String.singleton blockDeclaringName <> "→" <> String.singleton forallName <> "]")
+            if Formula.substitute (Name_Obj_Fitch blockDeclaringName) (Name_Obj_FOL forallName) conclusion == forallClaim
+            then Just ("∀I:" <> rangeOf block <> "[" <> getName blockDeclaringName <> "→" <> getName forallName <> "]")
             else Nothing
           _ -> Nothing)
     _ -> Nothing
-
-    {- (*) This second condition disallows steps like step #7 in the following proof fragment
-
-                  ││││ 5. [y]            assumed
-                  │││├──────────
-                  ││││ 6. Px             RI:4
-                  │││ 7. ∀xPx            ∀I:5-6[y→x]
-
-           Also see https://github.com/Quelklef/fitch/issues/13 -}
-
 
 justifyForallElim :: Strategy
 justifyForallElim knowledge goal =
@@ -391,14 +380,14 @@ justifyForallElim knowledge goal =
 
     candidates = do
       forall' /\ forallName /\ forallClaim <- LList.fromFoldable foralls
-      freeVar <- LList.fromFoldable (Formula.freeObjectVars goal)
+      freeVar <- LList.fromFoldable (Formula.freeVars goal)
       pure $ forall' /\ forallName /\ forallClaim /\ freeVar
 
     valid (_ /\ forallName /\ forallClaim /\ freeVar) =
-      goal == (forallClaim # Formula.substitute forallName freeVar)
+      goal == (forallClaim # Formula.substitute (Name_Obj_FOL forallName) (Name_Obj_Fitch freeVar))
 
     pretty (forall' /\ forallName /\ _ /\ freeVar) =
-      "∀E:" <> rangeOf forall' <> "[" <> String.singleton forallName <> "→" <> String.singleton freeVar <> "]"
+      "∀E:" <> rangeOf forall' <> "[" <> getName forallName <> "→" <> getName freeVar <> "]"
 
 justifyExistsIntro :: Strategy
 justifyExistsIntro knowledge goal =
@@ -406,10 +395,10 @@ justifyExistsIntro knowledge goal =
     Exists existsName existsClaim ->
       statements knowledge # findMap \statement ->
            let formula = statement.formula in
-           Formula.freeObjectVars formula # findMap \freeVar ->
-            guard ((existsClaim # Formula.substitute existsName freeVar) == formula)
+           Formula.freeVars formula # findMap \freeVar ->
+            guard ((existsClaim # Formula.substitute (Name_Obj_FOL existsName) (Name_Obj_Fitch freeVar)) == formula)
                   (Just <<< fold $ [ "∃I:", rangeOf (ProofLine statement)
-                                   , "[" <> String.singleton freeVar <> "→" <> String.singleton existsName <> "]"
+                                   , "[" <> getName freeVar <> "→" <> getName existsName <> "]"
                                    ])
     _ -> Nothing
 
@@ -425,7 +414,7 @@ justifyExistsElim knowledge goal =
       Exists existsName existsClaim ->
         blockDeclarationNameAndAssumption block >>= \(blockDeclaringName /\ blockAssumption) ->
           let valid = and
-                [ (existsClaim # Formula.substitute existsName blockDeclaringName) == blockAssumption
+                [ (existsClaim # Formula.substitute (Name_Obj_FOL existsName) (Name_Obj_Fitch blockDeclaringName)) == blockAssumption
                 , (Proof.conclusion block <#> _.formula) == Just goal
                 ]
           in guard valid (Just $ "∃E:" <> rangeOf (ProofLine statement) <> "," <> rangeOf block)
@@ -437,7 +426,7 @@ justifyExistsElim knowledge goal =
     -- ↓ * There are exactly 1 or 2 assumptions, and
     -- ↓ * The first assumption is a declaration,
     -- ↓ evaluates to (the name declared, the second assumption or Empty if there is none)
-    blockDeclarationNameAndAssumption :: Proofy DecoratedLine -> Maybe (CodePoint /\ Formula)
+    blockDeclarationNameAndAssumption :: Proofy DecoratedLine -> Maybe (Name_Fitch /\ Formula)
     blockDeclarationNameAndAssumption block =
       case Proof.assumptions block <#> _.formula of
         [Declaration name, assumption] -> Just $ name /\ assumption
@@ -472,7 +461,7 @@ justifyEqualityElim knowledge goal =
             let valid = (statement.formula # Formula.substitute fromName toName) == goal
             in guard valid $ Just <<< fold $
                   [ "=E:", rangeOf equality, ",", rangeOf (ProofLine statement)
-                  , "[", String.singleton fromName, "→", String.singleton toName, "]"
+                  , "[", getName fromName, "→", getName toName, "]"
                   ]
       in tryReplacement lhs rhs # MaybeUtil.orElseLazy (\_ -> tryReplacement rhs lhs)
 

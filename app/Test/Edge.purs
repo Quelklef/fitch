@@ -34,7 +34,7 @@ main = do
     │ 9. (∃xPx)→(∀xPx)     →I:2-8
   """
 
-  edgecase "Bug #10; variable shadowing" """
+  edgecase "Bug #10; name variable shadowing" """
     │ 1.
     ├──────────
     ││ 2. ∃xPx             assumed
@@ -50,12 +50,17 @@ main = do
     │ 9. (∃xPx)→(∀xPx)     →I:2-8
   """
 
+  edgecase "FOL variable shadowing" """
+    │ 1. ∀x∃xP     'x' is shadowed
+    ├──────────
+  """
+
   edgecase "Bug #15; empty formula parsing" """
     │ 1. P∧     malformed
     │ 2. P∨     malformed
     │ 3. P→     malformed
     │ 4. P↔     malformed
-    │ 5. ∀x     malformed
+    │ 5. ∀x     assumed
     │ 6. ∃x     assumed
     ├──────────
     │ 7.
@@ -70,6 +75,21 @@ main = do
     │ 4.          
     │ 5. ∀xPx     ∀I:2-3[x→x]
     │ 6. ∀aPa     ∀I:2-3[x→a]
+  """
+
+  edgecase "Cannot quantify over predicates" """
+    │ 1. Q        assumed
+    │ 2. ∀P Q     malformed
+    ├──────────
+    │ 3.          
+  """
+
+  edgecase "Free variables properly detected" """
+    │ 1. [a]     
+    │ 2. Pa      assumed
+    │ 3. Pb      'b' is free
+    ├──────────
+    │ 4.         
   """
 
   edgecase "DeMorgan's (∨)" """
