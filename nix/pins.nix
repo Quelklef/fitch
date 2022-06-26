@@ -26,9 +26,10 @@ elmish-latest =
 ps-inline-asm =
   let src = builtins.fetchGit
               { url = "https://github.com/quelklef/ps-inline-asm";
-                rev = "7e1bc0b44460836f6d670ab6bdbca41c6245afee";
+                rev = "6b5985a9d65439430abb67d0c83dc8555424a6a3";
+                ref = "main";
               };
-  in import src { }; # Using our pkgs breaks it, I think due to a higher node version
+  in import src { inherit pkgs; };
 
 npmlock2nix =
   let fetched = builtins.fetchGit {
